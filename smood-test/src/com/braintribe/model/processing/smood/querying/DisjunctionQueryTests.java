@@ -13,13 +13,12 @@ package com.braintribe.model.processing.smood.querying;
 
 import org.junit.Test;
 
-import com.braintribe.model.processing.query.test.DisjunctionTests;
 import com.braintribe.model.processing.query.test.model.Person;
 import com.braintribe.model.query.SelectQuery;
 
 public class DisjunctionQueryTests extends AbstractSelectQueryTests {
 
-	/** @see DisjunctionTests#simpleDisjunctionOnSoureByDirectReference() */
+	/** SeeDisjunctionTests#simpleDisjunctionOnSoureByDirectReference() */
 	@Test
 	public void simpleDisjunctionOnSoureByDirectReference() {
 		Person p1 = b.person("P1").create();

@@ -15,7 +15,6 @@ import java.util.Date;
 
 import org.junit.Test;
 
-import com.braintribe.model.processing.query.test.IndexJoinTests;
 import com.braintribe.model.processing.query.test.model.Address;
 import com.braintribe.model.processing.query.test.model.Company;
 import com.braintribe.model.processing.query.test.model.Person;
@@ -30,7 +29,7 @@ public class IndexJoinQueryTests extends AbstractSelectQueryTests {
 	// ## . . . . . Value Join . . . . . ##
 	// ####################################
 
-	/** @see IndexJoinTests#simpleValueJoin() */
+	/** SeeIndexJoinTests#simpleValueJoin() */
 	@Test
 	public void simpleValueJoin() {
 		Company c1 = b.company("C1").indexedName("C1").create();
@@ -59,7 +58,7 @@ public class IndexJoinQueryTests extends AbstractSelectQueryTests {
 	// ## . . . . . Range Join . . . . . ##
 	// ####################################
 
-	/** @see IndexJoinTests#simpleRangeJoin() */
+	/** SeeIndexJoinTests#simpleRangeJoin() */
 	@Test
 	public void simpleRangeJoin() {
 		final long YEAR = 365 * 24 * 3600 * 1000;
@@ -91,7 +90,7 @@ public class IndexJoinQueryTests extends AbstractSelectQueryTests {
 	// ## . . Generated Value Join . . . ##
 	// ####################################
 
-	/** @see IndexJoinTests#mergeLookupJoin() */
+	/** SeeIndexJoinTests#mergeLookupJoin() */
 	@Test
 	public void mergeLookupJoin() {
 		Company c1 = b.company("C1").create();
@@ -116,7 +115,7 @@ public class IndexJoinQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see IndexJoinTests#mergeLookupJoinWithJoinOperand() */
+	/** SeeIndexJoinTests#mergeLookupJoinWithJoinOperand() */
 	@Test
 	public void mergeLookupJoinWithJoinOperand() {
 		Address a1 = b.address("a1").create();
@@ -144,7 +143,7 @@ public class IndexJoinQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see IndexJoinTests#mergeRangeJoin() */
+	/** SeeIndexJoinTests#mergeRangeJoin() */
 	@Test
 	public void mergeRangeJoin() {
 		Company c1 = b.company("C1").create();
@@ -170,7 +169,7 @@ public class IndexJoinQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see IndexJoinTests#mergeRangeJoin_Multi() */
+	/** SeeIndexJoinTests#mergeRangeJoin_Multi() */
 	@Test
 	@SuppressWarnings("unused")
 	public void mergeRangeJoin_Multi() {
@@ -206,7 +205,7 @@ public class IndexJoinQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see IndexJoinTests#mergeRangeJoinWithJoinOperand() */
+	/** SeeIndexJoinTests#mergeRangeJoinWithJoinOperand() */
 	@Test
 	public void mergeRangeJoinWithJoinOperand() {
 		Address a1 = b.address("a1").create();

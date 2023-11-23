@@ -40,8 +40,7 @@ You should have received a copy of the GNU Lesser General Public License along w
         <V.commons-codec>1.6</V.commons-codec>
         <V.commons-collections>3.2.1</V.commons-collections>
         <V.commons-lang>2.6</V.commons-lang>
-        <V.javax.servlet_javax.servlet-api>3.0.1</V.javax.servlet_javax.servlet-api>
-        <V.javax.servlet_servlet-api>2.4</V.javax.servlet_servlet-api>
+        <V.javax.servlet>3.1.0</V.javax.servlet>
         <V.joda-time>2.3</V.joda-time>
         <V.junit>4.11</V.junit>
         <V.org.antlr>4.5</V.org.antlr>

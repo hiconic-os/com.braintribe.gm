@@ -13,7 +13,6 @@ package com.braintribe.model.processing.smood.querying;
 
 import org.junit.Test;
 
-import com.braintribe.model.processing.query.test.AggregationWithHavingTests;
 import com.braintribe.model.processing.query.test.model.Person;
 import com.braintribe.model.query.SelectQuery;
 
@@ -22,7 +21,7 @@ import com.braintribe.model.query.SelectQuery;
  */
 public class AggregationWithHavingQueryTests extends AbstractSelectQueryTests {
 
-	/** @see AggregationWithHavingTests#conditionOnSelected() */
+	/** SeeAggregationWithHavingTests#conditionOnSelected() */
 	@Test
 	public void conditionOnSelected() {
 		b.person("p1").age(10).create();
@@ -49,7 +48,7 @@ public class AggregationWithHavingQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see AggregationWithHavingTests#conditionOnNotSelected() */
+	/** SeeAggregationWithHavingTests#conditionOnNotSelected() */
 	@Test
 	public void conditionOnNotSelected() {
 		b.person("p1").age(10).create();

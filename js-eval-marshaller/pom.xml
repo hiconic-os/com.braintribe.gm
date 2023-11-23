@@ -47,9 +47,9 @@ You should have received a copy of the GNU Lesser General Public License along w
         </dependency>
         <dependency>
             <groupId>javax.servlet</groupId>
-            <artifactId>servlet-api</artifactId>
+            <artifactId>javax.servlet-api</artifactId>
             <scope>provided</scope>
-            <version>${V.javax.servlet_servlet-api}</version>
+            <version>${V.javax.servlet}</version>
         </dependency>
     </dependencies>
 </project>

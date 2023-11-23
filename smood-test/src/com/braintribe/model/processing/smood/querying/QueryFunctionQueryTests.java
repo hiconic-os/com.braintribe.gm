@@ -13,7 +13,6 @@ package com.braintribe.model.processing.smood.querying;
 
 import org.junit.Test;
 
-import com.braintribe.model.processing.query.test.QueryFunctionTests;
 import com.braintribe.model.processing.query.test.model.Person;
 import com.braintribe.model.query.SelectQuery;
 
@@ -22,7 +21,7 @@ import com.braintribe.model.query.SelectQuery;
  */
 public class QueryFunctionQueryTests extends AbstractSelectQueryTests {
 
-	/** @see QueryFunctionTests#asStringCondition() */
+	/** SeeQueryFunctionTests#asStringCondition() */
 	@Test
 	public void asStringCondition() {
 		Person p1 = b.person("Jack").create();

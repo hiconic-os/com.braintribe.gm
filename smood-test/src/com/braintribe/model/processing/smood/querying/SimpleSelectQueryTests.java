@@ -19,7 +19,6 @@ import org.junit.Test;
 
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.value.EnumReference;
-import com.braintribe.model.processing.query.test.BasicUseCaseTests;
 import com.braintribe.model.processing.query.test.model.Color;
 import com.braintribe.model.processing.query.test.model.Company;
 import com.braintribe.model.processing.query.test.model.Owner;
@@ -31,7 +30,7 @@ import com.braintribe.model.query.SelectQuery;
  */
 public class SimpleSelectQueryTests extends AbstractSelectQueryTests {
 
-	/** @see BasicUseCaseTests#singleSourceNoCondition() */
+	/** SeeBasicUseCaseTests#singleSourceNoCondition() */
 	@Test
 	public void singleSourceNoCondition() {
 		Person p1 = b.person("Mr First").create();
@@ -116,7 +115,7 @@ public class SimpleSelectQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see BasicUseCaseTests#sameSourceTwiceNoCondition() */
+	/** SeeBasicUseCaseTests#sameSourceTwiceNoCondition() */
 	@Test
 	public void sameSourceTwiceNoCondition() {
 		Person p1 = b.person("Mr First").create();
@@ -138,7 +137,7 @@ public class SimpleSelectQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see BasicUseCaseTests#singleSourceNonIndexCondition() */
+	/** SeeBasicUseCaseTests#singleSourceNonIndexCondition() */
 	@Test
 	public void singleSourceNonIndexCondition() {
 		Person p;
@@ -160,7 +159,7 @@ public class SimpleSelectQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see BasicUseCaseTests#singleSourceNonIndexConditionOnEntityProperty() */
+	/** SeeBasicUseCaseTests#singleSourceNonIndexConditionOnEntityProperty() */
 	@Test
 	public void singleSourceConditionOnEntityProperty() {
 		Company c1 = b.company("C1").create();
@@ -368,7 +367,7 @@ public class SimpleSelectQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see BasicUseCaseTests#singleSourceNonIndexConditionOnJoined() */
+	/** SeeBasicUseCaseTests#singleSourceNonIndexConditionOnJoined() */
 	@Test
 	public void singleSourceNonIndexConditionOnJoined() {
 		Owner p;
@@ -394,7 +393,7 @@ public class SimpleSelectQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see BasicUseCaseTests#singleSourceNonIndexConditionOnJoined() */
+	/** SeeBasicUseCaseTests#singleSourceNonIndexConditionOnJoined() */
 	@Test
 	public void singleSourceNonIndexConditionOnFrom() {
 		Person p;
@@ -420,7 +419,7 @@ public class SimpleSelectQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see BasicUseCaseTests#singleSourceNonIndexConjunctionOfConditions() */
+	/** SeeBasicUseCaseTests#singleSourceNonIndexConjunctionOfConditions() */
 	@Test
 	public void singleSourceNonIndexConjunctionOfConditions() {
 		Person p;
@@ -448,7 +447,7 @@ public class SimpleSelectQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see BasicUseCaseTests#singleSourceNonIndexConjunctionOfConditionsWithJoin() */
+	/** SeeBasicUseCaseTests#singleSourceNonIndexConjunctionOfConditionsWithJoin() */
 	@Test
 	public void singleSourceNonIndexConjunctionOfConditionsWithJoin() {
 		Company apple = b.company("Apple").create();
@@ -480,7 +479,7 @@ public class SimpleSelectQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see BasicUseCaseTests#singleSourceNonIndexDisjunctionOfConditions() */
+	/** SeeBasicUseCaseTests#singleSourceNonIndexDisjunctionOfConditions() */
 	@Test
 	public void singleSourceNonIndexDisjunctionOfConditions() {
 		Person p1 = b.person("Jack").companyName("samsung").phoneNumber("111-45-96").create();
@@ -511,7 +510,7 @@ public class SimpleSelectQueryTests extends AbstractSelectQueryTests {
 	// ## . . . . collection joins . . . ##
 	// ####################################
 
-	/** @see BasicUseCaseTests#joinWithSet() */
+	/** SeeBasicUseCaseTests#joinWithSet() */
 	@Test
 	public void joinWithSet() {
 		Company c1 = b.company("C1").create();
@@ -535,7 +534,7 @@ public class SimpleSelectQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see BasicUseCaseTests#joinWithListAndCondition() */
+	/** SeeBasicUseCaseTests#joinWithListAndCondition() */
 	@Test
 	public void joinWithListAndCondition() {
 		Company c1 = b.company("C1").create();
@@ -560,7 +559,7 @@ public class SimpleSelectQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see BasicUseCaseTests#joinWithMapAndCondition() */
+	/** SeeBasicUseCaseTests#joinWithMapAndCondition() */
 	@Test
 	public void joinWithMapAndCondition() {
 		Company c1 = b.company("C1").create();

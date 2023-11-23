@@ -14,7 +14,6 @@ package com.braintribe.model.processing.smood.querying;
 import org.junit.Test;
 
 import com.braintribe.model.generic.GenericEntity;
-import com.braintribe.model.processing.query.test.OrderByTests;
 import com.braintribe.model.processing.query.test.model.Company;
 import com.braintribe.model.processing.query.test.model.HasStringId;
 import com.braintribe.model.processing.query.test.model.Owner;
@@ -28,7 +27,7 @@ import com.braintribe.model.query.SelectQuery;
  */
 public class OrderByQueryTests extends AbstractSelectQueryTests {
 
-	/** @see OrderByTests#simpleAscendingSort() */
+	/** SeeOrderByTests#simpleAscendingSort() */
 	@Test
 	public void simpleAscendingSort() {
 		Person p1 = b.person("p1").create();
@@ -48,7 +47,7 @@ public class OrderByQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByTests#simpleAscendingSort() */
+	/** SeeOrderByTests#simpleAscendingSort() */
 	@Test
 	public void simpleAscendingSort_ById() {
 		Person p1 = b.person("p1").create();
@@ -68,7 +67,7 @@ public class OrderByQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByTests#simpleAscendingSort() */
+	/** SeeOrderByTests#simpleAscendingSort() */
 	@Test
 	public void simpleAscendingSort_ByObjectProperty_DifferentTypeValues() {
 		Person p1 = b.person("p1").id(1L).create();
@@ -91,7 +90,7 @@ public class OrderByQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByTests#simpleDescendingSort() */
+	/** SeeOrderByTests#simpleDescendingSort() */
 	@Test
 	public void simpleDescendingSort() {
 		Person p1 = b.person("p1").create();
@@ -111,7 +110,7 @@ public class OrderByQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByTests#compoundProperty() */
+	/** SeeOrderByTests#compoundProperty() */
 	@Test
 	public void compoundProperty() {
 		Company c1 = b.company("C1").create();
@@ -136,7 +135,7 @@ public class OrderByQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByTests#multipleOrderBys() */
+	/** SeeOrderByTests#multipleOrderBys() */
 	@Test
 	public void multipleOrderBys() {
 		Company c1 = b.company("AA").create();
@@ -166,7 +165,7 @@ public class OrderByQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByTests#multipleOrderBys() */
+	/** SeeOrderByTests#multipleOrderBys() */
 	@Test
 	public void multipleOrderBysWithProjection() {
 		Company c1 = b.company("AA").create();
@@ -199,7 +198,7 @@ public class OrderByQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByTests#orderByWithPagination() */
+	/** SeeOrderByTests#orderByWithPagination() */
 	@Test
 	public void orderByWithPagination() {
 		@SuppressWarnings("unused")
@@ -260,7 +259,7 @@ public class OrderByQueryTests extends AbstractSelectQueryTests {
 
 	}
 
-	/** @see OrderByTests#orderByWithPagination() */
+	/** SeeOrderByTests#orderByWithPagination() */
 	@Test
 	public void orderByWithPaginationAndMoreExistingResults() {
 		b.person("p1").create();

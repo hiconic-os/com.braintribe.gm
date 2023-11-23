@@ -25,9 +25,9 @@ import javax.servlet.http.HttpServletResponse;
 
 public class MockHttpServletResponse implements HttpServletResponse {
 
-	private ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-	private MockServletOutputStream servletOutputStream = new MockServletOutputStream(outputStream);
-	private Map<String,String> headers = new HashMap<>();
+	private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+	private final MockServletOutputStream servletOutputStream = new MockServletOutputStream(outputStream);
+	private final Map<String,String> headers = new HashMap<>();
 	private int status = -1;
 	
 	public byte[] getBytes() {
@@ -215,6 +215,11 @@ public class MockHttpServletResponse implements HttpServletResponse {
 	@Override
 	public Collection<String> getHeaderNames() {
 		return null;
+	}
+
+	@Override
+	public void setContentLengthLong(long len) {
+		//Intentionally left empty
 	}
 
 }

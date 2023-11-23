@@ -16,7 +16,6 @@ import static com.braintribe.utils.lcd.CollectionTools2.asSet;
 import org.junit.Test;
 
 import com.braintribe.model.generic.value.PersistentEntityReference;
-import com.braintribe.model.processing.query.test.IndexedFilteringTests;
 import com.braintribe.model.processing.query.test.model.Company;
 import com.braintribe.model.processing.query.test.model.Owner;
 import com.braintribe.model.processing.query.test.model.Person;
@@ -27,7 +26,7 @@ import com.braintribe.model.query.SelectQuery;
  */
 public class IndexedFilteringQueryTests extends AbstractSelectQueryTests {
 
-	/** @see IndexedFilteringTests#singleSourceFindForIndexedEntity() */
+	/** SeeIndexedFilteringTests#singleSourceFindForIndexedEntity() */
 	@Test
 	public void singleSourceFindForIndexedEntity() {
 		Company c1 = b.company("C1").create();
@@ -52,7 +51,7 @@ public class IndexedFilteringQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see IndexedFilteringTests#singleSourceFindByDirectReferecne_In() */
+	/** SeeIndexedFilteringTests#singleSourceFindByDirectReferecne_In() */
 	@Test
 	public void singleSourceFindByDirectReferecne_In() {
 		@SuppressWarnings("unused")
@@ -122,7 +121,7 @@ public class IndexedFilteringQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see IndexedFilteringTests#singleSourceFindForIndexInt() */
+	/** SeeIndexedFilteringTests#singleSourceFindForIndexInt() */
 	@Test
 	public void singleSourceFindForIndexInt() {
 		Person p;
@@ -144,7 +143,7 @@ public class IndexedFilteringQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see IndexedFilteringTests#singleSourceFindForIndexInt() */
+	/** SeeIndexedFilteringTests#singleSourceFindForIndexInt() */
 	@Test
 	public void singleSourceFindForIndexInt_Empty() {
 		b.person("P1").indexedInteger(5).create();
@@ -163,7 +162,7 @@ public class IndexedFilteringQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see IndexedFilteringTests#singleSourceFindForIndexInt() */
+	/** SeeIndexedFilteringTests#singleSourceFindForIndexInt() */
 	@Test
 	public void singleSourceFindForIndexInt_Empty_Unique() {
 		b.person("P1").indexedUniqueName("name1").create();
@@ -205,7 +204,7 @@ public class IndexedFilteringQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see IndexedFilteringTests#singleSourceInOperatorWithIndexedInt() */
+	/** SeeIndexedFilteringTests#singleSourceInOperatorWithIndexedInt() */
 	@SuppressWarnings("unused")
 	@Test
 	public void singleSourceInOperatorWithIndexedInt() {
@@ -228,7 +227,7 @@ public class IndexedFilteringQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see IndexedFilteringTests#singleSourceFindRangeForIndexInt() */
+	/** SeeIndexedFilteringTests#singleSourceFindRangeForIndexInt() */
 	@Test
 	public void singleSourceFindRangeForIndexInt() {
 		@SuppressWarnings("unused")
@@ -254,7 +253,7 @@ public class IndexedFilteringQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see IndexedFilteringTests#singleSourceSimpleIndexChain() */
+	/** SeeIndexedFilteringTests#singleSourceSimpleIndexChain() */
 	@Test
 	public void singleSourceSimpleIndexChain() {
 		Company c1 = b.company("C1").indexedName("C1").create();

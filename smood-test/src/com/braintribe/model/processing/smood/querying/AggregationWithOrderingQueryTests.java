@@ -15,7 +15,6 @@ import static com.braintribe.model.query.OrderingDirection.descending;
 
 import org.junit.Test;
 
-import com.braintribe.model.processing.query.test.AggregationWithOrderingTests;
 import com.braintribe.model.processing.query.test.model.Person;
 import com.braintribe.model.query.SelectQuery;
 
@@ -24,7 +23,7 @@ import com.braintribe.model.query.SelectQuery;
  */
 public class AggregationWithOrderingQueryTests extends AbstractSelectQueryTests {
 
-	/** @see AggregationWithOrderingTests#orderByGrouped_Selected() */
+	/** SeeAggregationWithOrderingTests#orderByGrouped_Selected() */
 	@Test
 	public void orderByGrouped_Selected() {
 		b.person("andy").age(10).create();
@@ -57,7 +56,7 @@ public class AggregationWithOrderingQueryTests extends AbstractSelectQueryTests 
 	}
 
 
-	/** @see AggregationWithOrderingTests#orderByGrouped_NotSelected() */
+	/** SeeAggregationWithOrderingTests#orderByGrouped_NotSelected() */
 	@Test
 	public void orderByGrouped_NotSelected() {
 		b.person("andy").indexedName("z").age(10).create();
@@ -89,7 +88,7 @@ public class AggregationWithOrderingQueryTests extends AbstractSelectQueryTests 
 		assertNoMoreResults();
 	}
 
-	/** @see AggregationWithOrderingTests#orderByAggregation_Selected() */
+	/** SeeAggregationWithOrderingTests#orderByAggregation_Selected() */
 	@Test
 	public void orderByAggregation_Selected() {
 		b.person("andy").age(10).create();
@@ -116,7 +115,7 @@ public class AggregationWithOrderingQueryTests extends AbstractSelectQueryTests 
 		assertNextResult("bob", 3L);
 	}
 
-	/** @see AggregationWithOrderingTests#orderByAggregation_Selected_Multi() */
+	/** SeeAggregationWithOrderingTests#orderByAggregation_Selected_Multi() */
 	@Test
 	public void orderByAggregation_Selected_Multi() {
 		b.person("andy").age(15).create();
@@ -147,7 +146,7 @@ public class AggregationWithOrderingQueryTests extends AbstractSelectQueryTests 
 		assertNextResult("andy", 3L, 25);
 	}
 
-	/** @see AggregationWithOrderingTests#orderByAggregation_NotSelected() */
+	/** SeeAggregationWithOrderingTests#orderByAggregation_NotSelected() */
 	@Test
 	public void orderByAggregation_NotSelected() {
 		b.person("andy").age(100).create();

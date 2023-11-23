@@ -13,7 +13,6 @@ package com.braintribe.model.processing.smood.querying;
 
 import org.junit.Test;
 
-import com.braintribe.model.processing.query.test.CollectionRelatedTests;
 import com.braintribe.model.processing.query.test.model.Color;
 import com.braintribe.model.processing.query.test.model.Company;
 import com.braintribe.model.processing.query.test.model.Owner;
@@ -25,7 +24,7 @@ import com.braintribe.model.query.SelectQuery;
  */
 public class CollectionRelatedQueryTests extends AbstractSelectQueryTests {
 
-	/** @see CollectionRelatedTests#selectingCollection_Directly() */
+	/** SeeCollectionRelatedTests#selectingCollection_Directly() */
 	@Test
 	public void selectingEmptyCollection_Directly() {
 		b.person("robert").create();
@@ -63,7 +62,7 @@ public class CollectionRelatedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see CollectionRelatedTests#selectingCollection_Directly() */
+	/** SeeCollectionRelatedTests#selectingCollection_Directly() */
 	@Test
 	public void selectingCollection_Directly() {
 		b.person("robert").nicknames("rob", "bob").create();
@@ -85,7 +84,7 @@ public class CollectionRelatedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see CollectionRelatedTests#selectingCollection_ByJoining() */
+	/** SeeCollectionRelatedTests#selectingCollection_ByJoining() */
 	@Test
 	public void selectingCollection_ByJoining() {
 		b.person("robert").nicknames("rob", "bob").create();
@@ -108,7 +107,7 @@ public class CollectionRelatedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see CollectionRelatedTests#selectingCollection_DirectlyAndByJoining() */
+	/** SeeCollectionRelatedTests#selectingCollection_DirectlyAndByJoining() */
 	@Test
 	public void selectingCollection_DirectlyAndByJoining() {
 		b.person("robert").nicknames("rob", "bob").create();
@@ -145,7 +144,7 @@ public class CollectionRelatedQueryTests extends AbstractSelectQueryTests {
 		}
 	}
 
-	/** @see CollectionRelatedTests#selectingCollection_DirectlyTwiceCausingCartesianProduct() */
+	/** SeeCollectionRelatedTests#selectingCollection_DirectlyTwiceCausingCartesianProduct() */
 	@Test
 	public void selectingCollection_DirectlyTwiceCausingCartesianProduct() {
 		b.person("robert").nicknames("rob", "bob").create();
@@ -166,7 +165,7 @@ public class CollectionRelatedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see CollectionRelatedTests#selectingCollectionUsingInCondition() */
+	/** SeeCollectionRelatedTests#selectingCollectionUsingInCondition() */
 	@Test
 	public void selectingCollectionUsingInCondition() {
 		b.person("robert").nicknames("rob", "bob").create();
@@ -206,7 +205,7 @@ public class CollectionRelatedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see CollectionRelatedTests#joiningWithConditionOnMapKey() */
+	/** SeeCollectionRelatedTests#joiningWithConditionOnMapKey() */
 	@Test
 	public void joiningWithConditionOnMapKey() {
 		/* ignored = */ b.company("Not Part Of Result").create();

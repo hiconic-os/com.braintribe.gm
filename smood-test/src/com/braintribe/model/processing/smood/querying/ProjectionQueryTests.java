@@ -13,7 +13,6 @@ package com.braintribe.model.processing.smood.querying;
 
 import org.junit.Test;
 
-import com.braintribe.model.processing.query.test.ProjectionTests;
 import com.braintribe.model.processing.query.test.model.Company;
 import com.braintribe.model.processing.query.test.model.Owner;
 import com.braintribe.model.processing.query.test.model.Person;
@@ -24,7 +23,7 @@ import com.braintribe.model.query.SelectQuery;
  */
 public class ProjectionQueryTests extends AbstractSelectQueryTests {
 
-	/** @see ProjectionTests#selectingEntityAndProperty() */
+	/** SeeProjectionTests#selectingEntityAndProperty() */
 	@Test
 	public void selectingEntityAndProperty() {
 		Person p1 = b.person("p1").create();
@@ -45,7 +44,7 @@ public class ProjectionQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see ProjectionTests#selectingCompoundProperty() */
+	/** SeeProjectionTests#selectingCompoundProperty() */
 	@Test
 	public void selectingCompoundProperty() {
 		Company c1 = b.company("C1").create();
@@ -69,7 +68,7 @@ public class ProjectionQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see ProjectionTests#selectingConstants() */
+	/** SeeProjectionTests#selectingConstants() */
 	@Test
 	public void selectingConstants() {
 		Person p1 = b.person("p1").create();
@@ -91,7 +90,7 @@ public class ProjectionQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see ProjectionTests#selectingLocalizedValue() */
+	/** SeeProjectionTests#selectingLocalizedValue() */
 	@Test
 	public void selectingLocalizedValue() {
 		Person p1 = b.person("p1").localizedString("en", "yes", "pt", "sim").create();
@@ -111,7 +110,7 @@ public class ProjectionQueryTests extends AbstractSelectQueryTests {
 		assertResultContains(p2, "bom");
 	}
 
-	/** @see ProjectionTests#selectingMapKey() */
+	/** SeeProjectionTests#selectingMapKey() */
 	@Test
 	public void selectingMapKey() {
 		Company c1 = b.company("C1").create();
@@ -134,7 +133,7 @@ public class ProjectionQueryTests extends AbstractSelectQueryTests {
 		assertResultContains("c2", c2);
 	}
 
-	/** @see ProjectionTests#selectingMapKey() */
+	/** SeeProjectionTests#selectingMapKey() */
 	@Test
 	public void selectingMapValue() {
 		Company c1 = b.company("C1").create();

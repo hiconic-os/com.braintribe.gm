@@ -16,20 +16,19 @@ import static com.braintribe.model.query.OrderingDirection.descending;
 
 import org.junit.Test;
 
-import com.braintribe.model.processing.query.test.OrderByIndexedTests;
 import com.braintribe.model.processing.query.test.model.Address;
 import com.braintribe.model.processing.query.test.model.Company;
 import com.braintribe.model.processing.query.test.model.Person;
 import com.braintribe.model.query.SelectQuery;
 
 /**
- * Query tests for {@link OrderByIndexedTests}
+ * Query tests for OrderByIndexedTests
  */
 public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 
 	private Person p1, p2, p3, p4, p5;
 
-	/** @see OrderByIndexedTests#orderById */
+	/** SeeOrderByIndexedTests#orderById */
 	@Test
 	public void orderById() {
 		p1 = b.person("p1").id(3L).create();
@@ -51,7 +50,7 @@ public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByIndexedTests#orderById_Desc */
+	/** SeeOrderByIndexedTests#orderById_Desc */
 	@Test
 	public void orderById_Desc() {
 		p1 = b.person("p1").id(1L).create();
@@ -73,7 +72,7 @@ public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByIndexedTests#orderByIndexedAndOther */
+	/** SeeOrderByIndexedTests#orderByIndexedAndOther */
 	@Test
 	public void orderByIndexedAndOther() {
 		p1 = b.person("p1").indexedInteger(2).create();
@@ -100,7 +99,7 @@ public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByIndexedTests#orderByIndexed_WithNonIndexedCondition */
+	/** SeeOrderByIndexedTests#orderByIndexed_WithNonIndexedCondition */
 	@Test
 	public void orderByIndexed_WithNonIndexedCondition() {
 		p1 = b.person("p1").id(5L).companyName("Tesla").create();
@@ -126,7 +125,7 @@ public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByIndexedTests#orderByIndexed_WithNonIndexedCondition_Desc */
+	/** SeeOrderByIndexedTests#orderByIndexed_WithNonIndexedCondition_Desc */
 	@Test
 	public void orderByIndexed_WithNonIndexedCondition_Desc() {
 		p1 = b.person("p1").id(5L).companyName("Tesla").create();
@@ -152,7 +151,7 @@ public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByIndexedTests#orderByIndexed_WithIndexedCondition */
+	/** SeeOrderByIndexedTests#orderByIndexed_WithIndexedCondition */
 	@Test
 	public void orderByIndexed_WithIndexedCondition() {
 		p1 = b.person("p1").id(1L).indexedInteger(666).create();
@@ -178,7 +177,7 @@ public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByIndexedTests#orderByIndexed_CartesianProduct */
+	/** SeeOrderByIndexedTests#orderByIndexed_CartesianProduct */
 	@Test
 	public void orderByIndexed_CartesianProduct() {
 		p1 = b.person("p1").id(2L).create();
@@ -211,7 +210,7 @@ public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 	// ## . . . . . . . . IndexJoins . . . . . . . . ##
 	// ################################################
 
-	/** @see OrderByIndexedTests#orderByIndexed_WithIndexJoin_OrderByJoinedSide_NoIos */
+	/** SeeOrderByIndexedTests#orderByIndexed_WithIndexJoin_OrderByJoinedSide_NoIos */
 	@Test
 	public void orderByIndexed_WithIndexJoin_OrderByJoinedSide_NoIos() {
 		p1 = b.person("p1").id(1L).indexedName("c1").create();
@@ -237,7 +236,7 @@ public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByIndexedTests#orderByIndexed_WithIndexJoin_OrderBySourceSide_YesIos */
+	/** SeeOrderByIndexedTests#orderByIndexed_WithIndexJoin_OrderBySourceSide_YesIos */
 	@Test
 	public void orderByIndexed_WithIndexJoin_OrderBySourceSide_YesIos() {
 		p1 = b.person("p1").id(1L).indexedName("c1").create();
@@ -267,7 +266,7 @@ public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 	// ## . . . . . . . . MergeJoins . . . . . . . . ##
 	// ################################################
 
-	/** @see OrderByIndexedTests#orderByIndexed_WithMergeJoin_OrderByOneSide_YesIos */
+	/** SeeOrderByIndexedTests#orderByIndexed_WithMergeJoin_OrderByOneSide_YesIos */
 	@Test
 	public void orderByIndexed_WithMergeJoin_OrderByOneSide_YesIos() {
 		p1 = b.person("p1").id(1L).companyName("c1").create();
@@ -293,7 +292,7 @@ public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByIndexedTests#orderByIndexed_WithMergeJoin_OrderByOtherSide_YesIos */
+	/** SeeOrderByIndexedTests#orderByIndexed_WithMergeJoin_OrderByOtherSide_YesIos */
 	@Test
 	public void orderByIndexed_WithMergeJoin_OrderByOtherSide_YesIos() {
 		p1 = b.person("p1").id(1L).companyName("c1").create();
@@ -319,7 +318,7 @@ public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByIndexedTests#orderByIndexed_WithMergeLookupJoin_OrderByBothSides_SomeIos */
+	/** SeeOrderByIndexedTests#orderByIndexed_WithMergeLookupJoin_OrderByBothSides_SomeIos */
 	@Test
 	public void orderByIndexed_WithMergeLookupJoin_OrderByBothSides_SomeIos() {
 		p1 = b.person("p1").id(2L).companyName("c1").create();
@@ -348,7 +347,7 @@ public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByIndexedTests#orderByIndexed_WithMergeLookupJoinAndCartesianProduct_OrderByBothSides_SomeIos */
+	/** SeeOrderByIndexedTests#orderByIndexed_WithMergeLookupJoinAndCartesianProduct_OrderByBothSides_SomeIos */
 	@Test
 	public void orderByIndexed_WithMergeLookupJoinAndCartesianProduct_OrderByBothSides_SomeIos() {
 		p1 = b.person("p1").id(2L).companyName("c1").create();
@@ -384,7 +383,7 @@ public class OrderByIndexedQueryTests extends AbstractSelectQueryTests {
 		assertNoMoreResults();
 	}
 
-	/** @see OrderByIndexedTests#orderByIndexed_WithMergeRangeJoin_OrderByBothSides_SomeIos */
+	/** SeeOrderByIndexedTests#orderByIndexed_WithMergeRangeJoin_OrderByBothSides_SomeIos */
 	@Test
 	public void orderByIndexed_WithMergeRangeJoin_OrderByBothSides_SomeIos() {
 		p1 = b.person("p1").id(2L).companyName("c1").create();

@@ -108,7 +108,7 @@ You should have received a copy of the GNU Lesser General Public License along w
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
             <scope>provided</scope>
-            <version>${V.javax.servlet_javax.servlet-api}</version>
+            <version>${V.javax.servlet}</version>
         </dependency>
     </dependencies>
 </project>

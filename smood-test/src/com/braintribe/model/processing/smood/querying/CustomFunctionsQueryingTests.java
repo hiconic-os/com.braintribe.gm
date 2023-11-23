@@ -13,16 +13,15 @@ package com.braintribe.model.processing.smood.querying;
 
 import org.junit.Test;
 
-import com.braintribe.model.processing.query.test.CustomFunctionsTests;
 import com.braintribe.model.processing.query.test.model.Person;
 import com.braintribe.model.query.SelectQuery;
 
 /**
- * @see CustomFunctionsTests
+ * See com.braintribe.model.processing.query.test.CustomFunctionsTests
  */
 public class CustomFunctionsQueryingTests extends AbstractSelectQueryTests {
 
-	/** @see CustomFunctionsTests#customFunctionSimpleCondition() */
+	/** SeeCustomFunctionsTests#customFunctionSimpleCondition() */
 	@Test
 	public void customFunctionSimple() {
 		Person p;
