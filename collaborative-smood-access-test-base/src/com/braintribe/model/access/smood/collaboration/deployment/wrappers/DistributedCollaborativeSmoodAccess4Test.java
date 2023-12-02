@@ -16,14 +16,13 @@ import java.util.function.BiConsumer;
 import com.braintribe.common.lcd.function.TriConsumer;
 import com.braintribe.model.access.collaboration.CollaborationSmoodSession;
 import com.braintribe.model.access.collaboration.distributed.DistributedCollaborativeSmoodAccess;
-import com.braintribe.model.access.smood.collaboration.distributed.basic.Dcsa_Manipulation_Correctness_Test;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.manipulation.DeleteMode;
 
 /**
  * DCSA that we use for tests, to have a way to intercept/assert things going on inside.
  * 
- * @see Dcsa_Manipulation_Correctness_Test#updateWithDeleteManipulationsDoesNotQueryForReferences()
+ * See Dcsa_Manipulation_Correctness_Test#updateWithDeleteManipulationsDoesNotQueryForReferences()
  * 
  * @author peter.gazdik
  */
