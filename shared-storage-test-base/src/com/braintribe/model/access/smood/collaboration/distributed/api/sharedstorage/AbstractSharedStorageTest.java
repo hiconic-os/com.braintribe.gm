@@ -33,7 +33,6 @@ import com.braintribe.model.access.collaboration.distributed.api.model.CsaManage
 import com.braintribe.model.access.collaboration.distributed.api.model.CsaOperation;
 import com.braintribe.model.access.collaboration.distributed.api.model.CsaResourceBasedOperation;
 import com.braintribe.model.access.collaboration.distributed.api.model.CsaStoreResource;
-import com.braintribe.model.access.smood.collaboration.deployment.InMemoryDcsaSharedStorage;
 import com.braintribe.model.cortexapi.access.collaboration.CollaborativePersistenceRequest;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.Property;
@@ -47,6 +46,9 @@ import com.braintribe.utils.IOTools;
 public abstract class AbstractSharedStorageTest {
 
 	private static final String ACCESS_ID = "access.test.dcsa";
+
+	// This used to be a field of InMemoryDcsaSharedStorage, not sure what it is now
+	public static boolean TMP_ENABLE_LAZY_LOADING = true;
 
 	protected boolean supportsReadResources() {
 		return false;
@@ -212,7 +214,7 @@ public abstract class AbstractSharedStorageTest {
 		assertThat(storeResource.getResourceRelativePath()).isEqualTo(expectedPath);
 
 		Resource storedResource = storeResource.getPayload();
-		if (!InMemoryDcsaSharedStorage.TMP_ENABLE_LAZY_LOADING)
+		if (!TMP_ENABLE_LAZY_LOADING)
 			assertResourceContent(storedResource, expectedFileContent);
 	}
 

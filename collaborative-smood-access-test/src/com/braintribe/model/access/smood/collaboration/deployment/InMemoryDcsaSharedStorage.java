@@ -36,6 +36,7 @@ import com.braintribe.model.access.collaboration.distributed.api.DcsaSharedStora
 import com.braintribe.model.access.collaboration.distributed.api.model.CsaOperation;
 import com.braintribe.model.access.collaboration.distributed.api.model.CsaResourceBasedOperation;
 import com.braintribe.model.access.collaboration.distributed.api.model.CsaStoreResource;
+import com.braintribe.model.access.smood.collaboration.distributed.api.sharedstorage.AbstractSharedStorageTest;
 import com.braintribe.model.generic.reflection.GmReflectionTools;
 import com.braintribe.model.generic.session.InputStreamProvider;
 import com.braintribe.model.resource.Resource;
@@ -53,8 +54,6 @@ public class InMemoryDcsaSharedStorage implements DcsaSharedStorage {
 	private final Map<String, List<CsaOperation>> accessToOperations = newMap();
 	private final Lock readLock;
 	private final Lock writeLock;
-
-	public static boolean TMP_ENABLE_LAZY_LOADING = true;
 
 	public InMemoryDcsaSharedStorage() {
 		ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
@@ -211,7 +210,7 @@ public class InMemoryDcsaSharedStorage implements DcsaSharedStorage {
 
 	private CsaStoreResource removePayloadFrom(CsaStoreResource original) {
 		CsaStoreResource result = GmReflectionTools.makeShallowCopy(original);
-		if (TMP_ENABLE_LAZY_LOADING)
+		if (AbstractSharedStorageTest.TMP_ENABLE_LAZY_LOADING)
 			result.setPayload(null);
 		return result;
 	}

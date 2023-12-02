@@ -27,8 +27,8 @@ import org.junit.Test;
 import com.braintribe.model.access.smood.collaboration.deployment.AbstractCsaBuilder;
 import com.braintribe.model.access.smood.collaboration.deployment.AbstractCsaDeployedUnit;
 import com.braintribe.model.access.smood.collaboration.deployment.DcsaDeployedUnit;
-import com.braintribe.model.access.smood.collaboration.deployment.InMemoryDcsaSharedStorage;
 import com.braintribe.model.access.smood.collaboration.distributed.AbstractDcsaTestBase;
+import com.braintribe.model.access.smood.collaboration.distributed.api.sharedstorage.AbstractSharedStorageTest;
 import com.braintribe.model.csa.CollaborativeSmoodConfiguration;
 import com.braintribe.model.generic.session.InputStreamProvider;
 import com.braintribe.model.resource.Resource;
@@ -130,7 +130,7 @@ public class Dcsa_ResourceHandling_Correctness_Test extends AbstractDcsaTestBase
 		Assertions.assertThat(resource2.getName()).isEqualTo(resourceName);
 
 		// Resource entity is indexed in DCSA-2, but was not loaded yet
-		if (InMemoryDcsaSharedStorage.TMP_ENABLE_LAZY_LOADING)
+		if (AbstractSharedStorageTest.TMP_ENABLE_LAZY_LOADING)
 			assertNoResourceAnywhere(fsAssert2);
 
 		// This performs lazy-loading, see AbstractCsaBuilder.ResourceUploadRequestEvaluator -> handleGetResource
