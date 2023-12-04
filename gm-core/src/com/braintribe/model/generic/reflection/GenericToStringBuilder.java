@@ -53,44 +53,49 @@ public class GenericToStringBuilder {
 
 		if (enhanced && property.isAbsent(genericEntity)) {
 			builder.append("absent");
+			return;
+		}
+
+		GenericModelType type = property.getType();
+		Object value = property.get(genericEntity);
+
+		if (value == null) {
+			builder.append("null");
+			return;
+		}
+
+		if (type instanceof BaseType)
+			type = GMF.getTypeReflection().getType(value);
+
+		if (type instanceof EntityType) {
+			EntityType<?> valueEntityType = ((GenericEntity) value).entityType();
+			builder.append(valueEntityType.getShortName());
+
+			builder.append('[');
+			builder.append('@');
+			builder.append(System.identityHashCode(value));
+			builder.append(',');
+			/* we say false for enhanced (3rd parameter) cause id cannot be absent anyway */
+			renderProperty(builder, (GenericEntity) value, false, valueEntityType.getIdProperty());
+			builder.append(']');
+
+		} else if (type instanceof EnumType) {
+			String prefix = type.getJavaType().getSimpleName();
+			builder.append(prefix + "." + value);
+
+		} else if (type instanceof CollectionType) {
+			CollectionType collectionType = (CollectionType) type;
+			CollectionKind collectionKind = collectionType.getCollectionKind();
+			builder.append(collectionKind);
+			builder.append("[size=");
+			builder.append(size(value, collectionKind));
+			builder.append(']');
+
 		} else {
-			GenericModelType type = property.getType();
-			Object value = property.get(genericEntity);
-
-			if (value == null) {
-				builder.append("null");
-			} else {
-				if (type instanceof BaseType)
-					type = GMF.getTypeReflection().getType(value);
-
-				if (type instanceof EntityType) {
-					EntityType<?> valueEntityType = (EntityType<?>) type;
-					builder.append(valueEntityType.getShortName());
-
-					builder.append('[');
-					builder.append('@');
-					builder.append(System.identityHashCode(value));
-					builder.append(',');
-					/* we say false for enhanced (3rd parameter) cause id cannot be absent anyway */
-					renderProperty(builder, (GenericEntity) value, false, valueEntityType.getIdProperty());
-					builder.append(']');
-				} else if (type instanceof EnumType) {
-					String prefix = type.getJavaType().getSimpleName();
-					builder.append(prefix + "." + value);
-				} else if (type instanceof CollectionType) {
-					CollectionType collectionType = (CollectionType) type;
-					CollectionKind collectionKind = collectionType.getCollectionKind();
-					builder.append(collectionKind);
-					builder.append("[size=");
-					builder.append(size(value, collectionKind));
-					builder.append(']');
-				} else {
-					if (value instanceof String) {
-						value = '"' + JavaStringLiteralEscape.escape((String) value) + '"';
-					}
-					builder.append(value);
-				}
+			if (value instanceof String) {
+				value = '"' + JavaStringLiteralEscape.escape((String) value) + '"';
 			}
+			builder.append(value);
 		}
 	}
 
