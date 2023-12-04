@@ -15,6 +15,7 @@ import static com.braintribe.utils.lcd.CollectionTools2.mapBy;
 import static com.braintribe.utils.lcd.CollectionTools2.newList;
 import static com.braintribe.utils.lcd.CollectionTools2.newMap;
 import static com.braintribe.utils.lcd.CollectionTools2.newSet;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
 
 import java.util.Arrays;
@@ -62,7 +63,7 @@ import com.braintribe.model.generic.value.ValueDescriptor;
 public abstract class AbstractEntityType<T extends GenericEntity> extends AbstractCustomType implements EntityType<T> {
 	private boolean isAbstract;
 	private List<Property> properties;
-	private List<TransientProperty> transientProperties;
+	private List<TransientProperty> transientProperties = emptyList();
 	private List<Property> declaredProperties;
 	private List<Property> customTypeProperties;
 	private List<AbstractEntityType<?>> superTypes = newList();
@@ -404,6 +405,14 @@ public abstract class AbstractEntityType<T extends GenericEntity> extends Abstra
 		// create the raw clone and register it as visited to avoid double cloning
 		entityClone = cloningContext.supplyRawClone(actualType, entity);
 		cloningContext.registerAsVisited(entity, entityClone);
+
+		// transfer transient properties if cloned type is exactly the same 
+		List<TransientProperty> actualTransProperties = actualType.getTransientProperties();
+		if (actualType == entityClone.entityType() && !actualTransProperties.isEmpty())
+			for (TransientProperty tp : actualTransProperties) {
+				Object value = tp.get(entity);
+				tp.set(entityClone, value);
+			}
 
 		List<AbstractProperty> actualProperties = (List<AbstractProperty>) (List<?>) actualType.getProperties();
 
