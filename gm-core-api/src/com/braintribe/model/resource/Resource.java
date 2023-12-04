@@ -11,6 +11,8 @@
 // ============================================================================
 package com.braintribe.model.resource;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -124,6 +126,8 @@ public interface Resource extends StandardStringIdentifiable {
 	 * Any time the {@link InputStreamProvider#openInputStream()} method is called, a new {@link InputStream} for the exact same binary data must be returned
 	 */
 	static Resource createTransient(InputStreamProvider inputStreamProvider) {
+		requireNonNull(inputStreamProvider, "Cannot create transient resource with null inputStreamProvider.");
+
 		Resource resource = Resource.T.create();
 		resource.assignTransientSource(inputStreamProvider);
 		return resource;
