@@ -111,6 +111,8 @@ public interface Resource extends StandardStringIdentifiable {
 	 * Any time the {@link InputStreamProvider#openInputStream()} method is called, a new {@link InputStream} for the exact same binary data must be returned
 	 */
 	default void assignTransientSource(InputStreamProvider inputStreamProvider) {
+		requireNonNull(inputStreamProvider, "Cannot create transient resource with null inputStreamProvider.");
+
 		TransientSource transientSource = TransientSource.T.create();
 		transientSource.setGlobalId(UUID.randomUUID().toString());
 		transientSource.setInputStreamProvider(inputStreamProvider);
@@ -126,8 +128,6 @@ public interface Resource extends StandardStringIdentifiable {
 	 * Any time the {@link InputStreamProvider#openInputStream()} method is called, a new {@link InputStream} for the exact same binary data must be returned
 	 */
 	static Resource createTransient(InputStreamProvider inputStreamProvider) {
-		requireNonNull(inputStreamProvider, "Cannot create transient resource with null inputStreamProvider.");
-
 		Resource resource = Resource.T.create();
 		resource.assignTransientSource(inputStreamProvider);
 		return resource;
