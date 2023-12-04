@@ -22,11 +22,9 @@ import com.braintribe.model.generic.session.OutputStreamer;
 import com.braintribe.model.resource.Resource;
 
 /**
- * A streamable source that can be kept as a {@link Resource}. Being streamable allows to access the InputStream and OutputStream.
- * 
- *
+ * A unified interface for {@link Resource} and (some) {@link ResourceSource}s that allows to access the its {@link InputStream} and
+ * {@link OutputStream}.
  */
-
 @GmSystemInterface
 public interface StreamableSource {
 
@@ -35,37 +33,36 @@ public interface StreamableSource {
 	default InputStream openStream() {
 		InputStreamProvider inputStreamProvider = inputStreamProvider();
 
-		if (inputStreamProvider != null) {
-			try {
-				return inputStreamProvider.openInputStream();
-			} catch (IOException e) {
-				throw new UncheckedIOException(e);
-			}
-		} else {
-			throw new IllegalStateException("TransientSource has no input stream provider:" + this);
+		if (inputStreamProvider == null)
+			throw new IllegalStateException("No InputStreamProvider defined for: " + this);
+
+		try {
+			return inputStreamProvider.openInputStream();
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
 		}
 	}
 
 	default void writeToStream(OutputStream outputStream) {
 		InputStreamProvider inputStreamProvider = inputStreamProvider();
 
-		if (inputStreamProvider != null) {
-			try {
-				if (inputStreamProvider instanceof OutputStreamer) {
-					((OutputStreamer) inputStreamProvider).writeTo(outputStream);
-				} else {
-					byte buffer[] = new byte[0x10000]; // 16kB buffer
-					int bytesRead = 0;
-					try (InputStream in = inputStreamProvider.openInputStream()) {
-						while ((bytesRead = in.read(buffer)) != -1)
-							outputStream.write(buffer, 0, bytesRead);
-					}
+		if (inputStreamProvider == null)
+			throw new IllegalStateException("No InputStreamProvider defined for: " + this);
+
+		try {
+			if (inputStreamProvider instanceof OutputStreamer) {
+				((OutputStreamer) inputStreamProvider).writeTo(outputStream);
+			} else {
+				byte buffer[] = new byte[0x10000]; // 16kB buffer
+				int bytesRead = 0;
+				try (InputStream in = inputStreamProvider.openInputStream()) {
+					while ((bytesRead = in.read(buffer)) != -1)
+						outputStream.write(buffer, 0, bytesRead);
 				}
-			} catch (IOException e) {
-				throw new UncheckedIOException(e);
 			}
-		} else {
-			throw new IllegalStateException("TransientSource has no input stream provider:" + this);
+
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
 		}
 	}
 }
