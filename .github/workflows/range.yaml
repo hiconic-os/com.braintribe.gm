@@ -6,7 +6,7 @@ on:
       range:
         type: string
         default: "."
-    
+
 jobs:
   run:
     uses: hiconic-os/hiconic.ci.workflows/.github/workflows/range.yaml@main
