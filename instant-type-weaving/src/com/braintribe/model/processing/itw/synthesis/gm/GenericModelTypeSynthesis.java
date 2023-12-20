@@ -506,7 +506,7 @@ public class GenericModelTypeSynthesis extends JavaTypeSynthesis {
 			if (!isTransient(method))
 				continue;
 
-			Boolean isGetter = BeanPropertyScan.isGetter(method);
+			Boolean isGetter = BeanPropertyScan.isGetter(method, false);
 			if (Boolean.TRUE != isGetter)
 				continue;
 

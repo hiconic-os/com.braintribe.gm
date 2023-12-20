@@ -80,7 +80,7 @@ public class BeanPropertyScan {
 			if (method.isSynthetic() || ReflectionTools.isStatic(method))
 				continue;
 
-			Boolean isGetter = isGetter(method);
+			Boolean isGetter = isGetter(method, requireEnumBase);
 
 			if (isGetter != null)
 				propertyName = getPropertyName(method);
@@ -185,7 +185,7 @@ public class BeanPropertyScan {
 	/**
 	 * Returns {@code Boolean.TRUE} if it is a getter, {@code Boolean.FALSE} if it is a setter and {@code null} otherwise.
 	 */
-	public static Boolean isGetter(Method method) {
+	public static Boolean isGetter(Method method, boolean throwExceptionIfInvalidAccessor) {
 		String methodName = method.getName();
 
 		if (methodName.length() <= 3)
@@ -204,8 +204,11 @@ public class BeanPropertyScan {
 		int expectedParamCount = isGetter ? 0 : 1;
 
 		if (!hasCorrectModifiers(method) || actualParamCount != expectedParamCount)
-			throw new IllegalArgumentException(
-					"Invalid " + accessKindCandidate + "ter method:\n\t" + method + "\nof classs:\n\t" + method.getDeclaringClass().getName());
+			if (throwExceptionIfInvalidAccessor)
+				throw new IllegalArgumentException(
+						"Invalid " + accessKindCandidate + "ter method:\n\t" + method + "\nof classs:\n\t" + method.getDeclaringClass().getName());
+			else
+				return null;
 
 		return isGetter ? Boolean.TRUE : Boolean.FALSE;
 	}
