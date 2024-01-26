@@ -21,7 +21,6 @@ You should have received a copy of the GNU Lesser General Public License along w
         <V.com.braintribe.asm>[2.0,2.1)</V.com.braintribe.asm>
         <V.com.braintribe.codec>[2.0,2.1)</V.com.braintribe.codec>
         <V.com.braintribe.common>[2.0,2.1)</V.com.braintribe.common>
-        <V.com.braintribe.devrock>[1.0,1.1)</V.com.braintribe.devrock>
         <V.com.braintribe.security>[2.0,2.1)</V.com.braintribe.security>
         <V.com.braintribe.servlet>[2.0,2.1)</V.com.braintribe.servlet>
         <V.com.braintribe.systemtools>[2.0,2.1)</V.com.braintribe.systemtools>
