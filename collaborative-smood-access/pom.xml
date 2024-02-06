@@ -37,6 +37,11 @@ You should have received a copy of the GNU Lesser General Public License along w
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
+            <artifactId>collaborative-access-api</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
             <artifactId>collaborative-persistence-processing</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>

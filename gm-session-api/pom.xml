@@ -64,10 +64,5 @@ You should have received a copy of the GNU Lesser General Public License along w
             <artifactId>resource-api-model</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
-        <dependency>
-            <groupId>com.braintribe.gm</groupId>
-            <artifactId>smood-storage-model</artifactId>
-            <version>${V.com.braintribe.gm}</version>
-        </dependency>
     </dependencies>
 </project>
