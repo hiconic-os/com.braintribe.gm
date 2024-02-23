@@ -20,11 +20,12 @@ public interface AcquirationSupportCredentials extends Credentials {
 
 	EntityType<AcquirationSupportCredentials> T = EntityTypes.T(AcquirationSupportCredentials.class);
 
-	boolean getAcquire();
-	void setAcquire(boolean acquire);
+	Boolean getAcquire();
+	void setAcquire(Boolean acquire);
 
 	@Override
 	default boolean acquirationSupportive() {
-		return getAcquire();
+		Boolean acquire = getAcquire();
+		return acquire != null ? acquire.booleanValue() : false;
 	}
 }

@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -298,6 +299,7 @@ public class BasicResourceAccess implements ResourceAccess {
 			OutputStreamProvider outputStreamProvider) {
 
 		CallStreamCapture streamCapture = CallStreamCapture.T.create();
+		streamCapture.setGlobalId(UUID.randomUUID().toString());
 		streamCapture.setOutputStreamProvider(outputStreamProvider);
 
 		StreamResource request = StreamResource.T.create();
