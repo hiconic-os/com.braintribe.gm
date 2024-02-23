@@ -12,8 +12,10 @@
 package com.braintribe.model.generic.reflection.type.collection;
 
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 
+import com.braintribe.exception.Exceptions;
 import com.braintribe.model.generic.collection.PlainList;
 import com.braintribe.model.generic.pr.criteria.ListElementCriterion;
 import com.braintribe.model.generic.reflection.AbstractGenericModelType;
@@ -80,16 +82,21 @@ public final class ListTypeImpl extends AbstractCollectionType implements ListTy
 
 		List<?> list = (List<?>) instance;
 		List<Object> listClone = createPlain();
-		for (Object value : list) {
-			try {
-				cloningContext.pushTraversingCriterion(criterion, value);
-				if (!cloningContext.isTraversionContextMatching()) {
-					Object clonedValue = elementType.cloneImpl(cloningContext, value, strategy);
-					listClone.add(cloningContext.postProcessCloneValue(elementType, clonedValue));
+		try {
+			for (Object value : list) {
+				try {
+					cloningContext.pushTraversingCriterion(criterion, value);
+					if (!cloningContext.isTraversionContextMatching()) {
+						Object clonedValue = elementType.cloneImpl(cloningContext, value, strategy);
+						listClone.add(cloningContext.postProcessCloneValue(elementType, clonedValue));
+					}
+				} finally {
+					cloningContext.popTraversingCriterion();
 				}
-			} finally {
-				cloningContext.popTraversingCriterion();
 			}
+		} catch (ConcurrentModificationException e) {
+			Exceptions.contextualize(e, "Concurrent modification error while trying to clone list " + instance);
+			throw e;
 		}
 
 		return listClone;
