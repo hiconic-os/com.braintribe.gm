@@ -14,6 +14,7 @@ package com.braintribe.model.folder;
 import java.util.List;
 import java.util.Set;
 
+import com.braintribe.model.acl.HasAcl;
 import com.braintribe.model.descriptive.HasName;
 import com.braintribe.model.generic.annotation.SelectiveInformation;
 import com.braintribe.model.generic.annotation.meta.Mandatory;
@@ -27,13 +28,13 @@ import com.braintribe.model.resource.Icon;
  * @author gunther.schenk
  */
 @SelectiveInformation("${displayName}")
-public interface Folder extends HasName {
+public interface Folder extends HasName, HasAcl {
 
 	EntityType<Folder> T = EntityTypes.T(Folder.class);
 
 	Folder getParent();
 	void setParent(Folder parent);
-	
+
 	List<Folder> getSubFolders();
 	void setSubFolders(List<Folder> subFolders);
 
@@ -42,41 +43,41 @@ public interface Folder extends HasName {
 	String getName();
 	@Override
 	void setName(String name);
-	
+
 	@Mandatory
 	LocalizedString getDisplayName();
 	void setDisplayName(LocalizedString displayName);
-	
+
 	Set<String> getTags();
 	void setTags(Set<String> tags);
-	
+
 	Icon getIcon();
-	void setIcon (Icon icon);
-	
+	void setIcon(Icon icon);
+
 	FolderContent getContent();
 	void setContent(FolderContent content);
-	
+
 	default Folder initFolder(String name, String displayName) {
 		GmSession session = session();
 		if (session != null)
 			setDisplayName(session.create(LocalizedString.T).putDefault(displayName));
 		else
 			setDisplayName(LocalizedString.create(displayName));
-			
+
 		setName(name);
 		return this;
 	}
-	
+
 	default Folder initFolder(String name, LocalizedString displayName) {
 		setDisplayName(displayName);
 		setName(name);
 		return this;
 	}
-	
+
 	static Folder create(String name, String displayName) {
 		return T.create().initFolder(name, displayName);
 	}
-	
+
 	static Folder create(String name, LocalizedString displayName) {
 		return T.create().initFolder(name, displayName);
 	}
