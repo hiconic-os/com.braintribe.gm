@@ -22,6 +22,7 @@ import com.braintribe.model.processing.core.expert.api.MutableDenotationMap;
 import com.braintribe.model.processing.core.expert.impl.PolymorphicDenotationMap;
 import com.braintribe.model.processing.service.api.InterceptingServiceProcessorBuilder;
 import com.braintribe.model.processing.service.api.ServiceAroundProcessor;
+import com.braintribe.model.processing.service.api.ServiceRegistry;
 import com.braintribe.model.processing.service.api.ServiceInterceptorProcessor;
 import com.braintribe.model.processing.service.api.ServicePostProcessor;
 import com.braintribe.model.processing.service.api.ServicePreProcessor;
@@ -29,7 +30,7 @@ import com.braintribe.model.processing.service.api.ServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceRequestContext;
 import com.braintribe.model.service.api.ServiceRequest;
 
-public class ConfigurableDispatchingServiceProcessor implements ServiceProcessor<ServiceRequest, Object> {
+public class ConfigurableDispatchingServiceProcessor implements ServiceProcessor<ServiceRequest, Object>, ServiceRegistry {
 
 	private static final ServiceProcessor<ServiceRequest, Object> DEFAULT_PROCESSOR = (c, r) -> { 
 		throw new UnsupportedOperationException("No service processor mapped for request: " + r); 
