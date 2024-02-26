@@ -11,6 +11,9 @@
 // ============================================================================
 package com.braintribe.model.generic.reflection;
 
+import java.util.ConcurrentModificationException;
+
+import com.braintribe.exception.Exceptions;
 import com.braintribe.model.generic.pr.criteria.RootCriterion;
 import com.braintribe.model.generic.pr.criteria.matching.Matcher;
 import com.braintribe.model.generic.reflection.type.BaseTypeImpl;
@@ -55,11 +58,14 @@ public abstract class AbstractGenericModelType implements GenericModelType {
 		rootCriterion.setTypeSignature(getActualType(instance).getTypeSignature());
 		cloningContext.pushTraversingCriterion(rootCriterion, instance);
 		try {
-			if (!cloningContext.isTraversionContextMatching())
+			if (!cloningContext.isTraversionContextMatching()) {
 				return (T) cloneImpl(cloningContext, instance, strategy);
-			else
+			} else {
 				return null;
-
+			}
+		} catch (ConcurrentModificationException cme) {
+			Exceptions.contextualize(cme, "Error while trying to clone instance: " + instance);
+			throw cme;
 		} finally {
 			cloningContext.popTraversingCriterion();
 		}
@@ -115,10 +121,10 @@ public abstract class AbstractGenericModelType implements GenericModelType {
 	}
 
 	/**
-	 * Returns a "snapshot" (i.e. current state) of given value. Typical use-case is the value to be set for a
-	 * manipulation (e.g. ChangeValueManipulation). This value may in most cases be the original object, but in case of
-	 * collections (including maps), we have to create a copy (because if we used the original collection and changed it
-	 * later, we would also change the manipulation).
+	 * Returns a "snapshot" (i.e. current state) of given value. Typical use-case is the value to be set for a manipulation
+	 * (e.g. ChangeValueManipulation). This value may in most cases be the original object, but in case of collections
+	 * (including maps), we have to create a copy (because if we used the original collection and changed it later, we would
+	 * also change the manipulation).
 	 */
 	@Override
 	public Object getValueSnapshot(Object value) {
