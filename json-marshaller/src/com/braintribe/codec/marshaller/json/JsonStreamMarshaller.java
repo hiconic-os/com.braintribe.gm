@@ -66,6 +66,7 @@ import com.braintribe.codec.marshaller.api.PropertyTypeInferenceOverride;
 import com.braintribe.codec.marshaller.api.StringifyNumbersOption;
 import com.braintribe.codec.marshaller.api.TypeExplicitness;
 import com.braintribe.codec.marshaller.api.TypeExplicitnessOption;
+import com.braintribe.codec.marshaller.api.options.attributes.InferredRootTypeOption;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
@@ -224,7 +225,9 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			}
 		}
 
-		public abstract void close();
+		public void close() {
+		  // NO OP
+		}
 
 		public abstract GenericModelType getType();
 		public abstract Object getValue();
@@ -614,11 +617,6 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		}
 
 		@Override
-		public void close() {
-			// noop
-		}
-
-		@Override
 		public void setField(String name) {
 			throw new IllegalStateException(getClass() + " does not support field values.");
 		}
@@ -688,11 +686,6 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 
 		@Override
 		public void consumeDeferred(EntityRegistration registration) {
-			// noop
-		}
-
-		@Override
-		public void close() {
 			// noop
 		}
 
@@ -792,12 +785,10 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			} else if (name.charAt(0) == '?') {
 
 				String realName = name.substring(1);
-				BiFunction<EntityType<?>, String, Property> propertySupplier = context.options.findAttribute(PropertyDeserializationTranslation.class)
-						.orElse(null);
-				property = propertySupplier != null ? propertySupplier.apply(entityType, realName) : entityType.findProperty(realName);
-				if (property == null && !context.isPropertyLenient()) {
+				property = context.resolveProperty(entityType, realName);
+				if (property == null && !context.isPropertyLenient) {
 					throw new NullPointerException(
-							"The property " + realName + " (referenced as " + name + ") in the entity type " + entityType + " does not exist.");
+							"Property " + realName + " (referenced as " + name + ") of " + entityType + " doesn't exist.");
 				}
 				if (property != null) {
 					this.inferredType = AbsenceInformation.T;
@@ -811,11 +802,9 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 				if (snakeCaseProperties) {
 					name = toCamelCase(name, '_');
 				}
-				BiFunction<EntityType<?>, String, Property> propertySupplier = context.options.findAttribute(PropertyDeserializationTranslation.class)
-						.orElse(null);
-				property = propertySupplier != null ? propertySupplier.apply(entityType, name) : entityType.findProperty(name);
-				if (property == null && !context.isPropertyLenient()) {
-					throw new NullPointerException("The property " + name + " in the entity type " + entityType + " does not exist.");
+				property = context.resolveProperty(entityType, name);
+				if (property == null && !context.isPropertyLenient) {
+					throw new NullPointerException("Property " + name + " of " + entityType + " doesn't exist.");
 				}
 				if (property != null) {
 					this.inferredType = context.getInferredPropertyType(entityType, property);
@@ -831,10 +820,8 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					}
 
 					if (name.equals(GenericEntity.id)) {
-						Function<String, GenericModelType> idTypeSupplier = context.options.findAttribute(IdTypeSupplier.class).orElse(null);
-						if (idTypeSupplier != null) {
-							GenericModelType idType = idTypeSupplier.apply(entityType.getTypeSignature());
-							this.inferredType = idType;
+						if (context.idTypeSupplier != null) {
+							this.inferredType = context.idTypeSupplier.apply(entityType.getTypeSignature());
 						}
 						if (context.identityManagementMode == IdentityManagementMode.auto) {
 							context.identityManagementMode = IdentityManagementMode.id;
@@ -1424,17 +1411,9 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 	private static class MapEntry {
 		public Object key;
 		public Object value;
-		private EntityRegistration keyDeferring;
-		private EntityRegistration valueDeferring;
+		public EntityRegistration keyDeferring;
+		public EntityRegistration valueDeferring;
 		private BiConsumer<Object, Object> consumer;
-
-		public void setKeyDeferring(EntityRegistration keyDeferring) {
-			this.keyDeferring = keyDeferring;
-		}
-
-		public void setValueDeferring(EntityRegistration valueDeferring) {
-			this.valueDeferring = valueDeferring;
-		}
 
 		public boolean isDeferred() {
 			return keyDeferring != null && valueDeferring != null;
@@ -1633,9 +1612,6 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			return null;
 		}
 
-		@Override
-		public void close() {
-		}
 	}
 
 	private static class TopDecoder extends ValueDecoder {
@@ -2041,7 +2017,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 	private static final char[] partialPartEntity = "\", \"_partial\": \"".toCharArray();
 	private static final char[] partialPartEntityNoId = "\"_partial\": \"\"".toCharArray();
 	private static final char[] openEntityFinish = "\"".toCharArray();
-	private static final char[] midProperty = "\": ".toCharArray();
+	private static final char[] midProperty = "\":".toCharArray();
 	private static final char[] openAbsentProperty = "\"?".toCharArray();
 
 	protected void marshallEntity(EncodingContext context, PrettinessSupport prettinessSupport, Writer writer, GenericEntity entity, int indent,
@@ -2108,9 +2084,6 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 
 				Object value = dpa ? property.getDirectUnsafe(entity) : property.get(entity);
 
-				Function<Property, String> propertyNameSupplier = context.options.findAttribute(PropertySerializationTranslation.class).orElse(null);
-				String propertyName = propertyNameSupplier != null ? propertyNameSupplier.apply(property) : property.getName();
-
 				if (value == null) {
 					AbsenceInformation absenceInformation = property.getAbsenceInformation(entity);
 
@@ -2119,7 +2092,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 							writer.write(',');
 							prettinessSupport.writeLinefeed(writer, propertyIndent);
 							writer.write(openAbsentProperty);
-							writer.write(propertyName);
+							writer.write(context.propertyName(property));
 							writer.write(midProperty);
 							marshallEntity(context, prettinessSupport, writer, absenceInformation, propertyIndent, AbsenceInformation.T);
 							i++;
@@ -2142,7 +2115,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 
 				prettinessSupport.writeLinefeed(writer, propertyIndent);
 				writer.write('"');
-				writer.write(propertyName);
+				writer.write(context.propertyName(property));
 				writer.write(midProperty);
 
 				// GenericModelType actualType = GMF.getTypeReflection().getBaseType().getActualType(value);
@@ -2207,10 +2180,6 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 
 					Object value = dpa ? property.getDirectUnsafe(entity) : property.get(entity);
 
-					Function<Property, String> propertyNameSupplier = context.options.findAttribute(PropertySerializationTranslation.class)
-							.orElse(null);
-					String propertyName = propertyNameSupplier != null ? propertyNameSupplier.apply(property) : property.getName();
-
 					if (value == null) {
 						AbsenceInformation absenceInformation = property.getAbsenceInformation(entity);
 
@@ -2219,7 +2188,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 								writer.write(',');
 								prettinessSupport.writeLinefeed(writer, propertyIndent);
 								writer.write(openAbsentProperty);
-								writer.write(propertyName);
+								writer.write(context.propertyName(property));
 								writer.write(midProperty);
 								marshallEntity(context, prettinessSupport, writer, absenceInformation, propertyIndent, AbsenceInformation.T);
 								i++;
@@ -2237,7 +2206,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					writer.write(',');
 					prettinessSupport.writeLinefeed(writer, propertyIndent);
 					writer.write('"');
-					writer.write(propertyName);
+					writer.write(context.propertyName(property));
 					writer.write(midProperty);
 
 					// GenericModelType actualType = GMF.getTypeReflection().getBaseType().getActualType(value);
@@ -2345,11 +2314,10 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		private boolean writeAbsenceProperties = true;
 		private boolean stringifyNumbers = false;
 		private final Consumer<? super GenericEntity> entityVisitor;
-		private final GmSerializationOptions options;
+		private final Function<Property, String> propertyNameSupplier;
 
 		public EncodingContext(GmSerializationOptions options) {
 			super(options);
-			this.options = options;
 			this.useDirectPropertyAccess = options.useDirectPropertyAccess();
 			this.writeEmptyProperties = options.writeEmptyProperties();
 			this.writeAbsenceProperties = options.writeAbsenceInformation();
@@ -2379,6 +2347,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			}
 
 			this.entityVisitor = options.findAttribute(EntityVisitorOption.class).orElse(null);
+			this.propertyNameSupplier = options.findAttribute(PropertySerializationTranslation.class).orElse(null);
 		}
 
 		public boolean allowsTypeExplicitness() {
@@ -2440,35 +2409,43 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			return this.currentRecurrenceDepth >= this.entityRecurrenceDepth;
 		}
 
+		public String propertyName(Property property) {
+			return propertyNameSupplier != null ? propertyNameSupplier.apply(property) : property.getName();
+		}
+
 	}
 
 	private static class DecodingContext extends CodingContext {
-		private final Map<String, EntityRegistration> entitiesById = new HashMap<>();
-		private final Map<String, Map<String, EntityRegistration>> identityManagementRegister = new HashMap<>();
-		private final AbsenceInformation absenceInformationForMissingProperties = GMF.absenceInformation();
-		private final boolean assignAbsenceInformation;
-		private final boolean enhanced;
-		private final GmSession session;
-		private final GenericModelType inferredType;
-		private final JsonParser parser;
-		private final GmDeserializationOptions options;
-		private IdentityManagementMode identityManagementMode;
-		private final Consumer<? super GenericEntity> entityVisitor;
-		private boolean snakeCaseProperties = false;
-		private final BiFunction<EntityType<?>, Property, GenericModelType> propertyTypeInferenceOverride;
+		public final Map<String, EntityRegistration> entitiesById = new HashMap<>();
+		public final Map<String, Map<String, EntityRegistration>> identityManagementRegister = new HashMap<>();
+		public final AbsenceInformation absenceInformationForMissingProperties = GMF.absenceInformation();
+		public final boolean assignAbsenceInformation;
+		public final boolean enhanced;
+		public final GmSession session;
+		public final GenericModelType inferredRootType;
+		public final JsonParser parser;
+		public IdentityManagementMode identityManagementMode;
+		public final Consumer<? super GenericEntity> entityVisitor;
+		public boolean snakeCaseProperties = false;
+		public final BiFunction<EntityType<?>, Property, GenericModelType> propertyTypeInferenceOverride;
+		public final BiFunction<EntityType<?>, String, Property> propertySupplier;
+		public final Function<String, GenericModelType> idTypeSupplier;
+		public final boolean isPropertyLenient;
 
 		public DecodingContext(GmDeserializationOptions options, JsonParser parser, boolean enhanced) {
 			super(options);
-			this.options = options;
 			this.parser = parser;
 			this.enhanced = enhanced;
 			this.session = options.getSession();
 			this.assignAbsenceInformation = options.getAbsentifyMissingProperties();
-			this.inferredType = options.getInferredRootType();
+			this.inferredRootType = options.findAttribute(InferredRootTypeOption.class).orElse(BaseType.INSTANCE);
 
 			this.identityManagementMode = options.findOrDefault(IdentityManagementModeOption.class, IdentityManagementMode.auto);
 			this.entityVisitor = options.findOrNull(EntityVisitorOption.class);
 			this.propertyTypeInferenceOverride = options.findOrNull(PropertyTypeInferenceOverride.class);
+			this.idTypeSupplier = options.findAttribute(IdTypeSupplier.class).orElse(null);
+			this.propertySupplier = options.findAttribute(PropertyDeserializationTranslation.class).orElse(null);
+			this.isPropertyLenient = options.getDecodingLenience() != null && options.getDecodingLenience().isPropertyLenient();
 		}
 
 		public GenericModelType getInferredPropertyType(EntityType<?> entityType, Property property) {
@@ -2487,10 +2464,6 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 
 		public boolean getSnakeCaseProperties() {
 			return snakeCaseProperties;
-		}
-
-		public boolean getAssignAbsenceInformation() {
-			return assignAbsenceInformation;
 		}
 
 		public void register(GenericEntity entity, String id) {
@@ -2538,20 +2511,12 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			return entity;
 		}
 
-		public boolean isSettingPropertiesDirect() {
-			return session == null;
-		}
-
-		private boolean isPropertyLenient() {
-			return options.getDecodingLenience() != null && options.getDecodingLenience().isPropertyLenient();
+		public Property resolveProperty(EntityType<?> entityType, String realName) {
+			return propertySupplier != null ? propertySupplier.apply(entityType, realName) : entityType.findProperty(realName);
 		}
 
 		private Object unmarshall() throws Exception {
 			JsonToken token = null;
-
-			GenericModelType inferredRootType = options.getInferredRootType();
-			if (inferredRootType == null)
-				inferredRootType = BaseType.INSTANCE;
 
 			TopDecoder topDecoder = new TopDecoder(inferredRootType, this);
 			Deque<ContainerDecoder> stack = new ArrayDeque<>();
