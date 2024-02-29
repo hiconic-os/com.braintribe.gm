@@ -11,7 +11,6 @@
 // ============================================================================
 package com.braintribe.codec.marshaller.json;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -25,10 +24,8 @@ import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -49,7 +46,6 @@ import com.braintribe.codec.marshaller.api.CharacterMarshaller;
 import com.braintribe.codec.marshaller.api.DateDefaultZoneOption;
 import com.braintribe.codec.marshaller.api.DateFormatOption;
 import com.braintribe.codec.marshaller.api.DateLocaleOption;
-import com.braintribe.codec.marshaller.api.EntityRecurrenceDepth;
 import com.braintribe.codec.marshaller.api.EntityVisitorOption;
 import com.braintribe.codec.marshaller.api.GmCodec;
 import com.braintribe.codec.marshaller.api.GmDeserializationOptions;
@@ -61,11 +57,7 @@ import com.braintribe.codec.marshaller.api.IdentityManagementMode;
 import com.braintribe.codec.marshaller.api.IdentityManagementModeOption;
 import com.braintribe.codec.marshaller.api.MarshallException;
 import com.braintribe.codec.marshaller.api.PropertyDeserializationTranslation;
-import com.braintribe.codec.marshaller.api.PropertySerializationTranslation;
 import com.braintribe.codec.marshaller.api.PropertyTypeInferenceOverride;
-import com.braintribe.codec.marshaller.api.StringifyNumbersOption;
-import com.braintribe.codec.marshaller.api.TypeExplicitness;
-import com.braintribe.codec.marshaller.api.TypeExplicitnessOption;
 import com.braintribe.codec.marshaller.api.options.attributes.InferredRootTypeOption;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GMF;
@@ -73,7 +65,6 @@ import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.collection.LinearCollectionBase;
 import com.braintribe.model.generic.pr.AbsenceInformation;
 import com.braintribe.model.generic.reflection.BaseType;
-import com.braintribe.model.generic.reflection.CollectionType;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EssentialCollectionTypes;
@@ -125,11 +116,6 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 	}
 
 	@Configurable
-	public void setAssignAbsenceInformationForMissingProperties(boolean assignAbsenceInformationForMissingProperties) {
-		this.assignAbsenceInformationForMissingProperties = assignAbsenceInformationForMissingProperties;
-	}
-
-	@Configurable
 	public void setCreateEnhancedEntities(boolean createEnhancedEntities) {
 		this.createEnhancedEntities = createEnhancedEntities;
 	}
@@ -165,37 +151,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 
 	@Override
 	public void marshall(Writer writer, Object value, GmSerializationOptions options) throws MarshallException {
-		EncodingContext context = new EncodingContext(options);
-
-		PrettinessSupport prettinessSupport = null;
-		switch (options.outputPrettiness()) {
-			case high:
-				prettinessSupport = new HighPrettinessSupport();
-				break;
-			case low:
-				prettinessSupport = new LowPrettinessSupport();
-				break;
-			case mid:
-				prettinessSupport = new MidPrettinessSupport();
-				break;
-			case none:
-			default:
-				prettinessSupport = new NoPrettinessSupport();
-				break;
-		}
-
-		GenericModelType contextType = BaseType.INSTANCE;
-		if (options.getInferredRootType() != null) {
-			contextType = options.getInferredRootType();
-		}
-
-		try {
-			marshall(context, prettinessSupport, writer, contextType, value, 0, false);
-		} catch (MarshallException e) {
-			throw e;
-		} catch (Exception e) {
-			throw new MarshallException("error while marshalling json", e);
-		}
+		new JsonStreamEncoder(options, writer).encode(value);
 	}
 
 	private static abstract class ContainerDecoder {
@@ -239,12 +195,9 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		protected GenericModelType inferredType;
 		protected DecodingContext context;
 		protected boolean ignoreValue = false;
-		protected boolean snakeCaseProperties = false;
 
 		public ValueDecoder(DecodingContext context) {
-			super();
 			this.context = context;
-			this.snakeCaseProperties = context.getSnakeCaseProperties();
 		}
 
 		@Override
@@ -434,7 +387,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					consumeDirect(EssentialTypes.TYPE_STRING, value);
 					break;
 				case dateType:
-					consumeDirect(EssentialTypes.TYPE_DATE, context.getDateCoding().decode(value));
+					consumeDirect(EssentialTypes.TYPE_DATE, context.dateCoding.decode(value));
 					break;
 				case longType:
 					consumeDirect(EssentialTypes.TYPE_LONG, Long.parseLong(value));
@@ -623,87 +576,24 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 	}
 
 	private static class NoopDecoder extends ContainerDecoder {
-
-		@Override
-		public ContainerDecoder arrayDecoder() throws Exception {
-			return this;
-		}
-
-		@Override
-		public ContainerDecoder objectDecoder() throws Exception {
-			return this;
-		}
-
-		@Override
-		public void setField(String name) {
-			// noop
-		}
-
-		@Override
-		public void consumeInteger(Integer value) {
-			// noop
-		}
-
-		@Override
-		public void consumeLong(Long value) {
-			// noop
-		}
-
-		@Override
-		public void consumeFloat(Float value) {
-			// noop
-		}
-
-		@Override
-		public void consumeDouble(Double value) {
-			// noop
-		}
-
-		@Override
-		public void consumeDecimal(BigDecimal value) {
-			// noop
-		}
-
-		@Override
-		public void consumeString(String value) {
-			// noop
-		}
-
-		@Override
-		public void consumeBoolean(Boolean value) {
-			// noop
-		}
-
-		@Override
-		public void consumeAssignable(GenericModelType type, Object value) {
-			// noop
-		}
-
-		@Override
-		public void consumeDirect(GenericModelType type, Object value) {
-			// noop
-		}
-
-		@Override
-		public void consumeDeferred(EntityRegistration registration) {
-			// noop
-		}
-
-		@Override
-		public GenericModelType getType() {
-			return null;
-		}
-
-		@Override
-		public Object getValue() {
-			return null;
-		}
-
-		@Override
-		public EntityRegistration isDeferred() {
-			return null;
-		}
-
+		// @formatter:off
+		@Override public ContainerDecoder arrayDecoder() throws Exception { return this; }
+		@Override public ContainerDecoder objectDecoder() throws Exception { return this; }
+		@Override public void setField(String name) { /*NOOP*/ }
+		@Override public void consumeInteger(Integer value) { /*NOOP*/ }
+		@Override public void consumeLong(Long value) { /*NOOP*/ }
+		@Override public void consumeFloat(Float value) { /*NOOP*/ }
+		@Override public void consumeDouble(Double value) { /*NOOP*/ }
+		@Override public void consumeDecimal(BigDecimal value) { /*NOOP*/ }
+		@Override public void consumeString(String value) { /*NOOP*/ }
+		@Override public void consumeBoolean(Boolean value) { /*NOOP*/ }
+		@Override public void consumeAssignable(GenericModelType type, Object value) { /*NOOP*/ }
+		@Override public void consumeDirect(GenericModelType type, Object value) { /*NOOP*/ }
+		@Override public void consumeDeferred(EntityRegistration registration) { /*NOOP*/ }
+		@Override public GenericModelType getType() { return null; }
+		@Override public Object getValue() { return null; }
+		@Override public EntityRegistration isDeferred() { return null; }
+		// @formatter:on
 	}
 
 	private static class FieldValue {
@@ -799,7 +689,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 				}
 
 			} else {
-				if (snakeCaseProperties) {
+				if (context.snakeCaseProperties) {
 					name = toCamelCase(name, '_');
 				}
 				property = context.resolveProperty(entityType, name);
@@ -1102,26 +992,6 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		}
 
 		@Override
-		public EntityRegistration isDeferred() {
-			return delegate.isDeferred();
-		}
-
-		@Override
-		public void setField(String name) {
-			delegate.setField(name);
-		}
-
-		@Override
-		public void consumeDirect(GenericModelType type, Object value) {
-			delegate.consumeDirect(type, value);
-		}
-
-		@Override
-		public void consumeDeferred(EntityRegistration registration) {
-			delegate.consumeDeferred(registration);
-		}
-
-		@Override
 		public void accept(FieldValue fieldValue) {
 			String name = fieldValue.name;
 
@@ -1190,71 +1060,25 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			transferToDelegate(fieldValue.next);
 		}
 
-		@Override
-		public GenericModelType getType() {
-			return delegate.getType();
-		}
-
-		@Override
-		public Object getValue() {
-			return delegate.getValue();
-		}
-
-		@Override
-		public ContainerDecoder arrayDecoder() throws Exception {
-			return delegate.arrayDecoder();
-		}
-
-		@Override
-		public ContainerDecoder objectDecoder() throws Exception {
-			return delegate.objectDecoder();
-		}
-
-		@Override
-		public void consumeInteger(Integer value) {
-			delegate.consumeInteger(value);
-		}
-
-		@Override
-		public void consumeLong(Long value) {
-			delegate.consumeLong(value);
-		}
-
-		@Override
-		public void consumeFloat(Float value) {
-			delegate.consumeFloat(value);
-		}
-
-		@Override
-		public void consumeDouble(Double value) {
-			delegate.consumeDouble(value);
-		}
-
-		@Override
-		public void consumeDecimal(BigDecimal value) {
-			delegate.consumeDecimal(value);
-		}
-
-		@Override
-		public void consumeString(String value) {
-			delegate.consumeString(value);
-		}
-
-		@Override
-		public void consumeBoolean(Boolean value) {
-			delegate.consumeBoolean(value);
-		}
-
-		@Override
-		public void consumeAssignable(GenericModelType type, Object value) {
-			delegate.consumeAssignable(type, value);
-		}
-
-		@Override
-		public void close() {
-			delegate.close();
-		}
-
+		// @formatter:off
+		@Override public EntityRegistration isDeferred() { return delegate.isDeferred(); }
+		@Override public void setField(String name) { delegate.setField(name); }
+		@Override public void consumeDirect(GenericModelType type, Object value) { delegate.consumeDirect(type, value); }
+		@Override public void consumeDeferred(EntityRegistration registration) { delegate.consumeDeferred(registration); }
+		@Override public GenericModelType getType() { return delegate.getType(); }
+		@Override public Object getValue() { return delegate.getValue(); }
+		@Override public ContainerDecoder arrayDecoder() throws Exception { return delegate.arrayDecoder(); }
+		@Override public ContainerDecoder objectDecoder() throws Exception { return delegate.objectDecoder(); }
+		@Override public void consumeInteger(Integer value) { delegate.consumeInteger(value); }
+		@Override public void consumeLong(Long value) { delegate.consumeLong(value); }
+		@Override public void consumeFloat(Float value) { delegate.consumeFloat(value); }
+		@Override public void consumeDouble(Double value) { delegate.consumeDouble(value); }
+		@Override public void consumeDecimal(BigDecimal value) { delegate.consumeDecimal(value); }
+		@Override public void consumeString(String value) { delegate.consumeString(value); }
+		@Override public void consumeBoolean(Boolean value) { delegate.consumeBoolean(value); }
+		@Override public void consumeAssignable(GenericModelType type, Object value) { delegate.consumeAssignable(type, value); }
+		@Override public void close() { delegate.close(); }
+		// @formatter:on
 	}
 
 	private static class TypedCollectionFromArrayDecoder extends ValueDecoder {
@@ -1526,76 +1350,25 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			this.map = mapType.createPlain();
 		}
 
-		@Override
-		public ContainerDecoder arrayDecoder() throws Exception {
-			throw new IllegalStateException("map array should not contain non object literals");
-		}
+		// @formatter:off
+		@Override public ContainerDecoder objectDecoder() throws Exception { return new MapEntryDecoder(mapType, context); }
+		@Override public GenericModelType getType() { return mapType; }
+		@Override public Object getValue() { return map; }
+		@Override public EntityRegistration isDeferred() { return null; }
 
-		@Override
-		public ContainerDecoder objectDecoder() throws Exception {
-			return new MapEntryDecoder(mapType, context);
-		}
-
-		@Override
-		public void consumeDirect(GenericModelType type, Object value) {
-			throw new IllegalStateException("Unexpected call");
-		}
-
-		@Override
-		public void consumeDeferred(EntityRegistration registration) {
-			throw new IllegalStateException("Unexpected deferring");
-		}
-
-		@Override
-		public GenericModelType getType() {
-			return mapType;
-		}
-
-		@Override
-		public Object getValue() {
-			return map;
-		}
-
-		@Override
-		public void setField(String name) {
-			throw new IllegalStateException("Unexpected field " + name);
-		}
-
-		@Override
-		public void consumeInteger(Integer value) {
-			throw new IllegalStateException("Unexpected value " + value);
-		}
-
-		@Override
-		public void consumeLong(Long value) {
-			throw new IllegalStateException("Unexpected value " + value);
-		}
-
-		@Override
-		public void consumeFloat(Float value) {
-			throw new IllegalStateException("Unexpected value " + value);
-		}
-
-		@Override
-		public void consumeDouble(Double value) {
-			throw new IllegalStateException("Unexpected value " + value);
-		}
-
-		@Override
-		public void consumeDecimal(BigDecimal value) {
-			throw new IllegalStateException("Unexpected value " + value);
-		}
-
-		@Override
-		public void consumeString(String value) {
-			throw new IllegalStateException("Unexpected value " + value);
-		}
-
-		@Override
-		public void consumeBoolean(Boolean value) {
-			throw new IllegalStateException("Unexpected value " + value);
-		}
-
+		@Override public ContainerDecoder arrayDecoder() throws Exception { throw new IllegalStateException("map array should not contain non object literals"); }
+		@Override public void consumeDirect(GenericModelType type, Object value) { throw new IllegalStateException("Unexpected call"); }
+		@Override public void consumeDeferred(EntityRegistration registration) { throw new IllegalStateException("Unexpected deferring"); }
+		@Override public void setField(String name) { throw new IllegalStateException("Unexpected field " + name); }
+		@Override public void consumeInteger(Integer value) { throw new IllegalStateException("Unexpected value " + value); }
+		@Override public void consumeLong(Long value) { throw new IllegalStateException("Unexpected value " + value); }
+		@Override public void consumeFloat(Float value) { throw new IllegalStateException("Unexpected value " + value); }
+		@Override public void consumeDouble(Double value) { throw new IllegalStateException("Unexpected value " + value); }
+		@Override public void consumeDecimal(BigDecimal value) { throw new IllegalStateException("Unexpected value " + value); }
+		@Override public void consumeString(String value) { throw new IllegalStateException("Unexpected value " + value); }
+		@Override public void consumeBoolean(Boolean value) { throw new IllegalStateException("Unexpected value " + value); }		
+		// @formatter:on
+		
 		@Override
 		public void consumeAssignable(GenericModelType type, Object value) {
 			MapEntry entry = (MapEntry) value;
@@ -1605,11 +1378,6 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			} else {
 				map.put(entry.key, entry.value);
 			}
-		}
-
-		@Override
-		public EntityRegistration isDeferred() {
-			return null;
 		}
 
 	}
@@ -1652,9 +1420,9 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			JsonFactory factory = new JsonFactory();
 			parser = factory.createParser(in);
 
-			DecodingContext context = new DecodingContext(options, parser, createEnhancedEntities);
-			context.setSnakeCaseProperties(snakeCaseProperties);
+			DecodingContext context = new DecodingContext(options, parser, createEnhancedEntities, snakeCaseProperties);
 			return context.unmarshall();
+
 		} catch (Exception e) {
 			String location = getDiagnosticInformation(parser);
 			throw new MarshallException("json codec error during unmarshalling" + location, e);
@@ -1711,9 +1479,9 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			JsonFactory factory = new JsonFactory();
 			JsonParser parser = factory.createParser(reader);
 
-			DecodingContext context = new DecodingContext(options, parser, createEnhancedEntities);
-			context.setSnakeCaseProperties(snakeCaseProperties);
+			DecodingContext context = new DecodingContext(options, parser, createEnhancedEntities, snakeCaseProperties);
 			return context.unmarshall();
+
 		} catch (Exception e) {
 			throw new MarshallException("json codec error during unmarshalling", e);
 		}
@@ -1760,521 +1528,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		return this;
 	}
 
-	private static final char[] nullLiteral = "null".toCharArray();
-	private static final char[] trueLiteral = "true".toCharArray();
-	private static final char[] falseLiteral = "false".toCharArray();
-
-	private static final char[] openTypedValue = "{\"value\":".toCharArray();
-	private static final char[] openTypedQuotedValue = "{\"value\":\"".toCharArray();
-	private static final char[] closeDouble = ", \"_type\":\"double\"}".toCharArray();
-	private static final char[] closeFloat = ", \"_type\":\"float\"}".toCharArray();
-	private static final char[] closeDate = "\", \"_type\":\"date\"}".toCharArray();
-	private static final char[] closeDecimal = "\", \"_type\":\"decimal\"}".toCharArray();
-	private static final char[] closeLong = "\", \"_type\":\"long\"}".toCharArray();
-	private static final char[] midEnum = "\", \"_type\":\"".toCharArray();
-	private static final char[] closeEnum = "\"}".toCharArray();
-	private static final char[] emptyList = "[]".toCharArray();
-	private static final char[] openSet = "{\"_type\": \"set\", \"value\":[".toCharArray();
-	private static final char[] emptySet = "{\"_type\": \"set\", \"value\":[]}".toCharArray();
-	private static final char[] openMap = "{\"_type\": \"map\", \"value\":[".toCharArray();
-	private static final char[] openFlatMap = "{\"_type\": \"flatmap\", \"value\":[".toCharArray();
-	private static final char[] emptyMap = "{\"_type\": \"map\", \"value\":[]}".toCharArray();
-	private static final char[] emptyFlatMap = "{\"_type\": \"flatmap\", \"value\":[]}".toCharArray();
-	private static final char[] closeTypedCollection = "]}".toCharArray();
-	private static final char[] openEntry = "{\"key\":".toCharArray();
-	private static final char[] midEntry = ", \"value\":".toCharArray();
-
-	private static final boolean EnumTypeImpl = false;
-
-	private boolean assignAbsenceInformationForMissingProperties;
-
-	private void marshall(EncodingContext context, PrettinessSupport prettinessSupport, Writer writer, GenericModelType contextType, Object value,
-			int indent, boolean isIdentifier) throws MarshallException, IOException {
-		if (value == null) {
-			writer.write(nullLiteral);
-			return;
-		}
-
-		boolean writeSimplifiedValues = context.writeSimplifiedValues();
-		GenericModelType type = contextType;
-		while (true) {
-			switch (type.getTypeCode()) {
-				// object type: retrieve the actual type and do another round of type detection here
-				case objectType:
-					GenericModelType actualType = type.getActualType(value);
-					if (type.equals(actualType)) {
-						throw new MarshallException("Object type should resolve to a concrete type.");
-					}
-					type = actualType;
-					writeSimplifiedValues = false;
-					if (isIdentifier && context.writeSimplifiedValues && type.isScalar()) {
-						writeSimplifiedValues = true;
-					} else if (!context.allowsTypeExplicitness()) {
-						writeSimplifiedValues = true;
-					}
-					break;
-
-				case booleanType:
-					if ((Boolean) value)
-						writer.write(trueLiteral);
-					else
-						writer.write(falseLiteral);
-					return;
-				case stringType:
-					writer.write('"');
-					writeEscaped(writer, (String) value);
-					writer.write('"');
-					return;
-				case dateType:
-					if (writeSimplifiedValues) {
-						writer.write('"');
-						writer.write(context.getDateCoding().encode((Date) value));
-						writer.write('"');
-					} else {
-						writer.write(openTypedQuotedValue);
-						writer.write(context.getDateCoding().encode((Date) value));
-						writer.write(closeDate);
-					}
-					return;
-				case integerType:
-					writer.write(value.toString());
-					return;
-				case doubleType:
-					if (writeSimplifiedValues) {
-						writer.write(value.toString());
-					} else {
-						writer.write(openTypedValue);
-						writer.write(value.toString());
-						writer.write(closeDouble);
-					}
-					return;
-				case floatType:
-					if (writeSimplifiedValues) {
-						writer.write(value.toString());
-					} else {
-						writer.write(openTypedValue);
-						writer.write(value.toString());
-						writer.write(closeFloat);
-					}
-					return;
-				case longType:
-					if (writeSimplifiedValues) {
-						writeSimplifiedNumberType(context, writer, value);
-					} else {
-						writer.write(openTypedQuotedValue);
-						writer.write(value.toString());
-						writer.write(closeLong);
-					}
-					return;
-				case decimalType:
-					if (writeSimplifiedValues) {
-						writeSimplifiedNumberType(context, writer, value);
-					} else {
-						writer.write(openTypedQuotedValue);
-						writer.write(value.toString());
-						writer.write(closeDecimal);
-					}
-					return;
-
-				// custom types
-				case entityType:
-					marshallEntity(context, prettinessSupport, writer, (GenericEntity) value, indent, contextType);
-					return;
-
-				case enumType:
-					if (writeSimplifiedValues) {
-						writer.write('"');
-						writer.write(value.toString());
-						writer.write('"');
-					} else {
-						writer.write(openTypedQuotedValue);
-						writer.write(value.toString());
-						writer.write(midEnum);
-						writer.write(type.getTypeSignature());
-						writer.write(closeEnum);
-					}
-					return;
-
-				// collections
-				case listType: {
-					Collection<?> collection = (Collection<?>) value;
-					marshallCollection(context, prettinessSupport, writer, (ListType) type, collection, indent);
-					return;
-				}
-				case setType: {
-					Collection<?> collection = (Collection<?>) value;
-					if (writeSimplifiedValues) {
-						marshallCollection(context, prettinessSupport, writer, (SetType) type, collection, indent);
-					} else {
-						if (collection.isEmpty()) {
-							writer.write(emptySet);
-							return;
-						}
-						writer.write(openSet);
-						int i = 0;
-						int elementIndent = indent + 1;
-						GenericModelType elementType = ((CollectionType) type).getCollectionElementType();
-						for (Object e : collection) {
-							if (i > 0)
-								writer.write(',');
-							prettinessSupport.writeLinefeed(writer, elementIndent);
-
-							marshall(context, prettinessSupport, writer, elementType, e, elementIndent, false);
-							i++;
-						}
-						prettinessSupport.writeLinefeed(writer, indent);
-						writer.write(closeTypedCollection);
-					}
-					return;
-				}
-				case mapType: {
-					Map<?, ?> map = (Map<?, ?>) value;
-					if (map.isEmpty()) {
-						writer.write(emptyFlatMap);
-						return;
-					}
-
-					int i = 0;
-					int elementIndent = indent + 1;
-					int subElementIndent = indent + 2;
-					GenericModelType[] parameterization = ((CollectionType) type).getParameterization();
-					GenericModelType keyType = parameterization[0];
-					GenericModelType valueType = parameterization[1];
-					boolean isStringKey = keyType == EssentialTypes.TYPE_STRING;
-					boolean isEnumKey = keyType.isEnum();
-					boolean writeSimpleFlatMap = !context.allowsTypeExplicitness() || isStringKey || (isEnumKey && writeSimplifiedValues);
-					if (writeSimpleFlatMap) {
-						writer.write("{");
-					} else {
-						writer.write(openFlatMap);
-					}
-					for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
-						if (i > 0)
-							writer.write(',');
-						prettinessSupport.writeLinefeed(writer, elementIndent);
-						marshall(context, prettinessSupport, writer, keyType, entry.getKey(), subElementIndent, false);
-						if (writeSimpleFlatMap) {
-							writer.write(":");
-						} else {
-							writer.write(",");
-						}
-						marshall(context, prettinessSupport, writer, valueType, entry.getValue(), subElementIndent, false);
-						i++;
-					}
-					prettinessSupport.writeLinefeed(writer, indent);
-					if (writeSimpleFlatMap) {
-						writer.write("}".toCharArray());
-					} else {
-						writer.write(closeTypedCollection);
-					}
-					return;
-				}
-				default:
-					break;
-			}
-		}
-
-	}
-
-	private void writeSimplifiedNumberType(EncodingContext context, Writer writer, Object value) throws IOException {
-		if (context.stringifyNumbers) {
-			writer.write('"');
-			writer.write(value.toString());
-			writer.write('"');
-		} else {
-			writer.write(value.toString());
-		}
-	}
-
-	private void marshallCollection(EncodingContext context, PrettinessSupport prettinessSupport, Writer writer, CollectionType collectionType,
-			Collection<?> collection, int indent) throws IOException {
-		if (collection.isEmpty()) {
-			writer.write(emptyList);
-			return;
-		}
-		writer.write('[');
-		int i = 0;
-		int elementIndent = indent + 1;
-		GenericModelType elementType = collectionType.getCollectionElementType();
-		for (Object e : collection) {
-			if (i > 0)
-				writer.write(',');
-			prettinessSupport.writeLinefeed(writer, elementIndent);
-			marshall(context, prettinessSupport, writer, elementType, e, elementIndent, false);
-			i++;
-		}
-		prettinessSupport.writeLinefeed(writer, indent);
-		writer.write(']');
-
-	}
-
-	private static final char[] openEntityRef = "{\"_ref\": \"".toCharArray();
-	private static final char[] closeEntityRef = "\"}".toCharArray();
-	private static final char[] openEntity = "{\"_type\": \"".toCharArray();
-	private static final char[] openTypeFreeEntity = "{\"_id\": \"".toCharArray();
-	private static final char[] openTypeFreeEntityNoId = "{".toCharArray();
-	private static final char[] idPartEntity = "\", \"_id\": \"".toCharArray();
-	private static final char[] partialPartEntity = "\", \"_partial\": \"".toCharArray();
-	private static final char[] partialPartEntityNoId = "\"_partial\": \"\"".toCharArray();
-	private static final char[] openEntityFinish = "\"".toCharArray();
-	private static final char[] midProperty = "\":".toCharArray();
-	private static final char[] openAbsentProperty = "\"?".toCharArray();
-
-	protected void marshallEntity(EncodingContext context, PrettinessSupport prettinessSupport, Writer writer, GenericEntity entity, int indent,
-			GenericModelType contextType) throws IOException, MarshallException {
-		if (context.getEntityRecurrenceDepth() == 0) {
-			marsallEntityWithZeroEntityRecurrenceDepth(context, prettinessSupport, writer, entity, indent, contextType);
-		} else {
-			marsallEntityWithEntityRecurrenceDepth(context, prettinessSupport, writer, entity, indent, contextType);
-		}
-
-	}
-
-	private void marsallEntityWithEntityRecurrenceDepth(EncodingContext context, PrettinessSupport prettinessSupport, Writer writer,
-			GenericEntity entity, int indent, GenericModelType contextType) {
-
-		if (context.isInRecurrence() || context.lookupId(entity) != null) {
-			context.incrementCurrentRecurrenceDepth();
-			try {
-				_marshallEntity(context, prettinessSupport, writer, entity, indent, contextType);
-			} finally {
-				context.decrementCurrentRecurrenceDepth();
-			}
-		} else {
-			context.register(entity);
-			_marshallEntity(context, prettinessSupport, writer, entity, indent, contextType);
-		}
-
-	}
-
-	private void _marshallEntity(EncodingContext context, PrettinessSupport prettinessSupport, Writer writer, GenericEntity entity, int indent,
-			GenericModelType contextType) {
-		Set<GenericEntity> recursiveRecurrenceSet = context.getRecursiveRecurrenceSet();
-
-		boolean nonRecursiveVisit = recursiveRecurrenceSet.add(entity);
-
-		try {
-			boolean onlyScalars = !nonRecursiveVisit || context.isRecurrenceMax();
-
-			EntityType<?> type = entity.entityType();
-
-			boolean skipType = !context.allowsTypeExplicitness() || (context.canSkipNonPolymorphicType() && contextType == entity.entityType());
-			if (skipType) {
-				writer.write(openTypeFreeEntityNoId);
-			} else {
-				writer.write(openEntity);
-				// encode entity
-				writer.write(type.getTypeSignature());
-			}
-
-			if (!skipType) {
-				writer.write(openEntityFinish);
-			}
-
-			int propertyIndent = indent + 1;
-			int i = 0;
-			boolean dpa = context.useDirectPropertyAccess();
-			boolean writeEmptyProperties = context.writeEmptyProperties();
-
-			for (Property property : entity.entityType().getProperties()) {
-				GenericModelType propertyType = property.getType();
-				if (!propertyType.isScalar() && onlyScalars) {
-					continue;
-				}
-
-				Object value = dpa ? property.getDirectUnsafe(entity) : property.get(entity);
-
-				if (value == null) {
-					AbsenceInformation absenceInformation = property.getAbsenceInformation(entity);
-
-					if (absenceInformation != null) {
-						if (context.writeAbsenceProperties) {
-							writer.write(',');
-							prettinessSupport.writeLinefeed(writer, propertyIndent);
-							writer.write(openAbsentProperty);
-							writer.write(context.propertyName(property));
-							writer.write(midProperty);
-							marshallEntity(context, prettinessSupport, writer, absenceInformation, propertyIndent, AbsenceInformation.T);
-							i++;
-						}
-						continue;
-					} else {
-						if (!writeEmptyProperties)
-							continue;
-					}
-				} else {
-					if (!writeEmptyProperties && propertyType.getTypeCode() != TypeCode.objectType && propertyType.isEmpty(value))
-						continue;
-				}
-
-				if (!skipType && i == 0) {
-					writer.write(',');
-				} else if (i > 0) {
-					writer.write(',');
-				}
-
-				prettinessSupport.writeLinefeed(writer, propertyIndent);
-				writer.write('"');
-				writer.write(context.propertyName(property));
-				writer.write(midProperty);
-
-				// GenericModelType actualType = GMF.getTypeReflection().getBaseType().getActualType(value);
-				marshall(context, prettinessSupport, writer, propertyType, value, propertyIndent, property.isIdentifier());
-				i++;
-			}
-
-			if (i > 0)
-				prettinessSupport.writeLinefeed(writer, indent);
-
-			writer.write('}');
-		} catch (MarshallException e) {
-			throw e;
-		} catch (Exception e) {
-			throw new MarshallException("error while encoding entity", e);
-		} finally {
-			if (nonRecursiveVisit)
-				recursiveRecurrenceSet.remove(entity);
-		}
-	}
-
-	private void marsallEntityWithZeroEntityRecurrenceDepth(EncodingContext context, PrettinessSupport prettinessSupport, Writer writer,
-			GenericEntity entity, int indent, GenericModelType contextType) throws IOException, MarshallException {
-		int indentLimit = prettinessSupport.getMaxIndent() - 4;
-		if (indent > indentLimit)
-			indent = indentLimit;
-
-		Integer refId = context.lookupId(entity);
-		if (refId != null) {
-			// encode reference
-			writer.write(openEntityRef);
-			writer.write(refId.toString());
-			writer.write(closeEntityRef);
-		} else {
-			try {
-				EntityType<?> type = entity.entityType();
-
-				boolean skipType = !context.allowsTypeExplicitness() || (context.canSkipNonPolymorphicType() && contextType == entity.entityType());
-
-				if (skipType) {
-					writer.write(openTypeFreeEntity);
-				} else {
-					writer.write(openEntity);
-					// encode entity
-					writer.write(type.getTypeSignature());
-					writer.write(idPartEntity);
-				}
-
-				refId = context.register(entity);
-				writer.write(refId.toString());
-
-				writer.write(openEntityFinish);
-
-				int propertyIndent = indent + 1;
-				int i = 0;
-				boolean dpa = context.useDirectPropertyAccess();
-				boolean writeEmptyProperties = context.writeEmptyProperties();
-
-				for (Property property : type.getProperties()) {
-
-					GenericModelType propertyType = property.getType();
-
-					Object value = dpa ? property.getDirectUnsafe(entity) : property.get(entity);
-
-					if (value == null) {
-						AbsenceInformation absenceInformation = property.getAbsenceInformation(entity);
-
-						if (absenceInformation != null) {
-							if (context.writeAbsenceProperties) {
-								writer.write(',');
-								prettinessSupport.writeLinefeed(writer, propertyIndent);
-								writer.write(openAbsentProperty);
-								writer.write(context.propertyName(property));
-								writer.write(midProperty);
-								marshallEntity(context, prettinessSupport, writer, absenceInformation, propertyIndent, AbsenceInformation.T);
-								i++;
-							}
-							continue;
-						} else {
-							if (!writeEmptyProperties)
-								continue;
-						}
-					} else {
-						if (!writeEmptyProperties && propertyType.getTypeCode() != TypeCode.objectType && propertyType.isEmpty(value))
-							continue;
-					}
-
-					writer.write(',');
-					prettinessSupport.writeLinefeed(writer, propertyIndent);
-					writer.write('"');
-					writer.write(context.propertyName(property));
-					writer.write(midProperty);
-
-					// GenericModelType actualType = GMF.getTypeReflection().getBaseType().getActualType(value);
-					marshall(context, prettinessSupport, writer, propertyType, value, propertyIndent, property.isIdentifier());
-					i++;
-				}
-
-				if (i > 0)
-					prettinessSupport.writeLinefeed(writer, indent);
-
-				writer.write('}');
-			} catch (MarshallException e) {
-				throw e;
-			} catch (Exception e) {
-				throw new MarshallException("error while encoding entity", e);
-			}
-		}
-	}
-
-	public static String escape(String s) throws IOException {
-		StringWriter writer = new StringWriter();
-		writeEscaped(writer, s);
-		return writer.toString();
-	}
-
-	private final static char[] HEX_CHARS = "0123456789ABCDEF".toCharArray();
-	private static final char[][] ESCAPES = new char[128][];
-
-	static {
-		ESCAPES['"'] = "\\\"".toCharArray();
-		ESCAPES['\\'] = "\\\\".toCharArray();
-		ESCAPES['\t'] = "\\t".toCharArray();
-		ESCAPES['\f'] = "\\f".toCharArray();
-		ESCAPES['\n'] = "\\n".toCharArray();
-		ESCAPES['\r'] = "\\r".toCharArray();
-
-		for (int i = 0; i < 32; i++) {
-			if (ESCAPES[i] == null)
-				ESCAPES[i] = ("\\u00" + HEX_CHARS[i >> 4] + HEX_CHARS[i & 0xF]).toCharArray();
-		}
-	}
-
-	public static void writeEscaped(Writer writer, String string) throws IOException {
-		int len = string.length();
-		int s = 0;
-		int i = 0;
-		char esc[] = null;
-		for (; i < len; i++) {
-			char c = string.charAt(i);
-
-			if (c < 128) {
-				esc = ESCAPES[c];
-				if (esc != null) {
-					writer.write(string, s, i - s);
-					writer.write(esc);
-					s = i + 1;
-				}
-			}
-		}
-		if (i > s) {
-			if (s == 0)
-				writer.write(string);
-			else
-				writer.write(string, s, i - s);
-		}
-	}
-
-	private static DateCoding dateTimeFormatterFromOptions(GmMarshallingOptions options) {
+	/* package */ static DateCoding dateTimeFormatterFromOptions(GmMarshallingOptions options) {
 		String datePattern = options.findOrNull(DateFormatOption.class);
 
 		if (datePattern != null) {
@@ -2287,135 +1541,8 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		}
 	}
 
-	private static class CodingContext {
-		private final DateCoding dateCoding;
-
-		public CodingContext(GmMarshallingOptions options) {
-			this.dateCoding = dateTimeFormatterFromOptions(options);
-		}
-
-		public DateCoding getDateCoding() {
-			return dateCoding;
-		}
-	}
-
-	private static class EncodingContext extends CodingContext {
-
-		private final Map<GenericEntity, Integer> idByEntities = new HashMap<>();
-		private final Set<GenericEntity> recursiveRecurrenceSet = new HashSet<>();
-		private int idSequence = 0;
-		private final boolean useDirectPropertyAccess;
-		private final boolean writeEmptyProperties;
-		private boolean canSkipNonPolymorphingType;
-		private final TypeExplicitness typeExplicitness;
-		private boolean writeSimplifiedValues;
-		private Integer entityRecurrenceDepth = 0;
-		private int currentRecurrenceDepth = 0;
-		private boolean writeAbsenceProperties = true;
-		private boolean stringifyNumbers = false;
-		private final Consumer<? super GenericEntity> entityVisitor;
-		private final Function<Property, String> propertyNameSupplier;
-
-		public EncodingContext(GmSerializationOptions options) {
-			super(options);
-			this.useDirectPropertyAccess = options.useDirectPropertyAccess();
-			this.writeEmptyProperties = options.writeEmptyProperties();
-			this.writeAbsenceProperties = options.writeAbsenceInformation();
-			this.stringifyNumbers = options.findAttribute(StringifyNumbersOption.class).orElse(false);
-			this.typeExplicitness = options.findOrDefault(TypeExplicitnessOption.class, TypeExplicitness.auto);
-
-			switch (typeExplicitness) {
-				case always:
-					break;
-				case auto:
-				case entities:
-					canSkipNonPolymorphingType = false;
-					writeSimplifiedValues = true;
-					break;
-				case polymorphic:
-				case never:
-					canSkipNonPolymorphingType = true;
-					writeSimplifiedValues = true;
-					break;
-				default:
-					break;
-			}
-
-			this.entityRecurrenceDepth = options.findAttribute(EntityRecurrenceDepth.class).orElse(null);
-			if (this.entityRecurrenceDepth == null) {
-				this.entityRecurrenceDepth = 0;
-			}
-
-			this.entityVisitor = options.findAttribute(EntityVisitorOption.class).orElse(null);
-			this.propertyNameSupplier = options.findAttribute(PropertySerializationTranslation.class).orElse(null);
-		}
-
-		public boolean allowsTypeExplicitness() {
-			return typeExplicitness != TypeExplicitness.never;
-		}
-
-		public boolean canSkipNonPolymorphicType() {
-			return canSkipNonPolymorphingType;
-		}
-
-		public boolean writeSimplifiedValues() {
-			return writeSimplifiedValues;
-		}
-
-		public boolean useDirectPropertyAccess() {
-			return useDirectPropertyAccess;
-		}
-
-		public boolean writeEmptyProperties() {
-			return writeEmptyProperties;
-		}
-
-		public Integer register(GenericEntity entity) {
-			return idByEntities.computeIfAbsent(entity, e -> {
-				if (entityVisitor != null)
-					entityVisitor.accept(e);
-				return idSequence++;
-			});
-		}
-
-		public Integer lookupId(GenericEntity entity) {
-			return idByEntities.get(entity);
-		}
-
-		public Integer getEntityRecurrenceDepth() {
-			return this.entityRecurrenceDepth;
-		}
-
-		public boolean isInRecurrence() {
-			return this.currentRecurrenceDepth > 0;
-		}
-
-		public int incrementCurrentRecurrenceDepth() {
-			return ++this.currentRecurrenceDepth;
-		}
-
-		public int decrementCurrentRecurrenceDepth() {
-			return --this.currentRecurrenceDepth;
-		}
-
-		public Set<GenericEntity> getRecursiveRecurrenceSet() {
-			return this.recursiveRecurrenceSet;
-		}
-
-		public boolean isRecurrenceMax() {
-			if (this.entityRecurrenceDepth < 0) {
-				return false;
-			}
-			return this.currentRecurrenceDepth >= this.entityRecurrenceDepth;
-		}
-
-		public String propertyName(Property property) {
-			return propertyNameSupplier != null ? propertyNameSupplier.apply(property) : property.getName();
-		}
-
-	}
-
-	private static class DecodingContext extends CodingContext {
+	private static class DecodingContext {
+		public final DateCoding dateCoding;
 		public final Map<String, EntityRegistration> entitiesById = new HashMap<>();
 		public final Map<String, Map<String, EntityRegistration>> identityManagementRegister = new HashMap<>();
 		public final AbsenceInformation absenceInformationForMissingProperties = GMF.absenceInformation();
@@ -2432,10 +1559,11 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		public final Function<String, GenericModelType> idTypeSupplier;
 		public final boolean isPropertyLenient;
 
-		public DecodingContext(GmDeserializationOptions options, JsonParser parser, boolean enhanced) {
-			super(options);
+		public DecodingContext(GmDeserializationOptions options, JsonParser parser, boolean enhanced, boolean snakeCaseProperties) {
+			this.dateCoding = dateTimeFormatterFromOptions(options);
 			this.parser = parser;
 			this.enhanced = enhanced;
+			this.snakeCaseProperties = snakeCaseProperties;
 			this.session = options.getSession();
 			this.assignAbsenceInformation = options.getAbsentifyMissingProperties();
 			this.inferredRootType = options.findAttribute(InferredRootTypeOption.class).orElse(BaseType.INSTANCE);
@@ -2458,20 +1586,8 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			return property.getType();
 		}
 
-		public void setSnakeCaseProperties(boolean snakeCaseProperties) {
-			this.snakeCaseProperties = snakeCaseProperties;
-		}
-
-		public boolean getSnakeCaseProperties() {
-			return snakeCaseProperties;
-		}
-
 		public void register(GenericEntity entity, String id) {
 			lookupEntity(id).set(entity);
-		}
-
-		public AbsenceInformation getAbsenceInformationForMissingProperties() {
-			return absenceInformationForMissingProperties;
 		}
 
 		public EntityRegistration lookupEntity(String id) {
@@ -2657,52 +1773,4 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		return stack.stream();
 	}
 
-	private static abstract class PropertyAbsenceHelper {
-
-		public abstract void addPresent(Property property);
-		public abstract void ensureAbsenceInformation(EntityType<?> entityType, GenericEntity entity);
-	}
-
-	private static class ActivePropertyAbsenceHelper extends PropertyAbsenceHelper {
-		private final Set<Property> presentProperties = new HashSet<>();
-		private final DecodingContext context;
-
-		public ActivePropertyAbsenceHelper(DecodingContext context) {
-			super();
-			this.context = context;
-		}
-
-		@Override
-		public void addPresent(Property property) {
-			presentProperties.add(property);
-		}
-
-		@Override
-		public void ensureAbsenceInformation(EntityType<?> entityType, GenericEntity entity) {
-			List<Property> properties = entityType.getProperties();
-
-			if (properties.size() != presentProperties.size()) {
-				for (Property property : properties) {
-					if (!presentProperties.contains(property)) {
-						property.setAbsenceInformation(entity, context.getAbsenceInformationForMissingProperties());
-					}
-				}
-			}
-
-		}
-	}
-
-	private static class InactivePropertyAbsenceHelper extends PropertyAbsenceHelper {
-		public static InactivePropertyAbsenceHelper instance = new InactivePropertyAbsenceHelper();
-
-		@Override
-		public void addPresent(Property property) {
-			// intentionally left empty
-		}
-
-		@Override
-		public void ensureAbsenceInformation(EntityType<?> entityType, GenericEntity entity) {
-			// intentionally left empty
-		}
-	}
 }
