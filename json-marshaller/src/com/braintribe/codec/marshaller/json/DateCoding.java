@@ -11,6 +11,7 @@
 // ============================================================================
 package com.braintribe.codec.marshaller.json;
 
+import java.io.Writer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -23,12 +24,12 @@ import java.time.temporal.TemporalQueries;
 import java.util.Date;
 import java.util.Locale;
 
-public class DateCoding {
+/* package */ class DateCoding {
 
-	private DateTimeFormatter inFormatter;
+	private final DateTimeFormatter inFormatter;
 	private DateTimeFormatter outFormatter;
 	private String pattern;
-	private ZoneId defaultZone;
+	private final ZoneId defaultZone;
 	private Locale locale;
 
 	public DateCoding(String pattern, ZoneId defaultZone, Locale locale) {
@@ -72,9 +73,9 @@ public class DateCoding {
 		}
 	}
 
-	public String encode(Date date) {
+	public void encodeTo(Date date, Writer writer) {
 		ZonedDateTime dateTime = ZonedDateTime.ofInstant(date.toInstant(), defaultZone);
-		return outFormatter.format(dateTime);
+		outFormatter.formatTo(dateTime, writer);
 	}
 
 }
