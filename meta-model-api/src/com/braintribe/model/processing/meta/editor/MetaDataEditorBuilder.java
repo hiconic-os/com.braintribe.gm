@@ -31,7 +31,7 @@ public interface MetaDataEditorBuilder {
 	 * A function for creating the model element overrides (e.g. {@link GmEntityTypeOverride}). Typically this is used when you want to create these
 	 * instances on a session, so the caller would do something like this: {@code new BasiModelMetaDataEditor(model, session::create)}.
 	 */
-	MetaDataEditorBuilder withEtityFactory(Function<EntityType<?>, GenericEntity> entityFactory);
+	MetaDataEditorBuilder withEntityFactory(Function<EntityType<?>, GenericEntity> entityFactory);
 
 	/**
 	 * A predicate which tests whether a given model element should be re-create even if it was found in the internal cache. This is relevant in case
@@ -40,13 +40,13 @@ public interface MetaDataEditorBuilder {
 	MetaDataEditorBuilder withWasEntityUninstantiatedTest(Predicate<? super GmModelElement> wasEntityUninstantiated);
 
 	/**
-	 * Configures given session as the resolver for {@link #withEtityFactory(Function) entityFactory} and
+	 * Configures given session as the resolver for {@link #withEntityFactory(Function) entityFactory} and
 	 * {@link #withWasEntityUninstantiatedTest(Predicate) entityUninstantiatedTest} functionality.
 	 */
 	MetaDataEditorBuilder withSession(GmSession session);
 
 	/**
-	 * A function for creating globalId for the created model elements (see {@link #withEtityFactory(Function)}), in case the caller also wants to
+	 * A function for creating globalId for the created model elements (see {@link #withEntityFactory(Function)}), in case the caller also wants to
 	 * control this. The function takes two parameters - the {@link GmModelElement} which we are overriding, and a {@link OverrideType} as a
 	 * convenient way to describe what kind of element we are overriding. If <code>null</code> value is provided, default implementation is taken via
 	 * {@code com.braintribe.model.processing.meta.editor.leaf.LeafModel.deriveGlobalId()}

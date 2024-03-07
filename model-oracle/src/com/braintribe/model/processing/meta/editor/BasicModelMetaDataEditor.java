@@ -78,13 +78,13 @@ public class BasicModelMetaDataEditor implements ModelMetaDataEditor {
 	 */
 	@Deprecated
 	public BasicModelMetaDataEditor(GmMetaModel model, Function<EntityType<?>, GenericEntity> entityFactory) {
-		this(create(model).withEtityFactory(entityFactory));
+		this(create(model).withEntityFactory(entityFactory));
 	}
 
 	/** @deprecated use {@link #create(GmMetaModel)} with options. */
 	@Deprecated
 	public BasicModelMetaDataEditor(GmMetaModel model, Function<EntityType<?>, GenericEntity> entityFactory, GlobalIdFactory globalIdFactory) {
-		this(create(model).withEtityFactory(entityFactory).withGlobalIdFactory(globalIdFactory));
+		this(create(model).withEntityFactory(entityFactory).withGlobalIdFactory(globalIdFactory));
 	}
 
 	/* package */ BasicModelMetaDataEditor(BasicMdEditorBuilder b) {

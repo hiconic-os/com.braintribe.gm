@@ -46,7 +46,7 @@ public class BasicMdEditorBuilder implements MetaDataEditorBuilder {
 
 	/** {@inheritDoc} */
 	@Override
-	public BasicMdEditorBuilder withEtityFactory(Function<EntityType<?>, GenericEntity> entityFactory) {
+	public BasicMdEditorBuilder withEntityFactory(Function<EntityType<?>, GenericEntity> entityFactory) {
 		this.entityFactory = entityFactory;
 		return this;
 	}
@@ -61,7 +61,7 @@ public class BasicMdEditorBuilder implements MetaDataEditorBuilder {
 	/** {@inheritDoc} */
 	@Override
 	public BasicMdEditorBuilder withSession(GmSession session) {
-		return withEtityFactory(session::create).withWasEntityUninstantiatedTest(entity -> entity.session() != session);
+		return withEntityFactory(session::create).withWasEntityUninstantiatedTest(entity -> entity.session() != session);
 	}
 
 	/**
