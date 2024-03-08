@@ -493,28 +493,28 @@ public class JvmGenericModelTypeReflection extends AbstractGenericModelTypeRefle
 			modelLock.lock();
 			try {
 				if (model == null) {
-					model = GmMetaModel.T.create(globalId());
+					GmMetaModel newModel = GmMetaModel.T.create(globalId());
 
-					model.setName(modelDeclaration.getName());
-					model.setVersion(modelDeclaration.getVersion());
+					newModel.setName(modelDeclaration.getName());
+					newModel.setVersion(modelDeclaration.getVersion());
 
-					List<GmMetaModel> dependencies = model.getDependencies();
+					List<GmMetaModel> dependencies = newModel.getDependencies();
 					for (Model classpathModel : getDependencies()) {
 						GmMetaModel metaModel = classpathModel.getMetaModel();
 						dependencies.add(metaModel);
 					}
 
-					Set<GmType> types = model.getTypes();
+					Set<GmType> types = newModel.getTypes();
 
 					if (isRootModel) {
 						GmType gmBaseType = getGmType(Object.class, false);
 						types.add(gmBaseType);
-						gmBaseType.setDeclaringModel(model);
+						gmBaseType.setDeclaringModel(newModel);
 
 						for (SimpleType simpleType : SimpleTypes.TYPES_SIMPLE) {
 							GmType gmSimpleType = getGmType(simpleType.getJavaType(), false);
 							types.add(gmSimpleType);
-							gmSimpleType.setDeclaringModel(model);
+							gmSimpleType.setDeclaringModel(newModel);
 						}
 					}
 
@@ -526,8 +526,9 @@ public class JvmGenericModelTypeReflection extends AbstractGenericModelTypeRefle
 						}
 
 						types.add(gmType);
-						((GmCustomType) gmType).setDeclaringModel(model);
+						((GmCustomType) gmType).setDeclaringModel(newModel);
 					}
+					model = newModel;
 				}
 
 				return model;
