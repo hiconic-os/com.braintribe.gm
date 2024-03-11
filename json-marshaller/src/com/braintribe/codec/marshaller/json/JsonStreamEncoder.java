@@ -49,7 +49,7 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 /**
  * @author peter.gazdik
  */
-public class JsonStreamEncoder {
+/* package */ class JsonStreamEncoder {
 
 	private final UnsynchronizedBufferedWriter writer;
 
@@ -438,7 +438,7 @@ public class JsonStreamEncoder {
 	// private static final char[] openEntry = "{\"key\":".toCharArray();
 	// private static final char[] midEntry = ", \"value\":".toCharArray();
 
-	private EntityTypeInfo acquireEntityTypeInfo(EntityType<?> entityType) {
+	/* package */ EntityTypeInfo acquireEntityTypeInfo(EntityType<?> entityType) {
 		return entityTypeInfos.computeIfAbsent(entityType, EntityTypeInfo::new);
 	}
 
@@ -529,7 +529,7 @@ public class JsonStreamEncoder {
 	private static final char[] midProperty = "\": ".toCharArray();
 	private static final char[] openAbsentProperty = "\"?".toCharArray();
 
-	private void marsallEntityWithRecurrenceDepth(GenericEntity entity, EntityTypeInfo typeInfo, GenericModelType ctxType) {
+	/* package */ void marsallEntityWithRecurrenceDepth(GenericEntity entity, EntityTypeInfo typeInfo, GenericModelType ctxType) {
 		boolean isInRecurrence = currentRecurrenceDepth > 0;
 		if (isInRecurrence || lookupId(entity) != null) {
 
@@ -634,10 +634,9 @@ public class JsonStreamEncoder {
 		return currentRecurrenceDepth >= entityRecurrenceDepth;
 	}
 
-	private void marsallEntityWithZeroRecurrenceDepth(GenericEntity entity, EntityTypeInfo typeInfo, GenericModelType ctxType) throws IOException {
+	/* package */ void marsallEntityWithZeroRecurrenceDepth(GenericEntity entity, EntityTypeInfo typeInfo, GenericModelType ctxType) throws IOException {
 		int indentLimit = prettinessSupport.getMaxIndent() - 4;
-		if (indent > indentLimit)
-			indent = indentLimit;
+		boolean canIncreaseIndent = indent < indentLimit;
 
 		Integer refId = lookupId(entity);
 		if (refId != null) {
@@ -662,8 +661,9 @@ public class JsonStreamEncoder {
 
 			writer.write(openEntityFinish);
 
+			if (canIncreaseIndent)
+				indent++;
 			boolean wroteProperty = false;
-			indent++;
 			for (int i = 0, len = typeInfo.propertyInfos.length; i < len; i++) {
 				PropertyInfo propertyInfo = typeInfo.propertyInfos[i];
 				Property property = propertyInfo.property;
@@ -706,7 +706,8 @@ public class JsonStreamEncoder {
 				marshall(propertyType, value, propertyInfo.typeEncoder, property.isIdentifier());
 				wroteProperty = true;
 			}
-			indent--;
+			if (canIncreaseIndent)
+				indent--;
 
 			if (wroteProperty)
 				prettinessSupport.writeLinefeed(writer, indent);
