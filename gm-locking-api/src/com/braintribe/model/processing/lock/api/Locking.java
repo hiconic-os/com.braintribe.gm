@@ -11,64 +11,54 @@
 // ============================================================================
 package com.braintribe.model.processing.lock.api;
 
-import java.util.concurrent.locks.ReadWriteLock;
-
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
-import com.braintribe.model.generic.session.GmSession;
-import com.braintribe.model.processing.lock.impl.SemaphoreBasedLocking;
-import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
+import com.braintribe.model.processing.lock.impl.SimpleCdlLocking;
 
 /**
- * Represents a registry where @link{ReadWriteLock}s can be retrieved from, based on an identifier or an entity.
+ * Represents a registry from which {@link ReentrableReadWriteLock}s can be retrieved, based on an identifier or an entity.
+ *
+ * <h2>Locking Semantics</h2>
+ * 
+ * Locks with the same {@link ReentrableLocking #forIdentifier(String) identifiers} are one logical lock:<br>
+ * <b>ReadLocks</b> can generally be locked concurrently in unlimited amounts<br>
+ * <b>WriteLocks</b> can be locked concurrently only if they share the same {@link ReentrableReadWriteLock#reentranceId() reentranceId}. This means
+ * that even a single writeLock is not re-entrant and attempt to lock it a second time results in an {@link IllegalStateException}.
  * <p>
- * For sample implementation (which can be used in tests for example) see {@link SemaphoreBasedLocking}.
+ * 
+ * <h2>Implementations</h2>
+ * 
+ * For sample implementation (which can be used in tests for example) see {@link SimpleCdlLocking}.
+ * 
+ * @see ReentrableReadWriteLock
+ * @see SimpleCdlLocking
  */
-public interface Locking {
+public interface Locking extends ReentrableLocking, LockingDeprecations {
 
-	ReadWriteLock forIdentifier(String id);
+	/** This id is used for all read locks and is thus forbidden as a parameter to {@link #withReentranceId(String)}. */
+	String READ_LOCK_REENTRANCE_ID = "READ_LOCK";
 
-	/**
-	 * Equivalent to {@code forIdentifier(namespace + ":" + id)}
-	 */
-	default ReadWriteLock forIdentifier(String namespace, String id) {
-		return forIdentifier(namespace + ":" + id);
+	/** Creates a new {@link ReentrableReadWriteLock} with given reentranceId. See the semantics comment above. */
+	ReentrableLocking withReentranceId(String reentranceId);
+
+	// Delete these methods when LockingDeprecations is removed
+
+	/** {@inheritDoc} */
+	@Override
+	default ReentrableReadWriteLock forIdentifier(String namespace, String id) {
+		return ReentrableLocking.super.forIdentifier(namespace, id);
 	}
 
-	/**
-	 * Creates a String s representing given entity and calls {@code forIdentifier("entity", s)}
-	 */
-	default ReadWriteLock forEntity(GenericEntity entity) {
-		StringBuilder builder = new StringBuilder();
-		EntityType<?> entityType = entity.entityType();
-		builder.append(entityType.getTypeSignature());
-
-		Object id = entity.getId();
-		if (id != null) {
-			builder.append('[');
-			builder.append(id.toString());
-			builder.append(']');
-
-			GmSession session = entity.session();
-			if (session instanceof PersistenceGmSession) {
-				PersistenceGmSession persistenceGmSession = (PersistenceGmSession) session;
-				String accessId = persistenceGmSession.getAccessId();
-				if (accessId != null) {
-					builder.append('@');
-					builder.append(accessId);
-				}
-			}
-		}
-
-		String identifier = builder.toString();
-		return forIdentifier("entity", identifier);
+	/** {@inheritDoc} */
+	@Override
+	default ReentrableReadWriteLock forEntity(GenericEntity entity) {
+		return ReentrableLocking.super.forEntity(entity);
 	}
 
-	/**
-	 * Equivalent to {@code forIdentifier("entity-type", entityType.getTypeSignature())}
-	 */
-	default ReadWriteLock forType(EntityType<?> entityType) {
-		return forIdentifier("entity-type", entityType.getTypeSignature());
+	/** {@inheritDoc} */
+	@Override
+	default ReentrableReadWriteLock forType(EntityType<?> entityType) {
+		return ReentrableLocking.super.forType(entityType);
 	}
 
 }

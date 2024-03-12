@@ -17,6 +17,7 @@ import com.braintribe.model.generic.session.GmSession;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
 
 public interface LockUtil {
+
 	static String buildIdentifier(GenericEntity entity) {
 		StringBuilder builder = new StringBuilder();
 		EntityType<?> entityType = entity.entityType();

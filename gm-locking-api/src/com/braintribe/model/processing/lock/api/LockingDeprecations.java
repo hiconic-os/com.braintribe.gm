@@ -11,32 +11,22 @@
 // ============================================================================
 package com.braintribe.model.processing.lock.api;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 
+import com.braintribe.model.generic.GenericEntity;
+import com.braintribe.model.generic.reflection.EntityType;
+
 /**
- * @author peter.gazdik
+ * Old method signatures, returning {@link ReadWriteLock}, for backwards compatibility.
  */
-@SuppressWarnings("deprecation")
-public class LockingBasedOnLockManager implements Locking {
+public interface LockingDeprecations {
 
-	private final LockManager lockManager;
+	ReadWriteLock forIdentifier(String id);
 
-	public LockingBasedOnLockManager(LockManager lockManager) {
-		this.lockManager = lockManager;
-	}
+	ReadWriteLock forIdentifier(String namespace, String id);
 
-	@Override
-	public ReadWriteLock forIdentifier(String id) {
-		LockBuilder lb = lockManager.forIdentifier(id).lockTtl(60, TimeUnit.SECONDS);
+	ReadWriteLock forEntity(GenericEntity entity);
 
-		return new ReadWriteLock() {
-			// @formatter:off
-			@Override public Lock writeLock() { return lb.exclusive(); }
-			@Override public Lock readLock() { return lb.shared(); }
-			// @formatter:on
-		};
-	}
+	ReadWriteLock forType(EntityType<?> entityType);
 
 }
