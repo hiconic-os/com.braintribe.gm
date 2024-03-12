@@ -634,7 +634,8 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 		return currentRecurrenceDepth >= entityRecurrenceDepth;
 	}
 
-	/* package */ void marsallEntityWithZeroRecurrenceDepth(GenericEntity entity, EntityTypeInfo typeInfo, GenericModelType ctxType) throws IOException {
+	/* package */ void marsallEntityWithZeroRecurrenceDepth(GenericEntity entity, EntityTypeInfo typeInfo, GenericModelType ctxType)
+			throws IOException {
 		int indentLimit = prettinessSupport.getMaxIndent() - 4;
 		boolean canIncreaseIndent = indent < indentLimit;
 
@@ -754,7 +755,7 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 	}
 
 	private final static char[] HEX_CHARS = "0123456789ABCDEF".toCharArray();
-	private static final char[][] ESCAPES = new char[64][];
+	private static final char[][] ESCAPES = new char[128][];
 
 	static {
 		ESCAPES['"'] = "\\\"".toCharArray();
@@ -778,7 +779,7 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 		for (; i < len; i++) {
 			char c = string.charAt(i);
 
-			if (c < 64) {
+			if (c < 128) {
 				esc = ESCAPES[c];
 				if (esc != null) {
 					writer.write(string, s, i - s);
