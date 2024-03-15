@@ -66,8 +66,8 @@ import com.braintribe.utils.lcd.StringTools;
 /**
  * {@link CollaborativeAccess} implementation that is backed by {@link Smood}.
  * <p>
- * INITIALIZATION: To initialize correctly, all the relevant properties have to be set and the {@link #postConstruct()}
- * method has to be called. Note that this method is not thread-safe.
+ * INITIALIZATION: To initialize correctly, all the relevant properties have to be set and the {@link #postConstruct()} method has to be called. Note
+ * that this method is not thread-safe.
  */
 public class CollaborativeSmoodAccess extends AbstractSmoodAccess implements CollaborativeAccess, InitializationAware {
 
