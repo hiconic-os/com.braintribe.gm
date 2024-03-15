@@ -14,6 +14,7 @@ package com.braintribe.model.processing.lock.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 
 import org.junit.Before;
@@ -40,7 +41,7 @@ public class SimpleCdlLocking_SingleThread_Test extends AbstractSimpleCdlLocking
 	}
 
 	@Test(timeout = TIMEOUT_MS)
-	public void smokeTest() {
+	public void smokeTest() throws InterruptedException {
 		assertThat(readLock).isNotNull();
 		assertThat(writeLock).isNotNull();
 		assertThat(rwLock.reentranceId()).isEqualTo(REENTRANCE_ID);
@@ -48,6 +49,16 @@ public class SimpleCdlLocking_SingleThread_Test extends AbstractSimpleCdlLocking
 		readLock.lock();
 		readLock.unlock();
 		writeLock.lock();
+		writeLock.unlock();
+
+		assertThat(readLock.tryLock()).isTrue();
+		readLock.unlock();
+		assertThat(writeLock.tryLock()).isTrue();
+		writeLock.unlock();
+
+		assertThat(readLock.tryLock(1, TimeUnit.SECONDS)).isTrue();
+		readLock.unlock();
+		assertThat(writeLock.tryLock(1, TimeUnit.SECONDS)).isTrue();
 		writeLock.unlock();
 	}
 

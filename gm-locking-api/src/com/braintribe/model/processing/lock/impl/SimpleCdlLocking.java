@@ -214,7 +214,7 @@ public class SimpleCdlLocking implements Locking {
 
 		@Override
 		public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
-			return !lockEntry.waitUntilCanLock(this, unit.toMillis(time), true);
+			return lockEntry.waitUntilCanLock(this, unit.toMillis(time), true);
 		}
 
 		@Override
