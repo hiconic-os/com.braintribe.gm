@@ -22,6 +22,7 @@ import com.braintribe.model.processing.smood.population.SmoodIndexTools;
 import com.braintribe.model.processing.smood.population.info.IndexInfoImpl;
 import com.braintribe.utils.collection.api.NavigableMultiMap;
 import com.braintribe.utils.collection.impl.ComparatorBasedNavigableMultiMap;
+import com.braintribe.utils.collection.impl.NullHandlingComparator;
 
 /**
  * 
@@ -34,7 +35,7 @@ public abstract class MultiIndex extends SmoodIndex {
 
 	public MultiIndex(GenericModelType keyType) {
 		this.indexInfo = new IndexInfoImpl();
-		this.keyComparator = SmoodIndexTools.getComparator(keyType);
+		this.keyComparator = new NullHandlingComparator<>(SmoodIndexTools.getComparator(keyType));
 		this.map = new ComparatorBasedNavigableMultiMap<>(keyComparator, EntityComparator.INSTANCE);
 	}
 

@@ -11,10 +11,10 @@
 // ============================================================================
 package com.braintribe.model.processing.query.eval.context;
 
-import org.fest.assertions.BooleanAssert;
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import com.braintribe.utils.junit.assertions.BtAssertions;
+import org.assertj.core.api.AbstractBooleanAssert;
+import org.junit.Test;
 
 public class ConditionEvaluationToolsTest {
 
@@ -100,8 +100,8 @@ public class ConditionEvaluationToolsTest {
 		assertLike(s).isFalse();
 	}
 
-	private BooleanAssert assertLike(String s) {
-		return BtAssertions.assertThat(s.matches(ConditionEvaluationTools.convertToRegexPattern(pattern))).as("Wrong value for: " + s);
+	private AbstractBooleanAssert<?> assertLike(String s) {
+		return assertThat(s.matches(ConditionEvaluationTools.convertToRegexPattern(pattern))).as("Wrong value for: " + s);
 	}
 
 }

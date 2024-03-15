@@ -11,6 +11,8 @@
 // ============================================================================
 package com.braintribe.model.processing.query.eval.set.base;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
@@ -37,7 +39,6 @@ import com.braintribe.model.processing.query.test.model.MetaModelProvider;
 import com.braintribe.model.processing.smood.Smood;
 import com.braintribe.model.queryplan.QueryPlan;
 import com.braintribe.model.queryplan.set.TupleSet;
-import com.braintribe.utils.junit.assertions.BtAssertions;
 import com.braintribe.utils.lcd.CollectionTools2;
 
 /**
@@ -93,16 +94,14 @@ public abstract class AbstractEvalTupleSetTests {
 	}
 
 	protected void assertNoMoreTuples() {
-		if (tuples == null) {
-			BtAssertions.assertThat(tuplesIterator.hasNext()).as("No more tuples in the result set expected!").isFalse();
-
-		} else {
-			BtAssertions.assertThat(tuples).as("No more tuples in the result set expected!").isEmpty();
-		}
+		if (tuples == null)
+			assertThat(tuplesIterator.hasNext()).as("No more tuples in the result set expected!").isFalse();
+		else
+			assertThat(tuples).as("No more tuples in the result set expected!").isEmpty();
 	}
 
 	protected void assertContainsTuple(Object... values) {
-		BtAssertions.assertThat(values).as("Wrong number of values provided. Resulting tuples have different dimension!")
+		assertThat(values).as("Wrong number of values provided. Resulting tuples have different dimension!") //
 				.hasSize(context.resultComponentsCount());
 
 		collectTuples();
@@ -138,13 +137,13 @@ public abstract class AbstractEvalTupleSetTests {
 			Object evaluated = tuple.getValue(i);
 
 			if (expected == null) {
-				BtAssertions.assertThat(evaluated).isNull();
+				assertThat(evaluated).isNull();
 
 			} else if (expected instanceof GenericEntity) {
-				BtAssertions.assertThat(evaluated).as("Evaluated is not same as expected!").isSameAs(expected);
+				assertThat(evaluated).as("Evaluated is not same as expected!").isSameAs(expected);
 
 			} else {
-				BtAssertions.assertThat(evaluated).isEqualTo(expected);
+				assertThat(evaluated).isEqualTo(expected);
 			}
 		}
 	}
@@ -156,7 +155,7 @@ public abstract class AbstractEvalTupleSetTests {
 	}
 
 	private void assertHasNextTuple() {
-		BtAssertions.assertThat(tuplesIterator.hasNext()).as("No more tuples in the result set!").isTrue();
+		assertThat(tuplesIterator.hasNext()).as("No more tuples in the result set!").isTrue();
 	}
 
 	protected Tuple asTuple(Object... values) {

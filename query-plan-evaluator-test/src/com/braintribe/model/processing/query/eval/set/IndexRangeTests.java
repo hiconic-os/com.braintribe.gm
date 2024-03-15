@@ -116,6 +116,25 @@ public class IndexRangeTests extends AbstractEvalTupleSetTests {
 		assertNoMoreTuples();
 	}
 
+	@Test
+	public void nullKeys_SingleInheritanceLevel() throws Exception {
+		for (int i = 0; i < PERSON_COUNT; i++)
+			persons[i].setIndexedName(null);
+
+		evaluate(builder.indexRange(Person.class, "indexedName", nameIndex(), null, null, null, null));
+	}
+
+	/** Having a hierarchy leads to RangesMerger being used. */
+	@Test
+	public void nullKeys_MultiInheritanceLevel() throws Exception {
+		for (int i = 0; i < PERSON_COUNT; i++)
+			persons[i].setIndexedName(null);
+
+		registerAtSmood(ModelBuilder.owner("owner"));
+
+		evaluate(builder.indexRange(Person.class, "indexedName", nameIndex(), null, null, null, null));
+	}
+
 	private MetricIndex nameIndex() {
 		RepositoryMetricIndex index = RepositoryMetricIndex.T.create();
 		index.setIndexId(SmoodIndexTools.indexId(Person.class.getName(), "indexedName"));
