@@ -11,7 +11,7 @@
 // ============================================================================
 package com.braintribe.model.processing.itw.asm;
 
-import static com.braintribe.utils.lcd.CollectionTools2.newMap;
+import static com.braintribe.utils.lcd.CollectionTools2.newConcurrentMap;
 
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
@@ -21,7 +21,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class AsmDirectClassLoader extends ClassLoader implements AsmClassLoading {
 
-	private final Map<String, AsmLoadableClass> asmClasses = newMap();
+	private final Map<String, AsmLoadableClass> asmClasses = newConcurrentMap();
 	private final ReentrantLock lock = new ReentrantLock();
 
 	public AsmDirectClassLoader() {
@@ -48,9 +48,9 @@ public class AsmDirectClassLoader extends ClassLoader implements AsmClassLoading
 		if (asmClasses.containsKey(name)) {
 			lock.lock();
 			try {
-				if (asmClasses.containsKey(name)) {
+				if (asmClasses.containsKey(name))
 					return loadClass(asmClasses.get(name));
-				}
+
 			} finally {
 				lock.unlock();
 			}
