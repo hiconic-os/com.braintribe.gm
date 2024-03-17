@@ -38,8 +38,8 @@ public class JdbcDialectAutoSense {
 			String pName = dmd.getDatabaseProductName();
 			String pVersion = dmd.getDatabaseProductVersion();
 
-			log.debug("Database driver: " + dName + ", version: " + dVersion + " (major: " + dMajorVersion + ",minor: " + dMinorVersion + ")");
-			log.debug("Database used: " + pName + ", version: " + pVersion);
+			log.debug(() -> "Database driver: " + dName + ", version: " + dVersion + " (major: " + dMajorVersion + ",minor: " + dMinorVersion + ")");
+			log.debug(() -> "Database used: " + pName + ", version: " + pVersion);
 
 			String nameAndVersion = pName + " Version:" + pVersion;
 
@@ -49,7 +49,7 @@ public class JdbcDialectAutoSense {
 			throw Exceptions.unchecked(e, "Could not get database metadata information.");
 		}
 	}
-	
+
 	/* package */ static JdbcDialect findJdbcDialect(DataSource dataSource) {
 		return autoSenseDialect(getProductNameAndVersion(dataSource));
 	}
