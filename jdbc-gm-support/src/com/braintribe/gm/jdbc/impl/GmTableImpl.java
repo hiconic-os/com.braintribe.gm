@@ -222,7 +222,7 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 	private void createIndices(Connection c, List<GmIndex> indices, Supplier<String> detailsSupplier) {
 		JdbcTools.withStatement(c, detailsSupplier, s -> {
 			for (GmIndex index : indices) {
-				String indexStatement = "create index " + index.getName() + " on " + tableName + " (" + index.getColumn().getSingleSqlColumn() + ")";
+				String indexStatement = createIndexStatement(index);
 
 				try {
 					log.debug("Creating index statement: " + indexStatement);
@@ -235,6 +235,16 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 				}
 			}
 		});
+	}
+
+	private String createIndexStatement(GmIndex index) {
+		StringJoiner sj = new StringJoiner(", ", "create index " + index.getName() + " on " + tableName + " (", ")");
+
+		index.getColumns().stream() //
+				.map(GmColumn::getSingleSqlColumn) //
+				.forEach(sj::add);
+
+		return sj.toString();
 	}
 
 	/* Some RDBSes like Oracle don't even tell you which column/index was the problem. */

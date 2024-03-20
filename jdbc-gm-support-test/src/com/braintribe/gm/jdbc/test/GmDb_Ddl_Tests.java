@@ -57,7 +57,7 @@ public class GmDb_Ddl_Tests extends AbstractGmDbTestBase {
 	}
 
 	@Test
-	public void testCreatesTable_WithIndex() {
+	public void testCreatesTable_WithIndex_SingleColumn() {
 		final String TABLE_NAME = "INDEXED_TABLE" + tmSfx;
 
 		GmIndex varchar255Index = gmDb.index("V255_CRT_IDX" + tmSfx, colVarchar255);
@@ -65,6 +65,21 @@ public class GmDb_Ddl_Tests extends AbstractGmDbTestBase {
 		GmTable table = gmDb.newTable(TABLE_NAME) //
 				.withColumns(colIdStr, colVarchar255) //
 				.withIndices(varchar255Index) //
+				.done();
+
+		table.ensure();
+		assertTableOk(table);
+	}
+
+	@Test
+	public void testCreatesTable_WithIndex_MultiColumn() {
+		final String TABLE_NAME = "INDEXED_TABLE" + tmSfx;
+
+		GmIndex varchar255IndexMulti = gmDb.index("V255_CRT_IDX_MULTI" + tmSfx, colIdStr, colVarchar255);
+
+		GmTable table = gmDb.newTable(TABLE_NAME) //
+				.withColumns(colIdStr, colVarchar255) //
+				.withIndices(varchar255IndexMulti) //
 				.done();
 
 		table.ensure();

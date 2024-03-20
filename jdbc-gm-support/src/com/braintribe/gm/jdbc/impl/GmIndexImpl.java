@@ -11,6 +11,8 @@
 // ============================================================================
 package com.braintribe.gm.jdbc.impl;
 
+import java.util.List;
+
 import com.braintribe.gm.jdbc.api.GmColumn;
 import com.braintribe.gm.jdbc.api.GmIndex;
 
@@ -20,11 +22,11 @@ import com.braintribe.gm.jdbc.api.GmIndex;
 public class GmIndexImpl implements GmIndex {
 
 	private final String name;
-	private final GmColumn<?> column;
+	private final List<GmColumn<?>> columns;
 
-	public GmIndexImpl(String name, GmColumn<?> column) {
+	public GmIndexImpl(String name, List<GmColumn<?>> columns) {
 		this.name = name;
-		this.column = column;
+		this.columns = columns;
 	}
 
 	@Override
@@ -33,8 +35,8 @@ public class GmIndexImpl implements GmIndex {
 	}
 
 	@Override
-	public GmColumn<?> getColumn() {
-		return column;
+	public List<GmColumn<?>> getColumns() {
+		return columns;
 	}
 
 }

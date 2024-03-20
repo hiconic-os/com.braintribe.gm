@@ -71,7 +71,7 @@ public interface GmColumn<T> {
 	void afterStatementExecuted(PreparedStatement statement);
 
 	// Convenience
-	
+
 	/** Shortcut for {@code row.getValue(this)}. This can be conveniently used as a method reference when mapping a row to a value of the column. */
 	default T getRowValue(GmRow row) {
 		return row.getValue(this);

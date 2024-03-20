@@ -11,6 +11,8 @@
 // ============================================================================
 package com.braintribe.gm.jdbc.api;
 
+import java.util.List;
+
 /**
  * @see GmDb
  * 
@@ -20,6 +22,6 @@ public interface GmIndex {
 
 	String getName();
 
-	GmColumn<?> getColumn();
+	List<GmColumn<?>> getColumns();
 
 }

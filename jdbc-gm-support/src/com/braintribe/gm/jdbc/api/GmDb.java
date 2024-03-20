@@ -26,6 +26,7 @@ import static com.braintribe.gm.jdbc.api.GmDbHelper.shortString255Column;
 import static com.braintribe.gm.jdbc.api.GmDbHelper.shortStringColumn;
 import static com.braintribe.gm.jdbc.api.GmDbHelper.stringColumn;
 import static com.braintribe.gm.jdbc.api.GmDbHelper.timestampColumn;
+import static com.braintribe.utils.lcd.CollectionTools2.asList;
 import static java.util.Objects.requireNonNull;
 
 import java.math.BigDecimal;
@@ -276,8 +277,8 @@ public class GmDb implements DestructionAware {
 		return columnBuilder(resourceColumn(name, maxStringLength, dialect, pripeFactory("Resource")));
 	}
 
-	public GmIndex index(String name, GmColumn<?> column) {
-		return new GmIndexImpl(name, column);
+	public GmIndex index(String name, GmColumn<?>... columns) {
+		return new GmIndexImpl(name, asList(columns));
 	}
 
 	private GmCodec<Object, String> defaultCodec(String type) {
