@@ -36,18 +36,27 @@ public interface GmTable {
 
 	void ensure();
 
+	/** Converts given list of columns and values to a Map and calls {@code insert(null, columnToValueMap)}. */
 	default void insert(Object... columnsAndValues) {
-		insert(asMap(columnsAndValues));
+		insert(null, asMap(columnsAndValues));
 	}
 
+	/** Equivalent to {@code insert(null, columnsToValues)}. */
 	default void insert(Map<GmColumn<?>, Object> columnsToValues) {
 		insert(null, columnsToValues);
 	}
 
+	/** Converts given list of columns and values to a map and calls {@link #insert(Connection, Map)}. */
 	default void insert(Connection c, Object... columnsAndValues) {
 		insert(c, asMap(columnsAndValues));
 	}
 
+	/**
+	 * Inserts given vales for given columns in the table.
+	 * <p>
+	 * NOTE that the connection can be {@code null}, in which case the table will acquire it's own connection. Such an insert would thus be a single
+	 * transaction. Pass a connection if you want to do more than just a single insert as a single transaction.
+	 */
 	void insert(Connection c, Map<GmColumn<?>, Object> columnsToValues);
 
 	default GmSelectBuilder select() {
@@ -60,6 +69,7 @@ public interface GmTable {
 
 	GmSelectBuilder select(Set<GmColumn<?>> columns);
 
+	/** Converts given list of columns and values to a Map and calls {@link #update(Map)}. */
 	default GmUpdateBuilder update(Object... columnsAndValues) {
 		return update(asMap(columnsAndValues));
 	}
