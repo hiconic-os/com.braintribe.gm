@@ -45,11 +45,11 @@ public interface PersistenceUserSession extends GenericEntity {
 	String getAcquirationKey();
 	void setAcquirationKey(String acquirationKey);
 
-	boolean getBlocksAuthenticationAfterLogout();
-	void setBlocksAuthenticationAfterLogout(boolean blocksAuthenticationAfterLogout);
+	Boolean getBlocksAuthenticationAfterLogout();
+	void setBlocksAuthenticationAfterLogout(Boolean blocksAuthenticationAfterLogout);
 
-	boolean getClosed();
-	void setClosed(boolean closed);
+	Boolean getClosed();
+	void setClosed(Boolean closed);
 
 	String getUserName();
 	void setUserName(String name);
@@ -106,5 +106,21 @@ public interface PersistenceUserSession extends GenericEntity {
 	@MaxLength(4000)
 	String getProperties();
 	void setProperties(String properties);
+	
+	default boolean closed() {
+		Boolean closed = getClosed();
+		if (closed == null)
+			return false;
+		
+		return closed;
+	}
+	
+	default boolean blocksAuthenticationAfterLogout() {
+		Boolean blocksAuthenticationAfterLogout = getBlocksAuthenticationAfterLogout();
+		if (blocksAuthenticationAfterLogout == null) 
+			return false;
+		
+		return blocksAuthenticationAfterLogout;
+	}
 
 }
