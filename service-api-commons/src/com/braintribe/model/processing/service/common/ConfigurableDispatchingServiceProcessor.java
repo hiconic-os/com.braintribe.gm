@@ -17,22 +17,24 @@ import java.util.ListIterator;
 import java.util.NoSuchElementException;
 import java.util.function.Predicate;
 
+import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.processing.core.expert.api.MutableDenotationMap;
 import com.braintribe.model.processing.core.expert.impl.PolymorphicDenotationMap;
 import com.braintribe.model.processing.service.api.InterceptingServiceProcessorBuilder;
+import com.braintribe.model.processing.service.api.ReasonedServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceAroundProcessor;
-import com.braintribe.model.processing.service.api.ServiceRegistry;
 import com.braintribe.model.processing.service.api.ServiceInterceptorProcessor;
 import com.braintribe.model.processing.service.api.ServicePostProcessor;
 import com.braintribe.model.processing.service.api.ServicePreProcessor;
 import com.braintribe.model.processing.service.api.ServiceProcessor;
+import com.braintribe.model.processing.service.api.ServiceRegistry;
 import com.braintribe.model.processing.service.api.ServiceRequestContext;
 import com.braintribe.model.service.api.ServiceRequest;
 
 public class ConfigurableDispatchingServiceProcessor implements ServiceProcessor<ServiceRequest, Object>, ServiceRegistry {
 
-	private static final ServiceProcessor<ServiceRequest, Object> DEFAULT_PROCESSOR = (c, r) -> { 
+	private static final ReasonedServiceProcessor<ServiceRequest, Object> DEFAULT_PROCESSOR = (c, r) -> { 
 		throw new UnsupportedOperationException("No service processor mapped for request: " + r); 
 	}; 
 	
@@ -137,17 +139,11 @@ public class ConfigurableDispatchingServiceProcessor implements ServiceProcessor
 		requireInterceptorIterator(identification, true).remove();
 	}
 	
-	private ServiceProcessor<?, ?> getProcessor(ServiceRequest request, ServiceProcessor<?, ?> defaultProcessor) {
-		ServiceProcessor<ServiceRequest, Object> processor = processorMap.find(request);
-		
-		return processor != null? processor: defaultProcessor;
-	}
-	
 	private ServiceProcessor<ServiceRequest, Object> getProcessor(ServiceRequest request) {
 		ServiceProcessor<ServiceRequest, Object> processor = processorMap.find(request);
 		
 		if (processor == null)
-			throw new UnsupportedOperationException("No processor registered for " + request.entityType().getTypeSignature());
+			return DEFAULT_PROCESSOR;
 		
 		return processor;
 	}
@@ -168,7 +164,7 @@ public class ConfigurableDispatchingServiceProcessor implements ServiceProcessor
 
 
 	private ServiceProcessor<ServiceRequest, Object> getInterceptingProcessor(ServiceRequest request) {
-		ServiceProcessor<?, ?> processor = getProcessor(request, DEFAULT_PROCESSOR);
+		ServiceProcessor<?, ?> processor = getProcessor(request);
 		
 		InterceptingServiceProcessorBuilder builder = ServiceProcessingChain.create(processor); //
 		
@@ -195,7 +191,7 @@ public class ConfigurableDispatchingServiceProcessor implements ServiceProcessor
 		}
 		
 		if (!hasAroundProcessors && processor == DEFAULT_PROCESSOR)
-			throw new UnsupportedOperationException("No service processor mapped for request: " + request);
+			return DEFAULT_PROCESSOR;
 		
 		return builder.build();
 	}
