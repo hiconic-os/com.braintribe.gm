@@ -189,28 +189,28 @@ public class GmWebRpcRemoteServiceProcessor extends AbstractRemoteServiceProcess
 		HttpPost post = new HttpPost(url);
 
 		post.setHeader(RpcHeaders.rpcVersion.getHeaderName(), version);
-		
+
 		AttributeContext attributeContext = requestContext.getAttributeContext();
 		String callId = attributeContext.findOrSupply(RequestEvaluationIdAspect.class, () -> UUID.randomUUID().toString());
-		
+
 		post.setHeader("Call-Id", callId);
-		
+
 		RemoteCapture remoteCapture = attributeContext.findOrDefault(RemoteCaptureAspect.class, RemoteCapture.none);
 		switch (remoteCapture) {
-		case both:
-			post.setHeader("Capture-Response", "true");
-			post.setHeader("Capture-Request", "true");
-			break;
-		case none:
-			break;
-		case request:
-			post.setHeader("Capture-Request", "true");
-			break;
-		case response:
-			post.setHeader("Capture-Response", "true");
-			break;
-		default:
-			break;
+			case both:
+				post.setHeader("Capture-Response", "true");
+				post.setHeader("Capture-Request", "true");
+				break;
+			case none:
+				break;
+			case request:
+				post.setHeader("Capture-Request", "true");
+				break;
+			case response:
+				post.setHeader("Capture-Response", "true");
+				break;
+			default:
+				break;
 		}
 
 		post.setHeader(RpcHeaders.rpcReasoning.getHeaderName(), String.valueOf(requestContext.isReasoned()));
@@ -226,6 +226,11 @@ public class GmWebRpcRemoteServiceProcessor extends AbstractRemoteServiceProcess
 		long callStart = System.currentTimeMillis();
 
 		stopWatch.intermediate("Create Entity");
+
+		HttpRequestConsumer requestConsumer = attributeContext.findOrNull(HttpRequestModifierAspect.class);
+		if (requestConsumer != null) {
+			requestConsumer.accept(post);
+		}
 
 		CloseableHttpResponse response = null;
 		StringBuilder tmpTrace = new StringBuilder("Sending: " + requestContext.getServiceRequest());
@@ -253,11 +258,11 @@ public class GmWebRpcRemoteServiceProcessor extends AbstractRemoteServiceProcess
 				String msg = response.getStatusLine().getReasonPhrase();
 				IOException exc = ErrorHelper.processErrorResponse(url, "POST", response, null);
 				if (code == 200) {
-					throw new HttpCommunicationException(code, "Missing [ " + RpcHeaders.rpcBody.getHeaderName()
-							+ " ] header on successful RPC response from [" + url.toString() + "].", exc);
-				} else {
 					throw new HttpCommunicationException(code,
-							"Unexpected [ " + code + " ] response from [ " + url.toString() + " ]: [" + msg + "].",
+							"Missing [ " + RpcHeaders.rpcBody.getHeaderName() + " ] header on successful RPC response from [" + url.toString() + "].",
+							exc);
+				} else {
+					throw new HttpCommunicationException(code, "Unexpected [ " + code + " ] response from [ " + url.toString() + " ]: [" + msg + "].",
 							exc);
 				}
 			}
@@ -265,8 +270,8 @@ public class GmWebRpcRemoteServiceProcessor extends AbstractRemoteServiceProcess
 			ServiceResult serviceResult = null;
 
 			if (code != 200) {
-				String errorMsg = "HttpResponse=" + response.getStatusLine().toString() + ", url=" + url.toString()
-						+ ", msg=" + response.getStatusLine().getReasonPhrase();
+				String errorMsg = "HttpResponse=" + response.getStatusLine().toString() + ", url=" + url.toString() + ", msg="
+						+ response.getStatusLine().getReasonPhrase();
 				logger.error(errorMsg);
 				// do not yet throw ReasonException, need to fully enable Reasoning:
 				// Maybe<ServiceResult> problem = Reasons.build(CommunicationError.T)
@@ -294,69 +299,64 @@ public class GmWebRpcRemoteServiceProcessor extends AbstractRemoteServiceProcess
 
 					try {
 						requestContext.summaryLogger().startTimer(RPC_LOGSTEP_MULTIPART);
-						
+
 						Consumer<InputStreamProvider> erroneousMpdCapture = attributeContext.findOrNull(ErroneusMultipartDataCapture.class);
-						
+
 						try (DataCaptureStorage dcs = new DataCaptureStorage(callId, streamPipeFactory, erroneousMpdCapture)) {
-	
+
 							formDataReader = Multiparts.buildFormDataReader(dcs.wrap(in)).subFormat(multipartFormat.getSubFormat())
 									.boundary(multipartFormat.getParameter("boundary")).sequential();
-	
+
 							PartReader part = null;
-	
-							try (StreamCache streamCache = new StreamCache(requestContext.getCallStreamCaptures(),
-									streamPipeFactory)) {
-	
+
+							try (StreamCache streamCache = new StreamCache(requestContext.getCallStreamCaptures(), streamPipeFactory)) {
+
 								while ((part = formDataReader.next()) != null) {
 									String name = part.getName();
 									tmpTrace.append("\nReading part: " + name);
-	
+
 									if (name.equals(RpcConstants.RPC_MAPKEY_RESPONSE)) {
-										
+
 										List<TransientSource> transientSources = new ArrayList<>();
-										
+
 										try (InputStream partIn = part.openStream()) {
 											requestContext.summaryLogger().startTimer(RpcConstants.RPC_LOGSTEP_UNMARSHALL_RESPONSE);
-	
+
 											try {
-												serviceResult = unmarshallRpcResponse(attributeContext,
-														partIn, marshaller, transientSources);
-											}
-											finally {
+												serviceResult = unmarshallRpcResponse(attributeContext, partIn, marshaller, transientSources);
+											} finally {
 												requestContext.summaryLogger().stopTimer(RpcConstants.RPC_LOGSTEP_UNMARSHALL_RESPONSE);
 											}
-	
-										}
-										catch (Exception e) {
+
+										} catch (Exception e) {
 											dcs.activateNotification();
 											throw e;
 										}
-										
+
 										bindTransientResources(transientSources, streamCache);
-										
+
 										ResponseEnvelope responseEnvelope = serviceResult.asResponse();
-										
+
 										if (responseEnvelope != null) {
 											requestContext.notifyResponse(responseEnvelope.getResult());
 										}
-										
+
 									} else {
 										Pair<OutputStream, Boolean> captureOutPair = streamCache.acquireStream(name);
-	
+
 										OutputStream captureOut = captureOutPair.first();
 										boolean fresh = captureOutPair.second();
 										boolean close = false;
-	
+
 										if (fresh) {
-											close = !Boolean.TRUE.toString()
-													.equals(part.getHeader(PartHeaders.MULTIPLEXED));
+											close = !Boolean.TRUE.toString().equals(part.getHeader(PartHeaders.MULTIPLEXED));
 										} else {
 											close = Boolean.TRUE.toString().equals(part.getHeader(PartHeaders.LOGICAL_EOF));
 										}
-	
+
 										try (InputStream partIn = part.openStream()) {
 											IOTools.pump(partIn, captureOut);
-	
+
 										} finally {
 											if (close) {
 												captureOut.close();
@@ -364,9 +364,9 @@ public class GmWebRpcRemoteServiceProcessor extends AbstractRemoteServiceProcess
 										}
 									}
 								}
-	
+
 								streamCache.checkPipeSatisfaction();
-	
+
 							}
 						}
 
@@ -400,8 +400,7 @@ public class GmWebRpcRemoteServiceProcessor extends AbstractRemoteServiceProcess
 
 			} catch (MarshallException me) {
 				throw new GmRpcException("Failed to unmarshall RPC response from url [" + url.toString() + "], code ["
-						+ response.getStatusLine().getStatusCode() + "]: " + response.getStatusLine().getReasonPhrase(),
-						me);
+						+ response.getStatusLine().getStatusCode() + "]: " + response.getStatusLine().getReasonPhrase(), me);
 
 			} finally {
 				IOTools.closeCloseable(formDataReader, "form data reader", requestContext.getClientLogger());
@@ -413,8 +412,7 @@ public class GmWebRpcRemoteServiceProcessor extends AbstractRemoteServiceProcess
 		} catch (UnsatisfiedMaybeTunneling e) {
 			throw e; // forward
 		} catch (Error e) {
-			throw new Error("Received an Error while sending a request to " + url + " after "
-					+ (System.currentTimeMillis() - callStart) + " ms", e);
+			throw new Error("Received an Error while sending a request to " + url + " after " + (System.currentTimeMillis() - callStart) + " ms", e);
 		} catch (Exception e) {
 			throw new GmRpcException(
 					"Error while sending request to " + url + " after " + (System.currentTimeMillis() - callStart) + " ms.\n" + tmpTrace, e);
@@ -451,8 +449,8 @@ public class GmWebRpcRemoteServiceProcessor extends AbstractRemoteServiceProcess
 		long now = System.currentTimeMillis();
 		long callDuration = now - callStart;
 		if (callDuration > this.callTimeout) {
-			throw new CommunicationException("Could not get a connection to the server at " + url + " after "
-					+ this.callTimeout + " ms (total duration: " + callDuration + " ms).");
+			throw new CommunicationException("Could not get a connection to the server at " + url + " after " + this.callTimeout
+					+ " ms (total duration: " + callDuration + " ms).");
 		}
 
 		logger.debug("Retrying now after " + this.retryInterval + " ms.");
@@ -515,14 +513,14 @@ public class GmWebRpcRemoteServiceProcessor extends AbstractRemoteServiceProcess
 		public Header getContentType() {
 			if (contentTypeHeader == null) {
 				switch (rpcVersion) {
-				case "1":
-					contentTypeHeader = requestContext.hasInputResources()
-							? new BasicHeader(HTTP.CONTENT_TYPE, "multipart/form-data; boundary=" + getBoundary())
-							: new BasicHeader(HTTP.CONTENT_TYPE, contentType);
-					break;
-				default:
-					contentTypeHeader = new BasicHeader(HTTP.CONTENT_TYPE, "multipart/chunked");
-					break;
+					case "1":
+						contentTypeHeader = requestContext.hasInputResources()
+								? new BasicHeader(HTTP.CONTENT_TYPE, "multipart/form-data; boundary=" + getBoundary())
+								: new BasicHeader(HTTP.CONTENT_TYPE, contentType);
+						break;
+					default:
+						contentTypeHeader = new BasicHeader(HTTP.CONTENT_TYPE, "multipart/chunked");
+						break;
 				}
 			}
 
@@ -531,10 +529,10 @@ public class GmWebRpcRemoteServiceProcessor extends AbstractRemoteServiceProcess
 
 		public boolean isMultipart() {
 			switch (rpcVersion) {
-			case "1":
-				return requestContext.hasInputResources();
-			default:
-				return true;
+				case "1":
+					return requestContext.hasInputResources();
+				default:
+					return true;
 			}
 		}
 
@@ -579,10 +577,10 @@ public class GmWebRpcRemoteServiceProcessor extends AbstractRemoteServiceProcess
 
 		private FormDataWriter openFormDataWriter(OutputStream out) {
 			switch (rpcVersion) {
-			case "1":
-				return Multiparts.formDataWriter(out, getBoundary());
-			default:
-				return Multiparts.chunkedFormDataWriter(out);
+				case "1":
+					return Multiparts.formDataWriter(out, getBoundary());
+				default:
+					return Multiparts.chunkedFormDataWriter(out);
 			}
 		}
 
