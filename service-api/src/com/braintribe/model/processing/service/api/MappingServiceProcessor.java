@@ -9,18 +9,9 @@
 // 
 // You should have received a copy of the GNU Lesser General Public License along with this library; See http://www.gnu.org/licenses/.
 // ============================================================================
-package com.braintribe.model.processing.service.impl;
+package com.braintribe.model.processing.service.api;
 
-import com.braintribe.model.processing.service.api.MappingServiceProcessor;
-import com.braintribe.model.processing.service.api.ServiceProcessor;
 import com.braintribe.model.service.api.ServiceRequest;
 
-public interface ServiceProcessors {
-	static <P extends ServiceRequest, R> ServiceProcessor<P, R> dispatcher(DispatchConfigurator<P, R> configurer) {
-		return new ServiceProcessorDispatchingDelegate<>(configurer);
-	}
-	
-	static <P extends ServiceRequest, R> ServiceProcessor<P, R> dispatcher(MappingServiceProcessor<P, R> processor) {
-		return dispatcher(MappingServiceProcessorDispatching.create(processor));
-	}
+public interface MappingServiceProcessor<P extends ServiceRequest, R extends Object> {
 }
