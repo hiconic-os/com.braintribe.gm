@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><!--
+<!--
 Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
 
 This library is free software; you can redistribute it and/or modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License along w
         <version>[2.0,2.1)</version>
     </parent>
     <artifactId>service-api</artifactId>
-    <version>2.0.22</version>
+    <version>2.0.23</version>
     <properties>
         <archetype>library</archetype>
     </properties>
