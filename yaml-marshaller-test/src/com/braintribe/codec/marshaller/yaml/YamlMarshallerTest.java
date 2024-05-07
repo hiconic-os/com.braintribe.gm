@@ -288,7 +288,7 @@ public class YamlMarshallerTest implements YamlMarshallerTestUtils {
 
 	@Test
 	public void testTabs() throws Exception {
-		assertContent("res/tabs.yaml", Maps.map(Maps.entry("foo", "bar")), true);
+		assertContent("res/tabs.yaml", Maps.map(Maps.entry("foo", "bar")));
 	}
 
 	@Test

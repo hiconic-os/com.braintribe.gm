@@ -40,13 +40,13 @@ public class YamlMarshallerMarshallingTest extends AbstractTest implements YamlM
 		mapE.getMap().put(e1, e2);
 
 		YamlMarshaller marshaller = new YamlMarshaller();
-		marshaller.setV2(true);
 
 		ByteArrayOutputStream capture = new ByteArrayOutputStream();
 
 		marshaller.marshall(capture, mapE);
 
 		MapPropertyEntity mapE1 = (MapPropertyEntity) marshaller.unmarshall(new ByteArrayInputStream(capture.toByteArray()));
+		assertThat(mapE1).isNotNull();
 	}
 
 	@Test
@@ -54,7 +54,6 @@ public class YamlMarshallerMarshallingTest extends AbstractTest implements YamlM
 		PersonEntity person = createPerson();
 
 		YamlMarshaller marshaller = new YamlMarshaller();
-		marshaller.setV2(true);
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
 		//@formatter:off
@@ -79,7 +78,6 @@ public class YamlMarshallerMarshallingTest extends AbstractTest implements YamlM
 		PersonEntity person = createPerson();
 
 		YamlMarshaller marshaller = new YamlMarshaller();
-		marshaller.setV2(true);
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
 		GmSerializationOptions options = GmSerializationOptions.deriveDefaults().build();
@@ -99,7 +97,6 @@ public class YamlMarshallerMarshallingTest extends AbstractTest implements YamlM
 		PersonEntity person = createPerson2();
 
 		YamlMarshaller marshaller = new YamlMarshaller();
-		marshaller.setV2(true);
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
 		GmSerializationOptions options = GmSerializationOptions.deriveDefaults().build();
@@ -119,7 +116,6 @@ public class YamlMarshallerMarshallingTest extends AbstractTest implements YamlM
 		PersonEntity person = createPerson2();
 
 		YamlMarshaller marshaller = new YamlMarshaller();
-		marshaller.setV2(true);
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
 		GmSerializationOptions options = GmSerializationOptions.deriveDefaults().set(TypeExplicitnessOption.class, TypeExplicitness.polymorphic)

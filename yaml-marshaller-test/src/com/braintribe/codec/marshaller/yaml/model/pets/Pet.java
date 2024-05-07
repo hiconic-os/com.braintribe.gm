@@ -13,12 +13,11 @@ package com.braintribe.codec.marshaller.yaml.model.pets;
 
 import java.util.List;
 
-import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.StandardStringIdentifiable;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
-public interface Pet extends GenericEntity, StandardStringIdentifiable {
+public interface Pet extends StandardStringIdentifiable {
 	EntityType<Pet> T = EntityTypes.T(Pet.class);
 
 	String getName();

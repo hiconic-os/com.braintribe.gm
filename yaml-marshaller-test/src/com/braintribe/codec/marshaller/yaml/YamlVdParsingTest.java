@@ -21,10 +21,10 @@ import java.util.Map;
 import org.junit.Test;
 
 import com.braintribe.codec.marshaller.yaml.model.TestEntity;
+import com.braintribe.gm.config.yaml.YamlConfigurations;
 import com.braintribe.gm.model.reason.Maybe;
 
 public class YamlVdParsingTest {
-	private static YamlMarshaller yamlMarshaller = new YamlMarshaller();
 	
 	@Test
 	public void testPlaceholderConfiguration() {

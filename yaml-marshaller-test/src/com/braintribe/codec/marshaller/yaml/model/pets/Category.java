@@ -11,12 +11,11 @@
 // ============================================================================
 package com.braintribe.codec.marshaller.yaml.model.pets;
 
-import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.StandardIdentifiable;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
-public interface Category extends GenericEntity, StandardIdentifiable {
+public interface Category extends StandardIdentifiable {
 	EntityType<Category> T = EntityTypes.T(Category.class);
 
 	String getName();

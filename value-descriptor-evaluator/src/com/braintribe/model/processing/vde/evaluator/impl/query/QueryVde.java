@@ -46,7 +46,7 @@ public class QueryVde implements ValueDescriptorEvaluator<Query> {
 	@Override
 	public VdeResult evaluate(VdeContext context, Query valueDescriptor) throws VdeRuntimeException {
 		// get the session
-		PersistenceGmSession session = context.get(SessionAspect.class);
+		PersistenceGmSession session = (PersistenceGmSession) context.get(SessionAspect.class);
 
 		if (session == null) {
 			if (context.getEvaluationMode() == VdeEvaluationMode.Preliminary) {

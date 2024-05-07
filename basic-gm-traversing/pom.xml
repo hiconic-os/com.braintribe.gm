@@ -17,6 +17,17 @@ You should have received a copy of the GNU Lesser General Public License along w
     </parent>
     <artifactId>basic-gm-traversing</artifactId>
     <version>2.0.18</version>
+    <properties>
+        <archetype>library</archetype>
+    </properties>
+    <licenses>
+        <license>
+            <name>GNU Lesser General Public License v3.0</name>
+            <url>https://www.gnu.org/licenses/lgpl-3.0.html</url>
+            <distribution>repo</distribution>
+            <comments>A free software license that allows users to run, study, share, and modify the software.</comments>
+        </license>
+    </licenses>
     <dependencies>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
@@ -35,24 +46,8 @@ You should have received a copy of the GNU Lesser General Public License along w
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
-            <artifactId>basic-manipulation-processing</artifactId>
-            <version>${V.com.braintribe.gm}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.braintribe.gm</groupId>
             <artifactId>basic-notifying-gm-session</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
     </dependencies>
-    <properties>
-        <archetype>library</archetype>
-    </properties>
-    <licenses>
-        <license>
-            <name>GNU Lesser General Public License v3.0</name>
-            <url>https://www.gnu.org/licenses/lgpl-3.0.html</url>
-            <distribution>repo</distribution>
-            <comments>A free software license that allows users to run, study, share, and modify the software.</comments>
-        </license>
-    </licenses>
 </project>

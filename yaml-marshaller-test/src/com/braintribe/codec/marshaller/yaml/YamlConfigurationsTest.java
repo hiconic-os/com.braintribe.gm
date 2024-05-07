@@ -17,6 +17,7 @@ import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
 import com.braintribe.codec.marshaller.yaml.model.SimpleEntity;
+import com.braintribe.gm.config.yaml.YamlConfigurations;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.essential.ParseError;
 import com.braintribe.model.generic.reflection.Property;

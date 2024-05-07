@@ -40,7 +40,6 @@ public class TfRuntimeYamlMarshallerTest extends AbstractTest {
 		TribefireRuntime tribefireRuntime = createTribefireRuntime();
 
 		YamlMarshaller marshaller = new YamlMarshaller();
-		marshaller.setV2(true);
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
 		//@formatter:off
@@ -67,7 +66,6 @@ public class TfRuntimeYamlMarshallerTest extends AbstractTest {
 		TribefireRuntime tribefireRuntime = createTribefireRuntime();
 
 		YamlMarshaller marshaller = new YamlMarshaller();
-		marshaller.setV2(true);
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
 		GmSerializationOptions options = GmSerializationOptions.deriveDefaults().inferredRootType(TribefireRuntime.T).build();

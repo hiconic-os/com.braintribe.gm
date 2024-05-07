@@ -23,18 +23,14 @@ import com.braintribe.codec.marshaller.api.GmSerializationOptions;
 import com.braintribe.testing.junit.assertions.assertj.core.api.Assertions;
 
 public interface YamlMarshallerTestUtils {
+
 	static void assertContent(String inputFile, Object expectation) throws IOException, FileNotFoundException {
-		assertContent(inputFile, expectation, false);
+		assertContent(inputFile, expectation, GmDeserializationOptions.defaultOptions);
 	}
 
-	static void assertContent(String inputFile, Object expectation, boolean v2) throws IOException, FileNotFoundException {
-		assertContent(inputFile, expectation, v2, GmDeserializationOptions.defaultOptions);
-	}
-
-	static void assertContent(String inputFile, Object expectation, boolean v2, GmDeserializationOptions options)
+	static void assertContent(String inputFile, Object expectation, GmDeserializationOptions options)
 			throws IOException, FileNotFoundException {
 		YamlMarshaller marshaller = new YamlMarshaller();
-		marshaller.setV2(v2);
 
 		Object parsedValue = null;
 

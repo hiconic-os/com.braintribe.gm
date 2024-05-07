@@ -11,15 +11,13 @@
 // ============================================================================
 package com.braintribe.model.processing.vde.evaluator.api.aspects;
 
-import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
+import com.braintribe.model.generic.session.GmSession;
 import com.braintribe.model.processing.vde.evaluator.api.VdeContextAspect;
 
 /**
  * Represents session
- * 
- * @see PersistenceGmSession
  */
 
-public interface SessionAspect extends VdeContextAspect<PersistenceGmSession> {
+public interface SessionAspect extends VdeContextAspect<GmSession> {
 	// this should stay empty
 }

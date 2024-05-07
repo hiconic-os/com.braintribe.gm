@@ -41,9 +41,7 @@ import com.braintribe.codec.marshaller.api.GmSerializationOptions;
 import com.braintribe.codec.marshaller.api.ScalarEntityParsers;
 import com.braintribe.codec.marshaller.api.TypeExplicitness;
 import com.braintribe.codec.marshaller.api.TypeExplicitnessOption;
-import com.braintribe.codec.marshaller.api.options.attributes.WriteEmptyPropertiesOption;
 import com.braintribe.codec.marshaller.common.ConfigurableScalarEntityParsers;
-import com.braintribe.codec.marshaller.yaml.model.CompanyEntity;
 import com.braintribe.codec.marshaller.yaml.model.EntityWithInitializer;
 import com.braintribe.codec.marshaller.yaml.model.PersonEntity;
 import com.braintribe.codec.marshaller.yaml.model.TestEntity;
@@ -60,6 +58,7 @@ import com.braintribe.testing.category.KnownIssue;
 import com.braintribe.testing.junit.assertions.assertj.core.api.Assertions;
 
 public class YamlMarshallerOptionsTest implements YamlMarshallerTestUtils {
+
 	@Test
 	public void testInferrenceRoundTrip() throws Exception {
 
@@ -129,7 +128,9 @@ public class YamlMarshallerOptionsTest implements YamlMarshallerTestUtils {
 		GmSerializationOptions polymorphicMarshallingOptions = GmSerializationOptions.defaultOptions.derive() //
 				.set(TypeExplicitnessOption.class, TypeExplicitness.polymorphic) //
 				.build();
+
 		TestEntity testEntity2 = marshallingRoundTrip(testEntity, polymorphicMarshallingOptions);
+		assertThat(testEntity2).isNotNull();
 	}
 
 	@Test
@@ -238,8 +239,9 @@ public class YamlMarshallerOptionsTest implements YamlMarshallerTestUtils {
 		for (int i = 0; i < persons.size(); i++) {
 			PersonEntity p1 = persons.get(i);
 			PersonEntity p2 = expectedPersons.get(i);
-			if (comparator.compare(p1, p2) != 0)
+			if (comparator.compare(p1, p2) != 0) {
 				Assertions.fail("Two persons did not match: " + p1 + ", " + p2);
+			}
 		}
 	}
 

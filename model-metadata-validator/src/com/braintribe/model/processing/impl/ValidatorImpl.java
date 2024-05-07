@@ -43,7 +43,7 @@ import com.braintribe.model.processing.traversing.engine.GMT;
  * {@link PropertyValidationExpert}s which can be passed via an {@link ValidationExpertRegistry}.
  */
 public class ValidatorImpl implements GmTraversingVisitor, Validator {
-	private final CmdResolver cmdResolver;
+
 	private final ModelMdResolver modelMdResolver;
 	private final ValidationExpertRegistry validationExperts;
 
@@ -60,9 +60,7 @@ public class ValidatorImpl implements GmTraversingVisitor, Validator {
 	 *            Experts to be used for validation
 	 */
 	public ValidatorImpl(CmdResolver cmdResolver, ValidationExpertRegistry validationExperts) {
-		super();
 		this.validationExperts = validationExperts;
-		this.cmdResolver = cmdResolver;
 		this.modelMdResolver = cmdResolver.getMetaData();
 	}
 

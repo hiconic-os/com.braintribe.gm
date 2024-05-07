@@ -91,7 +91,6 @@ import com.braintribe.model.generic.reflection.TypeCode;
 import com.braintribe.model.generic.reflection.VdHolder;
 import com.braintribe.model.generic.session.GmSession;
 import com.braintribe.model.generic.value.ValueDescriptor;
-import com.braintribe.model.processing.vde.parser.TemplateStringParser;
 
 class StatefulYamlUnmarshaller {
 

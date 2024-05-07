@@ -43,8 +43,7 @@ public class EntityReferenceVde implements ValueDescriptorEvaluator<EntityRefere
 	
 	@Override
 	public VdeResult evaluate(VdeContext context, EntityReference valueDescriptor) throws VdeRuntimeException {
-		// get the session
-		PersistenceGmSession session = context.get(SessionAspect.class);
+		PersistenceGmSession session = (PersistenceGmSession) context.get(SessionAspect.class);
 
 		if (session == null && context.getEvaluationMode() == VdeEvaluationMode.Preliminary) {
 			return new VdeResultImpl("No session provided in context");
