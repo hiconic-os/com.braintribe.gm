@@ -13,42 +13,12 @@ package com.braintribe.model.processing.meta.configuration;
 
 import com.braintribe.model.meta.GmMetaModel;
 import com.braintribe.model.processing.meta.configured.ConfigurationModelBuilder;
-import com.braintribe.model.processing.session.api.managed.ManagedGmSession;
 
 /**
  * A few helper methods to create new {@link ConfigurationModelBuilder} experts.
  * 
  */
 public interface ConfigurationModels {
-
-	/**
-	 * The new {@link GmMetaModel} will have the name `modelName` and globalId `model:modelName`.
-	 */
-	static ConfigurationModelBuilder create(ManagedGmSession session, String modelName) {
-		return createVersioned(session, modelName, null);
-	}
-
-	/**
-	 * The new {@link GmMetaModel} will have the name `groupId:artifactId` and globalId `model:groupId:artifactId`.
-	 */
-	static ConfigurationModelBuilder create(ManagedGmSession session, String groupId, String artifactId) {
-		return createVersioned(session, groupId, artifactId, null);
-	}
-
-	static ConfigurationModelBuilder createVersioned(ManagedGmSession session, String groupId, String artifactId, String version) {
-		return createVersioned(session, groupId + ":" + artifactId, version);
-	}
-
-	static ConfigurationModelBuilder createVersioned(ManagedGmSession session, String modelName, String version) {
-		return new ConfigurationModelBuilderManagedImpl(session, modelName, version);
-	}
-
-	/**
-	 * No new {@link GmMetaModel} will be generated, but provided `model` can be further extended.
-	 */
-	static ConfigurationModelBuilder extend(ManagedGmSession session, GmMetaModel model) {
-		return new ConfigurationModelBuilderManagedImpl(session, model);
-	}
 
 	/**
 	 * A new transient {@link GmMetaModel} will be generated with name `modelName`. This can be used without a session object.

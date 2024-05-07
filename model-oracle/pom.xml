@@ -44,10 +44,5 @@ You should have received a copy of the GNU Lesser General Public License along w
             <artifactId>gm-core</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
-        <dependency>
-            <groupId>com.braintribe.gm</groupId>
-            <artifactId>gm-session-api</artifactId>
-            <version>${V.com.braintribe.gm}</version>
-        </dependency>
     </dependencies>
 </project>
