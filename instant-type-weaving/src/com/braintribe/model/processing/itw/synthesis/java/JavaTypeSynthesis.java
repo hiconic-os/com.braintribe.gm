@@ -324,9 +324,10 @@ public class JavaTypeSynthesis {
 	}
 
 	private void implementCustomTypeMetaDataAnnotationsIfEligible(TypeBuilder tb, ProtoHasMetaData gmCustomType) {
-		Collection<AnnotationDescriptor> annotationDescriptors = MdaSynthesis.synthesizeMetaDataAnnotations(gmCustomType.getGlobalId(), gmCustomType.getMetaData());
+		Collection<AnnotationDescriptor> ads = MdaSynthesis.synthesizeMetaDataAnnotations( //
+				gmCustomType.getGlobalId(), gmCustomType.getMetaData());
 
-		for (AnnotationDescriptor annotationDescriptor : annotationDescriptors)
+		for (AnnotationDescriptor annotationDescriptor : ads)
 			tb.addAnnotation(toAsmAnnotationInstance(annotationDescriptor));
 	}
 
@@ -369,6 +370,9 @@ public class JavaTypeSynthesis {
 			ib.addAbstractMethod(pd.getterName, as, propertyClass);
 			ib.addAbstractMethod(pd.setterName, AsmClassPool.voidType, propertyClass);
 		}
+
+		if (pd.declaredTypeOverride != null)
+			ib.addAbstractMethod(pd.getterName, pd.declaredTypeOverride);
 	}
 
 	/**

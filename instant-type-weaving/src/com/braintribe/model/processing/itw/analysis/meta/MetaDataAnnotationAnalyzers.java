@@ -40,8 +40,8 @@ public class MetaDataAnnotationAnalyzers {
 	 * @param annotations
 	 *            array of all {@link Annotation}s to be analyzed.
 	 * @param context
-	 *            context containing {@link HasMetaData target} to which the {@link MetaData} are added. In case the analyzed annotation has no
-	 *            globalId, a default one is created based on the globalId of the target.
+	 *            context containing {@link HasMetaData target} to which the {@link MetaData} are added. In case the
+	 *            analyzed annotation has no globalId, a default one is created based on the globalId of the target.
 	 */
 	public static void analyzeMetaDataAnnotations(Annotation[] annotations, MdaAnalysisContext context) {
 		ProtoHasMetaData target = context.getTarget();
@@ -61,8 +61,7 @@ public class MetaDataAnnotationAnalyzers {
 		for (Annotation annotation : annotations) {
 			Class<? extends Annotation> annotationType = annotation.annotationType();
 
-			MdaHandler<Annotation, MetaData> analyzer = (MdaHandler<Annotation, MetaData>) analyzerMap
-					.get(annotationType);
+			MdaHandler<Annotation, MetaData> analyzer = (MdaHandler<Annotation, MetaData>) analyzerMap.get(annotationType);
 			if (analyzer == null)
 				continue;
 

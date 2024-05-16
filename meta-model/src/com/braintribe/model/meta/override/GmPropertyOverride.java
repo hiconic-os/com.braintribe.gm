@@ -15,6 +15,7 @@ import com.braintribe.model.generic.annotation.SelectiveInformation;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 import com.braintribe.model.meta.GmProperty;
+import com.braintribe.model.meta.GmType;
 import com.braintribe.model.meta.info.GmEntityTypeInfo;
 import com.braintribe.model.meta.info.GmPropertyInfo;
 import com.braintribe.model.weaving.override.ProtoGmPropertyOverride;
@@ -31,6 +32,11 @@ public interface GmPropertyOverride extends ProtoGmPropertyOverride, GmPropertyI
 	@Override
 	GmEntityTypeInfo getDeclaringTypeInfo();
 	void setDeclaringTypeInfo(GmEntityTypeInfo declaringTypeInfo);
+
+	/** For certain purposes we allow a co-variant override of a getter. The return-type of this getter must be a sub-type of the property type. */
+	@Override
+	GmType getTypeOverride();
+	void setTypeOverride(GmType typeOverride);
 
 	@Override
 	default GmProperty relatedProperty() {

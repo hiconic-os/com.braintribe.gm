@@ -11,8 +11,10 @@
 // ============================================================================
 package com.braintribe.model.processing.itw.asm;
 
+import static com.braintribe.utils.lcd.CollectionTools2.acquireList;
 import static com.braintribe.utils.lcd.CollectionTools2.newList;
 import static com.braintribe.utils.lcd.CollectionTools2.newMap;
+import static java.util.Collections.emptyMap;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -34,6 +36,7 @@ public class AsmExistingClass extends AsmClass {
 	private List<AsmExistingClass> interfaces;
 	private List<AsmExistingMethod> methods;
 	private Map<Method, AsmExistingMethod> methodIndex;
+	private Map<String, List<AsmExistingMethod>> ambiguousMethodsByName;
 	private List<AsmField> fields;
 	private List<AsmExistingClass> declaredClasses;
 
@@ -53,11 +56,18 @@ public class AsmExistingClass extends AsmClass {
 		Method[] ms = clazz.getMethods();
 		methods = new ArrayList<>(ms.length);
 		methodIndex = newMap();
+		ambiguousMethodsByName = newMap();
 		for (Method m : ms) {
 			AsmExistingMethod asmExistingMethod = new AsmExistingMethod(classPool, m);
 			methods.add(asmExistingMethod);
 			methodIndex.put(m, asmExistingMethod);
+
+			acquireList(ambiguousMethodsByName, m.getName()).add(asmExistingMethod);
 		}
+
+		ambiguousMethodsByName.entrySet().removeIf(e -> e.getValue().size() == 1);
+		if (ambiguousMethodsByName.isEmpty())
+			ambiguousMethodsByName = emptyMap();
 	}
 
 	/** Returns a public method for given return type and parameters. */
@@ -69,19 +79,18 @@ public class AsmExistingClass extends AsmClass {
 
 		AsmExistingMethod asmMethod = methodIndex.get(m);
 		if (asmMethod == null)
+			// dead code?
 			return null;
 
-		return returnType == asmMethod.getReturnType() ? asmMethod : null;
-	}
+		if (returnType == asmMethod.getReturnType())
+			return asmMethod;
 
-	@Override
-	protected AsmExistingMethod getMethod(MethodSignature ms, AsmClass returnType) {
-		return getMethod(ms.name, returnType, ms.params);
+		return getAmbiguousMethod(name, returnType, params);
 	}
 
 	private Method getMethodBySignature(String name, AsmClass[] params) {
-		/* The method can only be found iff all the params are existing classes, since if the class did not exist
-		 * before, an existing class cannot have a method with such parameter */
+		/* The method can only be found iff all the params are existing classes, since if the class did not exist before, an
+		 * existing class cannot have a method with such parameter */
 		Class<?>[] params0 = new Class<?>[params.length];
 
 		int counter = 0;
@@ -100,11 +109,49 @@ public class AsmExistingClass extends AsmClass {
 		}
 	}
 
+	private AsmExistingMethod getAmbiguousMethod(String name, AsmClass returnType, AsmClass... params) {
+		List<AsmExistingMethod> ms = ambiguousMethodsByName.get(name);
+		if (ms == null)
+			return null;
+
+		for (AsmExistingMethod m : ms) {
+			if (m.getReturnType() != returnType)
+				continue;
+
+			if (hasParams(m, params))
+				return m;
+		}
+
+		return null;
+	}
+
+	private boolean hasParams(AsmExistingMethod m, AsmClass[] params) {
+		AsmClass[] mParams = m.getParams();
+
+		if (params.length != mParams.length)
+			return false;
+
+		for (int i = 0; i < mParams.length; i++) {
+			AsmClass param = params[i];
+			AsmClass mParam = mParams[i];
+
+			if (!param.name.equals(mParam.name))
+				return false;
+		}
+
+		return true;
+	}
+
+	@Override
+	protected AsmExistingMethod getMethod(MethodSignature ms, AsmClass returnType) {
+		return getMethod(ms.name, returnType, ms.params);
+	}
+
 	@Override
 	public Class<?> getJavaType() {
 		return clazz;
 	}
-	
+
 	public Class<?> getExistingClass() {
 		return clazz;
 	}

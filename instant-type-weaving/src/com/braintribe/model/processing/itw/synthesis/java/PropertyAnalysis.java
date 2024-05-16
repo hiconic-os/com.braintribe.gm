@@ -53,6 +53,8 @@ public class PropertyAnalysis implements Iterable<PropertyAnalysis.PropertyDescr
 		public AsmType actualPropertyClass;
 		public ProtoGmPropertyInfo propertyInfo;
 		public ProtoGmProperty property;
+		public AsmType declaredTypeOverride;
+		public List<AsmType> allTypeOverrides;
 		public String fieldName;
 		public String setterName;
 		public String getterName;

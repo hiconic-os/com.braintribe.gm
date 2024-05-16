@@ -25,6 +25,7 @@ import com.braintribe.model.processing.itw.asm.AsmAnnotationInstance;
 import com.braintribe.model.processing.itw.asm.AsmClass;
 import com.braintribe.model.processing.itw.asm.AsmClassPool;
 import com.braintribe.model.processing.itw.asm.AsmMethod;
+import com.braintribe.model.processing.itw.asm.AsmType;
 import com.braintribe.model.processing.itw.asm.TypeBuilder;
 import com.braintribe.model.processing.itw.synthesis.java.PropertyAnalysis.PropertyDescription;
 import com.braintribe.model.processing.itw.synthesis.java.PropertyAnalysis.SetterGetterAchievement;
@@ -34,6 +35,7 @@ import com.braintribe.model.weaving.ProtoGmProperty;
 import com.braintribe.model.weaving.ProtoGmSimpleType;
 import com.braintribe.model.weaving.ProtoGmType;
 import com.braintribe.model.weaving.info.ProtoGmPropertyInfo;
+import com.braintribe.model.weaving.override.ProtoGmPropertyOverride;
 
 /**
  * 
@@ -53,15 +55,13 @@ public class PropertyAnalyzer {
 	}
 
 	public PropertyAnalysis analyzeProperties(AsmClass asmClass, Map<String, ProtoGmPropertyInfo[]> properties) throws JavaTypeSynthesisException {
-
 		PropertyAnalysis result = new PropertyAnalysis();
 
 		int propertyIndex = 0;
 		for (ProtoGmPropertyInfo[] propertyLineage : properties.values()) {
-			ProtoGmPropertyInfo property = propertyLineage[0];
-			PropertyDescription description = getPropertyDescription(asmClass, property);
+			PropertyDescription description = getPropertyDescription(asmClass, propertyLineage);
 			result.propertyDescriptions.add(description);
-			result.propertyNames.add(property.relatedProperty().getName());
+			result.propertyNames.add(description.property.getName());
 		}
 
 		result.numberOfProperties = propertyIndex;
@@ -69,7 +69,8 @@ public class PropertyAnalyzer {
 		return result;
 	}
 
-	private PropertyDescription getPropertyDescription(AsmClass asmClass, ProtoGmPropertyInfo propertyInfo) throws JavaTypeSynthesisException {
+	private PropertyDescription getPropertyDescription(AsmClass asmClass, ProtoGmPropertyInfo[] propertyLineage) throws JavaTypeSynthesisException {
+		ProtoGmPropertyInfo propertyInfo = propertyLineage[0];
 		ProtoGmProperty property = propertyInfo.relatedProperty();
 		ProtoGmType propertyType = property.getType();
 		AsmClass actualPropertyClass = jts.ensureClass(propertyType);
@@ -78,18 +79,21 @@ public class PropertyAnalyzer {
 		String getterName = ItwTools.getGetterName(property);
 		String setterName = ItwTools.getSetterName(property);
 
-		AsmMethod getterMethod = asmClass.getMethod(getterName, accessPropertyClass);
+		AsmMethod getterMethod;
 
-		if (getterMethod == null) {
-			// if simple type try primitive variation
-			if (propertyType instanceof ProtoGmSimpleType) {
-				AsmClass primitiveClass = getPrimitiveClass((ProtoGmSimpleType) propertyType);
-				if (primitiveClass != null) {
-					getterMethod = asmClass.getMethod(getterName, primitiveClass);
+		// It should be enough to check nullable, as non-simple types must be nullable, but just in case we treat it leniently
+		if (property.getNullable() || (!(propertyType instanceof ProtoGmSimpleType))) {
+			getterMethod = asmClass.getMethod(getterName, accessPropertyClass);
 
-					if (getterMethod != null || !property.getNullable())
-						accessPropertyClass = primitiveClass;
-				}
+		} else {
+			AsmClass primitiveClass = getPrimitiveClass((ProtoGmSimpleType) propertyType);
+			if (primitiveClass == null) {
+				// again, if someone marked a simple type as nullable, even if it's one that doesn't allow it, we treat it leniently
+				getterMethod = asmClass.getMethod(getterName, accessPropertyClass);
+
+			} else {
+				getterMethod = asmClass.getMethod(getterName, primitiveClass);
+				accessPropertyClass = primitiveClass;
 			}
 		}
 
@@ -105,6 +109,8 @@ public class PropertyAnalyzer {
 		}
 		description.propertyInfo = propertyInfo;
 		description.property = property;
+		description.declaredTypeOverride = resolveTypeOverride(propertyInfo);
+		description.allTypeOverrides = allTypeOverrides(propertyLineage);
 		description.fieldName = ItwTools.getFieldName(property.getName());
 		description.getterName = getterName;
 		description.setterName = setterName;
@@ -112,16 +118,37 @@ public class PropertyAnalyzer {
 
 		if (getterMethod != null) {
 			AsmMethod setterMethod = asmClass.getMethod(setterName, AsmClassPool.voidType, accessPropertyClass);
-
-			if (setterMethod == null) {
+			if (setterMethod == null)
 				throw new JavaTypeSynthesisException("getter/setter inconsistency: No suitable setter for existing getter of property "
 						+ asmClass.getName() + "." + property.getName());
-			}
 
 			description.achievement = SetterGetterAchievement.declared;
 		}
 
 		return description;
+	}
+
+	private List<AsmType> allTypeOverrides(ProtoGmPropertyInfo[] propertyLineage) {
+		List<AsmType> result = newList();
+		for (ProtoGmPropertyInfo propertyInfo : propertyLineage) {
+			AsmType typeOverride = resolveTypeOverride(propertyInfo);
+			if (typeOverride != null)
+				result.add(typeOverride);
+		}
+
+		return result.isEmpty() ? emptyList() : result;
+	}
+
+	private AsmType resolveTypeOverride(ProtoGmPropertyInfo propertyInfo) {
+		if (propertyInfo instanceof ProtoGmPropertyOverride) {
+			ProtoGmType typeOverride = ((ProtoGmPropertyOverride) propertyInfo).getTypeOverride();
+			if (typeOverride == null)
+				return null;
+
+			return jts.ensureClassAsGenericIfNeeded(typeOverride);
+		}
+
+		return null;
 	}
 
 	public List<AsmAnnotationInstance> getAnnotations(PropertyDescription pd) {
@@ -139,7 +166,7 @@ public class PropertyAnalyzer {
 			result.add(new AsmAnnotationInstance(AsmClassPool.initializerType, "value", initializerString));
 		}
 
-		// TODO what if initializer is null but we still have some additional annotations, despite the property being an override?  
+		// TODO what if initializer is null but we still have some additional annotations, despite the property being an override?
 
 		// Annotations resulting from configured meta-data
 		for (AnnotationDescriptor annotationDescriptor : MdaSynthesis.synthesizeMetaDataAnnotations(p.getGlobalId(), p.getMetaData()))

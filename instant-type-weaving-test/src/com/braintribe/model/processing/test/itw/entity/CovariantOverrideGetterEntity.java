@@ -9,29 +9,25 @@
 // 
 // You should have received a copy of the GNU Lesser General Public License along with this library; See http://www.gnu.org/licenses/.
 // ============================================================================
-package com.braintribe.model.weaving.override;
+package com.braintribe.model.processing.test.itw.entity;
 
-import com.braintribe.model.weaving.ProtoGmProperty;
-import com.braintribe.model.weaving.ProtoGmType;
-import com.braintribe.model.weaving.info.ProtoGmEntityTypeInfo;
-import com.braintribe.model.weaving.info.ProtoGmPropertyInfo;
+import com.braintribe.model.generic.GenericEntity;
+import com.braintribe.model.generic.reflection.EntityType;
+import com.braintribe.model.generic.reflection.EntityTypes;
 
-public interface ProtoGmPropertyOverride extends ProtoGmPropertyInfo {
+/**
+ * @author peter.gazdik
+ */
+public interface CovariantOverrideGetterEntity extends GenericEntity {
 
-	ProtoGmProperty getProperty();
+	EntityType<CovariantOverrideGetterEntity> T = EntityTypes.T(CovariantOverrideGetterEntity.class);
 
-	ProtoGmEntityTypeInfo getDeclaringTypeInfo();
-
-	ProtoGmType getTypeOverride();
-
+	/**
+	 * This is a co-variant override getter.
+	 * <p>
+	 * We support that, as some 3rd party tools (Hibernate with JPA annotations) have a problem with id being Object.
+	 */
 	@Override
-	default ProtoGmProperty relatedProperty() {
-		return getProperty();
-	}
-
-	@Override
-	default ProtoGmEntityTypeInfo declaringTypeInfo() {
-		return getDeclaringTypeInfo();
-	}
+	Long getId();
 
 }

@@ -168,6 +168,13 @@ public class EagerMetaModelTypes {
 			else
 				((GmPropertyOverride) twPropertyOverride).setProperty((GmProperty) property);
 		}
+
+		public void setTypeOverride(ProtoGmPropertyOverride twPropertyOverride, ProtoGmType typeOverride, boolean proto) {
+			if (proto)
+				((ProtoGmPropertyOverrideImpl) twPropertyOverride).setTypeOverride(typeOverride);
+			else
+				((GmPropertyOverride) twPropertyOverride).setTypeOverride((GmType) typeOverride);
+		}
 	}
 
 	public static final EagerProtoGmTypeRestriction eagerProtoGmTypeRestriction = new EagerProtoGmTypeRestriction(GmTypeRestriction.class);
@@ -310,8 +317,8 @@ public class EagerMetaModelTypes {
 	// @formatter:on
 
 	/**
-	 * To avoid cycles, we want to eagerly instantiate all the types which are needed during JTA (Java Type Analysis). This list contains those
-	 * entities with remarks as to where/why they are needed.
+	 * To avoid cycles, we want to eagerly instantiate all the types which are needed during JTA (Java Type Analysis). This
+	 * list contains those entities with remarks as to where/why they are needed.
 	 */
 	static {
 		for (MdaHandler<?, ?> mdaHandler : MetaDataAnnotations.registry().annoToHandler().values())

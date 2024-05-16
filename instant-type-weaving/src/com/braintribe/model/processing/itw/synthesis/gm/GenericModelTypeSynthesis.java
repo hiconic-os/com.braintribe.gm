@@ -61,6 +61,7 @@ import com.braintribe.model.processing.itw.asm.AsmClass;
 import com.braintribe.model.processing.itw.asm.AsmClassPool;
 import com.braintribe.model.processing.itw.asm.AsmExistingClass;
 import com.braintribe.model.processing.itw.asm.AsmNewClass;
+import com.braintribe.model.processing.itw.asm.AsmType;
 import com.braintribe.model.processing.itw.asm.ClassBuilder;
 import com.braintribe.model.processing.itw.asm.InterfaceBuilder;
 import com.braintribe.model.processing.itw.synthesis.gm.asm.DefaultMethodsSupport;
@@ -86,6 +87,7 @@ import com.braintribe.model.weaving.ProtoGmProperty;
 import com.braintribe.model.weaving.ProtoGmSetType;
 import com.braintribe.model.weaving.ProtoGmType;
 import com.braintribe.model.weaving.info.ProtoGmPropertyInfo;
+import com.braintribe.model.weaving.override.ProtoGmPropertyOverride;
 import com.braintribe.processing.async.api.AsyncCallback;
 
 /* NOTE regarding "ensure" method names. Some have regular names, some other start with an underscore. Those with
@@ -111,13 +113,12 @@ public class GenericModelTypeSynthesis extends JavaTypeSynthesis {
 	}
 
 	/**
-	 * Why this method? So that you read this and realize you probably don't want to create your own
-	 * {@link GenericModelTypeSynthesis} to ensure your model types, you just want to call
-	 * {@link ProtoGmMetaModel#deploy()}.
+	 * Why this method? So that you read this and realize you probably don't want to create your own {@link GenericModelTypeSynthesis} to ensure your
+	 * model types, you just want to call {@link ProtoGmMetaModel#deploy()}.
 	 * 
-	 * But why? Well, it's really a bad idea. There are blocks that are synchronized and the lock is only valid for one
-	 * instance (as it is an instance variable). For now, I'm not making it static, to avoid unpredictable errors, so I'm
-	 * moving to this method to ensure nobody calls the constructor, unless he knows what he's doing.
+	 * But why? Well, it's really a bad idea. There are blocks that are synchronized and the lock is only valid for one instance (as it is an instance
+	 * variable). For now, I'm not making it static, to avoid unpredictable errors, so I'm moving to this method to ensure nobody calls the constructor,
+	 * unless he knows what he's doing.
 	 */
 	public static GenericModelTypeSynthesis newInstance() {
 		return new GenericModelTypeSynthesis();
@@ -170,8 +171,8 @@ public class GenericModelTypeSynthesis extends JavaTypeSynthesis {
 
 		Set<? extends ProtoGmType> types = gmModel.getTypes();
 
-		/* IMPORTANT: We have to ensure enums first, because the initializers (default values) for enum properties of entities
-		 * might have these enum constants set. So they have to be accessible via reflection by the initializerString parser */
+		/* IMPORTANT: We have to ensure enums first, because the initializers (default values) for enum properties of entities might have these enum
+		 * constants set. So they have to be accessible via reflection by the initializerString parser */
 
 		// ensure enum types to exist and being reflectable
 		List<ProtoGmType> enumTypes = types.stream() //
@@ -314,9 +315,8 @@ public class GenericModelTypeSynthesis extends JavaTypeSynthesis {
 	}
 
 	/**
-	 * This is actually a bug-fix. People might call ensureEntityType with something else in mind - forcing the changed
-	 * {@link ProtoGmEntityType} bytecode to be stored. Therefore, in case this possibility exists, we make sure bytecode is
-	 * generated!
+	 * This is actually a bug-fix. People might call ensureEntityType with something else in mind - forcing the changed {@link ProtoGmEntityType}
+	 * bytecode to be stored. Therefore, in case this possibility exists, we make sure bytecode is generated!
 	 */
 	private void ensureEntityClassIfClassStorageConfigured(ProtoGmEntityType gmEntityType) {
 		try {
@@ -360,8 +360,7 @@ public class GenericModelTypeSynthesis extends JavaTypeSynthesis {
 	}
 
 	/**
-	 * In case we have received a {@link GmEntityType} for a type the exists on the classpath, we ask GMTR to give us
-	 * replacement (via proto JTA)
+	 * In case we have received a {@link GmEntityType} for a type the exists on the classpath, we ask GMTR to give us replacement (via proto JTA)
 	 */
 	private ProtoGmEntityType replaceWithJtaIfRelevant(ProtoGmEntityType gmEntityType) {
 		if (gmEntityType instanceof ProtoGmTypeImpl)
@@ -385,8 +384,8 @@ public class GenericModelTypeSynthesis extends JavaTypeSynthesis {
 	private final Map<String, PreliminaryEntityType> preliminaryTypes = newMap();
 
 	/**
-	 * The EntityType is built in two phases - first we start building it thus crating the corresponding {@link AsmNewClass}
-	 * (in {@link GenericModelTypeSynthesis#startBuildingEntityType(ProtoGmEntityType)}). We then proceed to build
+	 * The EntityType is built in two phases - first we start building it thus crating the corresponding {@link AsmNewClass} (in
+	 * {@link GenericModelTypeSynthesis#startBuildingEntityType(ProtoGmEntityType)}). We then proceed to build
 	 */
 	private PreliminaryEntityType weaveNewEntityType(ProtoGmEntityType gmEntityType) throws GenericModelTypeSynthesisException {
 		String entityTypeName = gmEntityType.getTypeSignature();
@@ -402,9 +401,18 @@ public class GenericModelTypeSynthesis extends JavaTypeSynthesis {
 			pet.superTypes = ensureSuperTypes(gmEntityType);
 
 			for (ProtoGmPropertyInfo[] propertyLineage : pet.mergedProtoGmProperties.values()) {
-				ProtoGmProperty gmProperty = propertyLineage[0].relatedProperty();
-				ensurePreliminaryType(gmProperty.getType());
+				for (ProtoGmPropertyInfo pi : propertyLineage) {
+					if (pi instanceof ProtoGmProperty) {
+						ensurePreliminaryType(((ProtoGmProperty) pi).getType());
 
+					} else if (pi instanceof ProtoGmPropertyOverride) {
+						ProtoGmType typeOverride = ((ProtoGmPropertyOverride) pi).getTypeOverride();
+						if (typeOverride != null)
+							ensurePreliminaryType(typeOverride);
+					}
+				}
+
+				ProtoGmProperty gmProperty = propertyLineage[0].relatedProperty();
 				pet.createPreliminaryProperty(gmProperty, propertyLineage);
 			}
 
@@ -417,9 +425,9 @@ public class GenericModelTypeSynthesis extends JavaTypeSynthesis {
 			pet.toStringAnnotation = getAnnotation(pet.entityIface, ToStringInformation.class);
 			pet.selectiveInformationAnnotation = getAnnotation(pet.entityIface, SelectiveInformation.class);
 
-			/* The toSelectiveInformation methods (for both plain/enhanced) can only be implemented iff all the properties are at
-			 * least started, which only happens after we are done with the entire assembly. So i will only get the implementer
-			 * here, and finish in that finalize thing. But the properties can definitely be implemented right away. */
+			/* The toSelectiveInformation methods (for both plain/enhanced) can only be implemented iff all the properties are at least started, which
+			 * only happens after we are done with the entire assembly. So i will only get the implementer here, and finish in that finalize thing. But
+			 * the properties can definitely be implemented right away. */
 			finalizeWeakInterface(gmEntityType, pet);
 			finalizePlainClass(gmEntityType, pet);
 			finalizeEnhancedEntityClass(gmEntityType, pet);
@@ -578,16 +586,14 @@ public class GenericModelTypeSynthesis extends JavaTypeSynthesis {
 	}
 
 	private void ensurePreliminaryType(ProtoGmType type) throws GenericModelTypeSynthesisException {
-		if (type instanceof ProtoGmEntityType) {
+		if (type instanceof ProtoGmEntityType)
 			ensureEntityTypeHelper((ProtoGmEntityType) type);
 
-		} else if (type instanceof ProtoGmCollectionType) {
+		else if (type instanceof ProtoGmCollectionType)
 			ensureCollectionTypeHelper((ProtoGmCollectionType) type);
 
-		} else {
-
+		else
 			_ensureType(type);
-		}
 	}
 
 	private void ensureCollectionTypeHelper(ProtoGmCollectionType gmCollectionType) throws GenericModelTypeSynthesisException {
@@ -711,13 +717,19 @@ public class GenericModelTypeSynthesis extends JavaTypeSynthesis {
 			// Implement properties
 			for (PropertyDescription pd : pet.propertyAnalysis) {
 				String propertyName = pd.getName();
-				if (pet.mustImplement(propertyName)) {
-					PreliminaryProperty pp = pet.getPreliminaryProperty(propertyName);
+				PreliminaryProperty pp = pet.getPreliminaryProperty(propertyName);
 
+				if (pet.mustImplement(propertyName)) {
 					eei.createAndStorePropertyField(pd);
 					eei.addAopAroundGetterSetter(pet.getPropertyClassName(propertyName), pp, pd);
 					eei.addEnhancedRead(pd);
 					eei.addEnhancedWrite(pd);
+				}
+
+				// TODO optimized, do not created these overrides if super-class already has them
+				// the property analyzer should only take such overrides that are not reachable from most-prop super-type
+				for (AsmType overrideTyp : pd.allTypeOverrides) {
+					eei.addGetterOverride(pd, overrideTyp);
 				}
 
 				if (pd.isPrimitive())

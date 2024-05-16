@@ -14,6 +14,7 @@ package com.braintribe.model.processing.itw.analysis.protomodel;
 import com.braintribe.model.generic.pseudo.GenericEntity_pseudo;
 import com.braintribe.model.meta.GmProperty;
 import com.braintribe.model.weaving.ProtoGmProperty;
+import com.braintribe.model.weaving.ProtoGmType;
 import com.braintribe.model.weaving.info.ProtoGmEntityTypeInfo;
 import com.braintribe.model.weaving.override.ProtoGmPropertyOverride;
 
@@ -28,6 +29,7 @@ public class ProtoGmPropertyOverrideImpl extends ProtoGmPropertyInfoImpl impleme
 
 	private ProtoGmProperty property;
 	private ProtoGmEntityTypeInfo declaringTypeInfo;
+	private ProtoGmType typeOverride;
 
 	@Override
 	public ProtoGmProperty getProperty() {
@@ -45,6 +47,15 @@ public class ProtoGmPropertyOverrideImpl extends ProtoGmPropertyInfoImpl impleme
 
 	public void setDeclaringTypeInfo(ProtoGmEntityTypeInfo declaringTypeInfo) {
 		this.declaringTypeInfo = declaringTypeInfo;
+	}
+
+	@Override
+	public ProtoGmType getTypeOverride() {
+		return typeOverride;
+	}
+
+	public void setTypeOverride(ProtoGmType typeOverride) {
+		this.typeOverride = typeOverride;
 	}
 
 }

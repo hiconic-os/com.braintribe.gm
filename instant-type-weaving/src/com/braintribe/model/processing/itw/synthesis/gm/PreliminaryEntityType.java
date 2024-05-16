@@ -63,7 +63,6 @@ public class PreliminaryEntityType implements ItwEntityType {
 	 * that we re-use the max amount of already existing implemented getters/setters (and readers/writers).
 	 */
 	public ProtoGmEntityType implSuperType;
-	public PreliminaryEntityType implSuperPreliminaryType;
 	public Set<String> implSuperTypeProps;
 
 	public List<ItwEntityType> superTypes = newList();

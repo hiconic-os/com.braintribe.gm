@@ -231,7 +231,7 @@ public final class JavaTypeAnalysis {
 		}
 	}
 
-	public ProtoGmType getProtoGmType(Type type) throws JavaTypeAnalysisException { 
+	public ProtoGmType getProtoGmType(Type type) throws JavaTypeAnalysisException {
 		ProtoGmType gmType = typeCache.get(type);
 		if (gmType != null)
 			return gmType;
@@ -491,6 +491,13 @@ public final class JavaTypeAnalysis {
 					eagerProtoGmProperty.setType(gmProperty, _getProtoGmType(propertyType), proto);
 					eagerProtoGmProperty.setTypeRestriction(gmProperty, getProtoGmTypeRestriction(gmProperty, scannedProperty), proto);
 				}
+
+				if (scannedProperty.isCovariantOverride)
+					if (gmPropertyInfo instanceof ProtoGmPropertyOverride) {
+						ProtoGmPropertyOverride gmPropertyOverride = (ProtoGmPropertyOverride) gmPropertyInfo;
+						Type typeOverride = scannedProperty.getter.getGenericReturnType();
+						eagerProtoGmPropertyOverride.setTypeOverride(gmPropertyOverride, _getProtoGmType(typeOverride), proto);
+					}
 
 				analyzeMetaDataAnnotations(scannedProperty.getter.getAnnotations(), new MetaDataAnnotationAnalyzerContextImpl(gmPropertyInfo));
 			}
