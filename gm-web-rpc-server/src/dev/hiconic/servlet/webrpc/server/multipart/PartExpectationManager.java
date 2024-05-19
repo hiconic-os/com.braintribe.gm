@@ -9,25 +9,38 @@
 // 
 // You should have received a copy of the GNU Lesser General Public License along with this library; See http://www.gnu.org/licenses/.
 // ============================================================================
-package com.braintribe.model.processing.webrpc.server.multipart;
+package dev.hiconic.servlet.webrpc.server.multipart;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.util.HashSet;
+import java.util.Set;
 
-import com.braintribe.model.generic.session.InputStreamProvider;
-import com.braintribe.web.multipart.api.PartReader;
+import com.braintribe.model.resource.Resource;
 
-public class PartInputStreamProvider  implements InputStreamProvider {
-	
-	private final PartReader partReader;
-	
-	public PartInputStreamProvider(PartReader partReader) {
-		this.partReader = partReader;
+public class PartExpectationManager {
+
+	private Set<String> expectedParts;
+	private final Set<String> foundParts = new HashSet<>();
+
+	public void expect(Iterable<Resource> resources) {
+		expectedParts = new HashSet<>();
+
+		for (Resource resource : resources) {
+			if (resource.isTransient()) {
+				expectedParts.add(resource.getGlobalId());
+			}
+		}
+
+		expectedParts.removeAll(foundParts);
 	}
-	
-	@Override
-	public InputStream openInputStream() throws IOException {
-		return partReader.openStream();
+
+	public boolean isLastExpected(String name) {
+		foundParts.add(name);
+		if (expectedParts != null) {
+			expectedParts.remove(name);
+			return expectedParts.isEmpty();
+		} else {
+			return false;
+		}
 	}
-	
+
 }

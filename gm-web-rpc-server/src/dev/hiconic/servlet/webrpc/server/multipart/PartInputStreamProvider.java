@@ -9,7 +9,7 @@
 // 
 // You should have received a copy of the GNU Lesser General Public License along with this library; See http://www.gnu.org/licenses/.
 // ============================================================================
-package com.braintribe.model.processing.webrpc.server.multipart;
+package dev.hiconic.servlet.webrpc.server.multipart;
 
 import java.io.IOException;
 import java.io.InputStream;

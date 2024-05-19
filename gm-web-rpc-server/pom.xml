@@ -29,6 +29,21 @@ You should have received a copy of the GNU Lesser General Public License along w
     </licenses>
     <dependencies>
         <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>${V.jakarta.servlet}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!--Deprecated-->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>${V.javax.servlet}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
             <groupId>com.braintribe.common</groupId>
             <artifactId>logging</artifactId>
             <version>${V.com.braintribe.common}</version>
@@ -102,12 +117,6 @@ You should have received a copy of the GNU Lesser General Public License along w
             <groupId>com.braintribe.gm</groupId>
             <artifactId>security-service-api</artifactId>
             <version>${V.com.braintribe.gm}</version>
-        </dependency>
-        <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>javax.servlet-api</artifactId>
-            <scope>provided</scope>
-            <version>${V.javax.servlet}</version>
         </dependency>
     </dependencies>
 </project>

@@ -9,25 +9,20 @@
 // 
 // You should have received a copy of the GNU Lesser General Public License along with this library; See http://www.gnu.org/licenses/.
 // ============================================================================
-package com.braintribe.model.processing.webrpc.server.multipart;
+package dev.hiconic.servlet.webrpc.server.multipart;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.Closeable;
+import java.util.function.Consumer;
 
-import com.braintribe.model.generic.session.InputStreamProvider;
-import com.braintribe.web.multipart.api.PartReader;
+import com.braintribe.codec.marshaller.api.MarshallerRegistryEntry;
+import com.braintribe.model.processing.rpc.commons.impl.RpcUnmarshallingStreamManagement;
+import com.braintribe.model.processing.service.api.ServiceRequestSummaryLogger;
+import com.braintribe.model.service.api.ServiceRequest;
+import com.braintribe.web.multipart.api.SequentialFormDataReader;
 
-public class PartInputStreamProvider  implements InputStreamProvider {
-	
-	private final PartReader partReader;
-	
-	public PartInputStreamProvider(PartReader partReader) {
-		this.partReader = partReader;
-	}
-	
-	@Override
-	public InputStream openInputStream() throws IOException {
-		return partReader.openStream();
-	}
-	
+public interface MultipartRequestUnmarshaller extends Closeable {
+
+	ServiceRequest unmarshall(ServiceRequestSummaryLogger summaryLogger, SequentialFormDataReader multiparts,
+			RpcUnmarshallingStreamManagement streamManagement, Consumer<MarshallerRegistryEntry> marshallerEntryReceiver) throws Exception;
+
 }

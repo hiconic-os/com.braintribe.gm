@@ -39,6 +39,7 @@ You should have received a copy of the GNU Lesser General Public License along w
         <V.commons-collections>3.2.1</V.commons-collections>
         <V.commons-lang>2.6</V.commons-lang>
         <V.javax.servlet>3.1.0</V.javax.servlet>
+		<V.jakarta.servlet>6.0.0</V.jakarta.servlet>
         <V.joda-time>2.3</V.joda-time>
         <V.junit>4.11</V.junit>
         <V.org.antlr>4.5</V.org.antlr>
