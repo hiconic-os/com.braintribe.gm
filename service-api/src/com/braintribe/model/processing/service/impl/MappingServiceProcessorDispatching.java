@@ -14,59 +14,69 @@ import com.braintribe.model.processing.service.api.ServiceRequestContext;
 import com.braintribe.model.service.api.ServiceRequest;
 
 public class MappingServiceProcessorDispatching<P extends ServiceRequest, R> implements DispatchConfigurator<P, R> {
-	
-	private MappingServiceProcessor<P, R> annotatedServiceProcessor;
 
-	static <P extends ServiceRequest, R> MappingServiceProcessorDispatching<P, R> create(MappingServiceProcessor<P, R> persistenceProcessor) {
-		return new MappingServiceProcessorDispatching<>(persistenceProcessor);
+	private final Object annotatedProcessor;
+
+	static <P extends ServiceRequest, R> MappingServiceProcessorDispatching<P, R> create(MappingServiceProcessor<P, R> annotatedProcessor) {
+		return new MappingServiceProcessorDispatching<>(annotatedProcessor);
 	}
-	
-	public MappingServiceProcessorDispatching(MappingServiceProcessor<P, R> persistenceProcessor) {
-		this.annotatedServiceProcessor = persistenceProcessor;
+
+	public MappingServiceProcessorDispatching(Object annotatedProcessor) {
+		this.annotatedProcessor = annotatedProcessor;
 	}
 
 	@Override
 	public void configureDispatching(DispatchConfiguration<P, R> dispatching) {
 		Lookup lookup = MethodHandles.lookup();
-		for (Method method: annotatedServiceProcessor.getClass().getMethods()) {
-			Service serviceAnnotation = method.getAnnotation(Service.class);
-			
+
+		for (Method m : annotatedProcessor.getClass().getMethods()) {
+			Class<?> reqParamType;
+
+			Service serviceAnnotation = m.getAnnotation(Service.class);
 			if (serviceAnnotation == null)
 				continue;
-			
-			Class<?>[] parameterTypes = method.getParameterTypes();
-			
-			if (parameterTypes.length != 1)
-				throw new UnsupportedOperationException("method " + method + " is annotated with @Service but does not comply to required signature (ServiceRequestContext, ServiceRequest");
-			
-			Class<?> serviceRequestContextParameterType = parameterTypes[0];
-			Class<?> requestParameterType = parameterTypes[1];
-			
-			if (serviceRequestContextParameterType != ServiceRequestContext.class)
-				throw new UnsupportedOperationException("method " + method + " is annotated with @Service but does not comply to required signature (ServiceRequestContext, ServiceRequest");
-			
-			
-			if (!ServiceRequest.class.isAssignableFrom(requestParameterType))
-				throw new UnsupportedOperationException("method " + method + " is annotated with Transaction but does not comply to required signature (ServiceRequestContext, ServiceRequest");
-			
+
+			Class<?>[] paramTypes = m.getParameterTypes();
+
+			switch (paramTypes.length) {
+				case 0:
+					throw new UnsupportedOperationException("Service method " + m + " must have at least one parameter - (ServiceRequest)");
+				case 2:
+					if (paramTypes[1] != ServiceRequestContext.class)
+						throw new UnsupportedOperationException(
+								"Service method " + m + " with 2 parameters doesn't have ServiceRequestContext as its second parameter.");
+					//$FALL-THROUGH$
+				case 1:
+					reqParamType = paramTypes[0];
+					if (!ServiceRequest.class.isAssignableFrom(reqParamType))
+						throw new UnsupportedOperationException("Service method " + m + " doesn't have ServiceRequest as its first parameter.");
+					break;
+
+				default:
+					throw new UnsupportedOperationException(
+							"Service method " + m + " cannot have more than 2 parameters - (ServiceRequest, ServiceRequestContext)");
+			}
+
 			try {
-				MethodHandle methodHandle = lookup.unreflect(method);
-				MethodHandle boundHandle = methodHandle.bindTo(annotatedServiceProcessor);
-				
-		        EntityType<P> requestType = EntityTypes.T((Class<P>)requestParameterType);
-		    
-		        if (method.getReturnType() == Maybe.class)
-		        	dispatching.register(requestType, new MethodHandleServiceProcessor<>(boundHandle));
-		        else
-		        	dispatching.registerReasoned(requestType, new ReasonedMethodHandleServiceProcessor<>(boundHandle));
-			}
-			catch (Error e) {
+				EntityType<P> requestType = EntityTypes.T((Class<P>) reqParamType);
+
+				boolean passContext = paramTypes.length == 2;
+
+				MethodHandle methodHandle = lookup.unreflect(m);
+				MethodHandle boundHandle = methodHandle.bindTo(annotatedProcessor);
+
+				if (m.getReturnType() == Maybe.class)
+					dispatching.registerReasoned(requestType, new ReasonedMethodHandleServiceProcessor<>(boundHandle, passContext));
+				else
+					dispatching.register(requestType, new MethodHandleServiceProcessor<>(boundHandle, passContext));
+
+			} catch (Error e) {
 				throw e;
+
+			} catch (Throwable e) {
+				throw new IllegalStateException("Unexpected Exception when converting @Service annotated method to ServiceProcessor", e);
 			}
-			catch (Throwable e) {
-				throw new IllegalStateException("Unexpected Exception when converting Transaction annotated method to PersistenceServiceProcessor", e);
-			}
-			
 		}
 	}
+
 }

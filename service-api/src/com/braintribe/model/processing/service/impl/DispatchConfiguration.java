@@ -16,6 +16,7 @@ import com.braintribe.model.processing.service.api.ReasonedServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceProcessor;
 import com.braintribe.model.service.api.ServiceRequest;
 
+@FunctionalInterface
 public interface DispatchConfiguration<P extends ServiceRequest, R> {
 	<T extends P> void register(EntityType<T> denotationType, ServiceProcessor<T, ? extends R> processor);
 

@@ -7,22 +7,26 @@ import com.braintribe.model.processing.service.api.ServiceRequestContext;
 import com.braintribe.model.service.api.ServiceRequest;
 
 public class MethodHandleServiceProcessor<P extends ServiceRequest, R> implements ServiceProcessor<P, R> {
-	
-	private MethodHandle methodHandle;
-	
-	public MethodHandleServiceProcessor(MethodHandle methodHandle) {
-		super();
+
+	private final MethodHandle methodHandle;
+	private final boolean passContext;
+
+	public MethodHandleServiceProcessor(MethodHandle methodHandle, boolean passContext) {
 		this.methodHandle = methodHandle;
+		this.passContext = passContext;
 	}
-	
+
 	@Override
 	public R process(ServiceRequestContext requestContext, P request) {
 		try {
-			return (R) methodHandle.invoke(requestContext, request);
+			if (passContext)
+				return (R) methodHandle.invoke(request, requestContext);
+			else
+				return (R) methodHandle.invoke(request);
+
 		} catch (RuntimeException | Error e) {
 			throw e;
-		}
-		catch (Throwable e) {
+		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
 	}
