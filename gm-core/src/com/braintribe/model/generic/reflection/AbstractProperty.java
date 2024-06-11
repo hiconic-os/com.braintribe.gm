@@ -59,8 +59,8 @@ public abstract class AbstractProperty implements Property {
 			throw new IllegalArgumentException("Value property '" + getName() + "'  cannot be null. Entity: " + entity);
 
 		if (!getType().isValueAssignable(value))
-			throw new IllegalArgumentException("Cannot assign value '" + value + "' of type '" + GMF.getTypeReflection().getType(value)
-					+ "' to property '" + qualifiedName() + "' of type '" + getType() + "' Entity: " + entity);
+			throw new IllegalArgumentException("Cannot assign value '" + value + "' of '" + GMF.getTypeReflection().getType(value)
+					+ "' to property '" + qualifiedName() + "' of '" + getType().getTypeName() + "' Entity: " + entity);
 
 		Object result = getDirectUnsafe(entity);
 		setDirectUnsafe(entity, value);
