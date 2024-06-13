@@ -27,4 +27,8 @@ public interface EnumBase extends GenericBase {
 	@Override
 	EnumType type();
 
+	int ordinal();
+
+	String name();
+
 }
