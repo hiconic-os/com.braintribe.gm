@@ -88,9 +88,7 @@ public interface GenericModelType extends Comparable<GenericModelType> {
 	 */
 	String getSelectiveInformation(Object instance);
 
-	/**
-	 * This method returns in the most specified type statement seen from assignable perspective.
-	 */
+	/** Returns the {@link GenericModelType type} of given GM value. */
 	GenericModelType getActualType(Object value);
 
 	/**

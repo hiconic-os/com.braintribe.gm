@@ -14,6 +14,7 @@ package com.braintribe.model.generic.reflection;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.GmCoreApiInteropNamespaces;
 
+import jsinterop.annotations.JsMethod;
 import jsinterop.annotations.JsType;
 
 /**
@@ -44,8 +45,9 @@ public interface Attribute {
 	boolean isNullable();
 
 	/** Accesses the attribute in a way equivalent to invoking the corresponding getter or setter. */
+	@JsMethod(name = "jGet")
 	<T> T get(GenericEntity entity);
-	/** @see #get */
+	@JsMethod(name = "jSet")
 	void set(GenericEntity entity, Object value);
 
 	/**
