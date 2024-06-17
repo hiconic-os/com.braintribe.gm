@@ -44,4 +44,5 @@ public interface Person extends HasName, StandardIdentifiable {
 
 	Object getObject();
 	void setObject(Object object);
+
 }

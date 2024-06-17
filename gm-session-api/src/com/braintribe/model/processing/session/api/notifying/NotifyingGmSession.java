@@ -16,6 +16,7 @@ import java.util.Stack;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.manipulation.ManifestationManipulation;
 import com.braintribe.model.generic.manipulation.Manipulation;
+import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.PropertyAccessInterceptor;
 import com.braintribe.model.generic.session.GmSession;
 import com.braintribe.model.generic.session.exception.GmSessionRuntimeException;
@@ -25,12 +26,12 @@ import com.braintribe.model.processing.session.api.persistence.PersistenceGmSess
 
 /**
  * An extension of {@link GmSession} that serves as hub for noticing {@link Manipulation} events. Using the
- * {@link GenericManipulationListenerRegistry} it is possible to add {@link ManipulationListener}s for all the session
- * manipulations, or filtered just for given entity, or just a property of given entity.
+ * {@link GenericManipulationListenerRegistry} it is possible to add {@link ManipulationListener}s for all the session manipulations, or filtered just
+ * for given entity, or just a property of given entity.
  * <p>
- * This session also provides a more advanced control of {@link PropertyAccessInterceptor}s (compared to just
- * {@linkplain GmSession}). With {@link PropertyAccessInterceptorRegistry} accessible via {@link #interceptors()}
- * method, it is possible to add/remove such interceptors, and also control the relative order of interceptors.
+ * This session also provides a more advanced control of {@link PropertyAccessInterceptor}s (compared to just {@linkplain GmSession}). With
+ * {@link PropertyAccessInterceptorRegistry} accessible via {@link #interceptors()} method, it is possible to add/remove such interceptors, and also
+ * control the relative order of interceptors.
  * 
  * <h3>Querying attached entities</h3>
  * 
@@ -43,6 +44,9 @@ import com.braintribe.model.processing.session.api.persistence.PersistenceGmSess
  * @see PropertyAccessInterceptorRegistry
  */
 public interface NotifyingGmSession extends GmSession {
+
+	/** Builder with more creation options, compared to the create methods (e.g. {@link #create(EntityType)}) */
+	<T extends GenericEntity> EntityCreation<T> createEntity(EntityType<T> type);
 
 	/**
 	 * {@inheritDoc}
@@ -57,4 +61,5 @@ public interface NotifyingGmSession extends GmSession {
 	PropertyAccessInterceptorRegistry interceptors();
 
 	Stack<CompoundNotification> getCompoundNotificationStack();
+
 }

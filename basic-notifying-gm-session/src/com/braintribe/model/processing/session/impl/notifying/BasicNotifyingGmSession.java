@@ -44,6 +44,7 @@ import com.braintribe.model.generic.tracking.ManipulationListener;
 import com.braintribe.model.generic.value.EntityReference;
 import com.braintribe.model.processing.core.commons.LocalEntityPropertyComparator;
 import com.braintribe.model.processing.session.api.notifying.CompoundNotification;
+import com.braintribe.model.processing.session.api.notifying.EntityCreation;
 import com.braintribe.model.processing.session.api.notifying.EntityManipulationListenerRegistry;
 import com.braintribe.model.processing.session.api.notifying.GenericManipulationListenerRegistry;
 import com.braintribe.model.processing.session.api.notifying.ManipulationListenerRegistry;
@@ -71,6 +72,11 @@ public class BasicNotifyingGmSession extends AbstractGmSession implements Notify
 
 	private boolean suppressNoticing;
 	private int noticingCount;
+
+	@Override
+	public <T extends GenericEntity> EntityCreation<T> createEntity(EntityType<T> type) {
+		return new EntityCreationImpl<>(this, type);
+	}
 
 	public void setSuppressNoticing(boolean suppressNoticing) {
 		this.suppressNoticing = suppressNoticing;

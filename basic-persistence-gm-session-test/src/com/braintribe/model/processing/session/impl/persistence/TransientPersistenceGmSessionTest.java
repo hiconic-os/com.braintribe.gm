@@ -38,19 +38,16 @@ public class TransientPersistenceGmSessionTest {
 
 		preparePersons();
 	}
-	
+
 	@Test
 	public void testTransientQuery() throws Exception {
-		
 		String name = "p1";
 		Person p1 = queryPerson(name);
 		assertThat(p1.getName()).isEqualTo(name);
-		
 	}
 
-
 	protected Person getP1() throws Exception {
-		return session.query().entity(Person.T, new Long(1)).require();
+		return session.query().entity(Person.T, 1l).require();
 	}
 
 	protected PersistentEntityReference getP1Reference() throws Exception {

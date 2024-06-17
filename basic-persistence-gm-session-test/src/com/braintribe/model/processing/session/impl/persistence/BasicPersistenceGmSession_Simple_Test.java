@@ -12,8 +12,13 @@
 package com.braintribe.model.processing.session.impl.persistence;
 
 import static com.braintribe.testing.junit.assertions.assertj.core.api.Assertions.assertThat;
+import static com.braintribe.testing.junit.assertions.gm.assertj.core.api.GmAssertions.assertThat;
+import static com.braintribe.utils.lcd.CollectionTools2.first;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
+
+import java.util.Iterator;
+import java.util.List;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -22,7 +27,10 @@ import com.braintribe.model.access.AbstractAccess;
 import com.braintribe.model.access.AccessBase;
 import com.braintribe.model.access.smood.basic.SmoodAccess;
 import com.braintribe.model.descriptive.HasName;
+import com.braintribe.model.generic.manipulation.ChangeValueManipulation;
 import com.braintribe.model.generic.manipulation.DeleteMode;
+import com.braintribe.model.generic.manipulation.InstantiationManipulation;
+import com.braintribe.model.generic.manipulation.Manipulation;
 import com.braintribe.model.generic.processing.pr.fluent.TC;
 import com.braintribe.model.generic.session.exception.GmSessionException;
 import com.braintribe.model.generic.session.exception.GmSessionRuntimeException;
@@ -73,6 +81,50 @@ public class BasicPersistenceGmSession_Simple_Test {
 
 		session.commit();
 		assertCreated(p, false, false);
+	}
+
+	@Test
+	public void creationWithBuilder_Persistent() throws Exception {
+		Person p = session.createEntity(Person.T) //
+				.withPartition("partition") //
+				.persistent(21L);
+
+		assertCreated(p, true, true);
+
+		assertThat(p.<Long> getId()).isEqualTo(21L);
+		assertThat(p.getPartition()).isEqualTo("partition");
+
+		List<Manipulation> mans = session.getTransaction().getManipulationsDone();
+		assertThat(mans).hasSize(1);
+
+		Manipulation m = first(mans);
+		assertThat(m).isInstanceOf(InstantiationManipulation.T);
+	}
+
+	@Test
+	public void creationWithBuilder_Global() throws Exception {
+		Person p = session.createEntity(Person.T) //
+				.withPartition("partition") //
+				.global("gid");
+
+		assertCreated(p, true, true);
+
+		assertThat(p.getGlobalId()).isEqualTo("gid");
+		assertThat(p.getPartition()).isEqualTo("partition");
+	}
+
+	@Test
+	public void creationWithBuilder_Initialized() throws Exception {
+		Flag f = session.createEntity(Flag.T).preliminary();
+
+		assertThat(f.getInitializedValue()).isTrue();
+
+		List<Manipulation> mans = session.getTransaction().getManipulationsDone();
+		assertThat(mans).hasSize(2);
+
+		Iterator<Manipulation> it = mans.iterator();
+		assertThat(it.next()).isInstanceOf(InstantiationManipulation.T);
+		assertThat(it.next()).isInstanceOf(ChangeValueManipulation.T); // CVM on initialized property
 	}
 
 	private void assertCreated(Person p, boolean created, boolean willPersist) {

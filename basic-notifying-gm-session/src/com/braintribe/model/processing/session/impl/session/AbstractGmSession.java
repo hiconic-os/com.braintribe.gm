@@ -70,8 +70,8 @@ public abstract class AbstractGmSession implements GmSession {
 		
 		entity.attach(this);
 
-		InstantiationManipulation instantiationManipulation = createInstantiationManipulation(entity);
-		DeleteManipulation inverseManipulation = createUninstantiationManipulation(entity);
+		InstantiationManipulation instantiationManipulation = instantiation(entity);
+		DeleteManipulation inverseManipulation = delete(entity, DeleteMode.ignoreReferences);
 		instantiationManipulation.linkInverse(inverseManipulation);
 
 		noticeManipulation(instantiationManipulation);
@@ -121,15 +121,6 @@ public abstract class AbstractGmSession implements GmSession {
 			firstInterceptor = it.previous();
 			firstInterceptor.next = secondInterceptor;
 		}
-	}
-
-	private InstantiationManipulation createInstantiationManipulation(GenericEntity entity) {
-		InstantiationManipulation instantiationManipulation = instantiation(entity);
-		return instantiationManipulation;
-	}
-
-	private DeleteManipulation createUninstantiationManipulation(GenericEntity entity) {
-		return delete(entity, DeleteMode.ignoreReferences);
 	}
 
 	@Override
