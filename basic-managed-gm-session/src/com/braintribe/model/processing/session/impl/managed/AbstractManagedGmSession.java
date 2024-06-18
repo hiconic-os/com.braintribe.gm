@@ -63,23 +63,21 @@ import com.braintribe.model.query.SelectQuery;
 import com.braintribe.processing.async.api.AsyncCallback;
 
 /**
- * Note regarding AOP - at this level we configure two {@link PropertyAccessInterceptor}s. They are sorted from outer to
- * the inner most, i.e. the first to handle the access is the one on top, then the one below and after the one on the
- * bottom the actual property is simply set.
+ * Note regarding AOP - at this level we configure two {@link PropertyAccessInterceptor}s. They are sorted from outer to the inner most, i.e. the
+ * first to handle the access is the one on top, then the one below and after the one on the bottom the actual property is simply set.
  * 
  * <h4>{@link ManipulationTrackingPropertyAccessInterceptor}</h4><br>
  * get - <no effect> <br>
  * set - create the right {@link ChangeValueManipulation}
  * 
  * <h4>{@link CollectionEnhancingPropertyAccessInterceptor}</h4><br>
- * get - in case of a collection property, ensure the returned value is not <tt>null</tt> (when absent, create a
- * collection that is aware it was not loaded yet) (and mark property as not-absent). Also, invoke the setter with this
- * created value!<br>
- * set - in case of a collection property, make sure that a new {@link EnhancedCollection} is set as the actual value.
- * See the actual interceptor for more details.<br>
+ * get - in case of a collection property, ensure the returned value is not <tt>null</tt> (when absent, create a collection that is aware it was not
+ * loaded yet) (and mark property as not-absent). Also, invoke the setter with this created value!<br>
+ * set - in case of a collection property, make sure that a new {@link EnhancedCollection} is set as the actual value. See the actual interceptor for
+ * more details.<br>
  *
- * Note that collection enhancing must be deeper than manipulation tracking, cause the enhancer might invoke a setter in
- * the "get" method (when ensuring returned value is not <tt>null</tt>), which we do not want to track of course.
+ * Note that collection enhancing must be deeper than manipulation tracking, cause the enhancer might invoke a setter in the "get" method (when
+ * ensuring returned value is not <tt>null</tt>), which we do not want to track of course.
  *
  * @see ManagedGmSession
  */
@@ -92,22 +90,30 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 	protected ModelAccessory modelAccessory;
 
 	private IdentityCompetence identityCompetence;
-	
+
 	private final MergeIsolationWorkQueue mergeIsolationWorkQueue = new MergeIsolationWorkQueue();
-	
+
 	public AbstractManagedGmSession() {
 		backup = new Smood(this, EmptyReadWriteLock.INSTANCE);
 		backup.setIgnorePartitions(false);
-		interceptors().with(VdEvaluation.class).add(new VdePropertyAccessInterceptor());
-		interceptors().with(ManipulationTracking.class).after(VdEvaluation.class).before(CollectionEnhancer.class)
+		interceptors() //
+				.with(VdEvaluation.class) //
+				.add(new VdePropertyAccessInterceptor());
+		interceptors() //
+				.with(ManipulationTracking.class) //
+				.after(VdEvaluation.class) //
+				.before(CollectionEnhancer.class) //
 				.add(new ManipulationTrackingPropertyAccessInterceptor());
-		interceptors().with(CollectionEnhancer.class).after(VdEvaluation.class).add(new CollectionEnhancingPropertyAccessInterceptor());
+		interceptors() //
+				.with(CollectionEnhancer.class) //
+				.after(VdEvaluation.class) //
+				.add(new CollectionEnhancingPropertyAccessInterceptor());
 	}
 
 	/**
-	 * This is here to support a {@link ManagedGmSession} around an existing {@link Smood} instance (SmoodSession in SmoodAcess artifact).
-	 * It would make more sense for Smood to implement the {@link ManagedGmSession} interface, but we do it this way for simplicity (less
-	 * work to do for us) now. In the future, we might refactor it again.
+	 * This is here to support a {@link ManagedGmSession} around an existing {@link Smood} instance (SmoodSession in SmoodAcess artifact). It would
+	 * make more sense for Smood to implement the {@link ManagedGmSession} interface, but we do it this way for simplicity (less work to do for us)
+	 * now. In the future, we might refactor it again.
 	 * 
 	 * @param ignored
 	 *            no purpose, just to distinguish from the default constructor
@@ -115,7 +121,7 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 	protected AbstractManagedGmSession(boolean ignored) {
 		// make sure to call setBackup
 	}
-	
+
 	protected void setBackup(Smood backup) {
 		this.backup = backup;
 	}
@@ -126,14 +132,13 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 	}
 
 	/**
-	 * Sets the {@link GmMetaModel} to the this session. This is a simpler counterpart to
-	 * {@link #setModelAccessory(ModelAccessory)}, which provides a model and more. Therefore, DO NOT USE THIS METHOD IF
-	 * YOU ALSO USE {@link #setModelAccessory(ModelAccessory)}.
+	 * Sets the {@link GmMetaModel} to the this session. This is a simpler counterpart to {@link #setModelAccessory(ModelAccessory)}, which provides a
+	 * model and more. Therefore, DO NOT USE THIS METHOD IF YOU ALSO USE {@link #setModelAccessory(ModelAccessory)}.
 	 */
 	public void setMetaModel(GmMetaModel metaModel) {
 		this.backup.setMetaModel(metaModel);
 	}
-	
+
 	protected IdentityCompetence getIdentityCompetence() {
 		if (identityCompetence == null)
 			identityCompetence = createIdentityCompetence();
@@ -188,7 +193,7 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 		manipulation.setEntityGlobalId(globalId);
 
 		noticeManipulation(manipulation);
-		
+
 		return result;
 	}
 
@@ -210,7 +215,7 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 	public void deleteEntity(GenericEntity entity, DeleteMode deleteMode) {
 		getBackup().deleteEntity(entity, deleteMode);
 	}
-	
+
 	@Override
 	public void cleanup() {
 		modelAccessory = null;
@@ -232,7 +237,7 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 	protected ManipulationReport applyManipulation(Manipulation manipulation, ManipulationApplicationContext context) throws GmSessionException {
 		ManipulationRequest manipulationRequest = ManipulationRequest.T.create();
 		manipulationRequest.setManipulation(manipulation);
-		
+
 		try {
 			return getBackup() //
 					.apply() //
@@ -242,12 +247,12 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 					.ignoreAbsentCollectionManipulations(context.getLenience() == ManipulationLenience.manifestOnUnknownEntity) //
 					.localRequest(context.getMode() == ManipulationMode.LOCAL) //
 					.request(manipulationRequest);
-			
+
 		} catch (ModelAccessException e) {
 			throw new GmSessionException("error while applying manipulation on internal backup", e);
 		}
 	}
-	
+
 	@Override
 	public MergeBuilder merge() throws GmSessionException {
 		return new MergeBuilder() {
@@ -258,28 +263,28 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 
 			@Override
 			public MergeBuilder keepEnvelope(boolean keepEnvelope) {
-				this.envelopeFactory = keepEnvelope? e -> e: null;
+				this.envelopeFactory = keepEnvelope ? e -> e : null;
 				return this;
 			}
-			
+
 			@Override
 			public MergeBuilder envelopeFactory(Function<GenericEntity, GenericEntity> envelopeFactory) {
 				this.envelopeFactory = envelopeFactory;
 				return this;
 			}
-			
+
 			@Override
 			public MergeBuilder adoptUnexposed(boolean adopt) {
 				adoptUnexposed = adopt;
 				return this;
 			}
-			
+
 			@Override
 			public MergeBuilder suspendHistory(boolean suspend) {
 				this.suspendHistory = suspend;
 				return this;
 			}
-			
+
 			@Override
 			public MergeBuilder transferTransientProperties(boolean transferTransientProperties) {
 				this.transferTransientProperties = transferTransientProperties;
@@ -288,13 +293,15 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 
 			@Override
 			public <T> T doFor(T value) throws GmSessionException {
-				ContinuableMerger<T> merger = createMerger(getIdentityCompetence(), adoptUnexposed, suspendHistory, envelopeFactory, transferTransientProperties);
+				ContinuableMerger<T> merger = createMerger(getIdentityCompetence(), adoptUnexposed, suspendHistory, envelopeFactory,
+						transferTransientProperties);
 				return merger.merge(value);
 			}
 
 			@Override
 			public <T> void doFor(T data, AsyncCallback<T> asyncCallback) throws GmSessionException {
-				ContinuableMerger<T> merger = createMerger(getIdentityCompetence(), adoptUnexposed, suspendHistory, envelopeFactory, transferTransientProperties);
+				ContinuableMerger<T> merger = createMerger(getIdentityCompetence(), adoptUnexposed, suspendHistory, envelopeFactory,
+						transferTransientProperties);
 				mergeIsolationWorkQueue.enqueue(merger, asyncCallback, data);
 			}
 		};
@@ -308,7 +315,7 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 	}
 
 	private class SessionQueryBuilderImpl extends AbstractSessionQueryBuilder {
-		
+
 		@Override
 		public <T extends GenericEntity> T findEntity(String globalId) {
 			return getBackup().findEntityByGlobalId(globalId);
@@ -318,7 +325,7 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 		public SelectQueryExecution select(SelectQuery selectQuery) {
 			return new BasicSelectQueryExecution(getBackup(), selectQuery);
 		}
-		
+
 		@Override
 		public SelectQueryExecution select(String selectQueryString) {
 			return new StringSelectQueryExecution(getBackup(), selectQueryString);
@@ -328,7 +335,7 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 		public EntityQueryExecution entities(EntityQuery entityQuery) {
 			return new BasicEntityQueryExecution(getBackup(), entityQuery);
 		}
-		
+
 		@Override
 		public EntityQueryExecution entities(String entityQueryString) {
 			return new StringEntityQueryExecution(getBackup(), entityQueryString);
@@ -343,22 +350,22 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 		public PropertyQueryExecution property(String propertyQueryString) {
 			return new StringPropertyQueryExecution(getBackup(), propertyQueryString);
 		}
-		
+
 		@Override
 		public QueryExecution abstractQuery(Query query) {
 			return new BasicQueryExecution(getBackup(), query);
 		}
-		
+
 		@Override
 		public QueryExecution abstractQuery(String queryString) {
-			return new StringQueryExecution(getBackup(), queryString);	
+			return new StringQueryExecution(getBackup(), queryString);
 		}
 
 		@Override
 		public <T extends GenericEntity> EntityAccessBuilder<T> entity(EntityReference entityReference) {
 			return new EntityAccessBuilderImpl<>(entityReference);
 		}
-		
+
 		@Override
 		public <T extends GenericEntity> EntityAccessBuilder<T> entity(T entity) {
 			return entity(entity.reference());
@@ -392,7 +399,7 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 				asyncCallback.onFailure(t);
 			}
 		}
-		
+
 		@Override
 		public ReferencesResponse references() throws GmSessionException {
 			try {
@@ -403,7 +410,7 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 				throw new GmSessionException("error while determine dependencies", e);
 			}
 		}
-		
+
 		@Override
 		public void references(AsyncCallback<ReferencesResponse> asyncCallback) {
 			try {
@@ -443,7 +450,7 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 		public ContinuableMerger<M> merger;
 		public AsyncCallback<M> callback;
 		public M data;
-		
+
 		public MergeJob(ContinuableMerger<M> merger, AsyncCallback<M> callback, M data) {
 			super();
 			this.merger = merger;
@@ -451,17 +458,17 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 			this.data = data;
 		}
 	}
-	
+
 	private class MergeIsolationWorkQueue {
 		private final LinkedList<MergeJob<?>> jobs = new LinkedList<>();
 		private MergeJob<Object> currentJob;
-		
+
 		public <M> void enqueue(ContinuableMerger<M> merger, AsyncCallback<M> callback, M data) {
 			MergeJob<M> mergeJob = new MergeJob<>(merger, callback, data);
 			jobs.add(mergeJob);
 			continueWork();
 		}
-		
+
 		private void continueWork() {
 			if (currentJob == null && !jobs.isEmpty()) {
 				currentJob = (MergeJob<Object>) jobs.removeFirst();
@@ -473,7 +480,7 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 						continueWork();
 						job.callback.onSuccess(future);
 					}
-					
+
 					@Override
 					public void onFailure(Throwable t) {
 						MergeJob<Object> job = currentJob;
@@ -485,5 +492,5 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 			}
 		}
 	}
-	
+
 }
