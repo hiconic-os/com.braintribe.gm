@@ -13,7 +13,6 @@ package com.braintribe.model.processing.smood;
 
 import com.braintribe.model.access.ModelAccessException;
 import com.braintribe.model.accessapi.ManipulationRequest;
-import com.braintribe.model.accessapi.ManipulationResponse;
 import com.braintribe.model.generic.manipulation.CollectionManipulation;
 import com.braintribe.model.generic.manipulation.DeleteMode;
 import com.braintribe.model.processing.session.api.managed.ManipulationLenience;
@@ -21,14 +20,7 @@ import com.braintribe.model.processing.session.api.managed.ManipulationReport;
 
 public interface ManipulationApplicationBuilder extends ManipulationReport {
 
-	/**
-	 * @deprecated use {@link #request2(ManipulationRequest)}
-	 */
-	@Deprecated
-	ManipulationResponse request(ManipulationRequest request) throws ModelAccessException;
-
-	// Don't worry about the name, this is just temporary until I can get rid of the original "request" method
-	ManipulationReport request2(ManipulationRequest request) throws ModelAccessException;
+	ManipulationReport request(ManipulationRequest request) throws ModelAccessException;
 
 	ManipulationApplicationBuilder generateId(boolean generateId);
 	boolean generateId();

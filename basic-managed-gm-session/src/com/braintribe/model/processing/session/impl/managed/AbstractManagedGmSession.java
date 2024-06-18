@@ -225,12 +225,6 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 		return new BasicManipulationApplicationContext(this);
 	}
 
-	@Deprecated
-	@Override
-	public ManipulationReport applyManipulation(Manipulation manipulation) throws GmSessionException {
-		return manipulate().mode(ManipulationMode.REMOTE).apply(manipulation);
-	}
-	
 	public ManipulationReport apply(Manipulation manipulation, ManipulationApplicationContext context) throws GmSessionException {
 		return applyManipulation(manipulation, context);
 	}
@@ -247,7 +241,7 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 					.manifestUnkownEntities(context.getLenience() == ManipulationLenience.manifestOnUnknownEntity) //
 					.ignoreAbsentCollectionManipulations(context.getLenience() == ManipulationLenience.manifestOnUnknownEntity) //
 					.localRequest(context.getMode() == ManipulationMode.LOCAL) //
-					.request2(manipulationRequest);
+					.request(manipulationRequest);
 			
 		} catch (ModelAccessException e) {
 			throw new GmSessionException("error while applying manipulation on internal backup", e);

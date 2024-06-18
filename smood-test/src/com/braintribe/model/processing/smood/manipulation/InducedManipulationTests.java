@@ -54,7 +54,7 @@ public class InducedManipulationTests extends AbstractSmoodManipulationTests {
 		smood.setMetaModel(provideEnrichedMetaModel());
 		smood.registerEntity(p, false);
 
-		smood.apply().generateId(false).localRequest(false).request2(asRequest(response.getInducedManipulation()));
+		smood.apply().generateId(false).localRequest(false).request(asRequest(response.getInducedManipulation()));
 
 		Objects.nonNull(p.getId());
 		Objects.nonNull(p.getGlobalId());
@@ -74,7 +74,7 @@ public class InducedManipulationTests extends AbstractSmoodManipulationTests {
 		smood.setMetaModel(provideEnrichedMetaModel());
 		smood.registerEntity(p, false);
 
-		smood.apply().generateId(false).localRequest(false).request2(asRequest(response.getInducedManipulation()));
+		smood.apply().generateId(false).localRequest(false).request(asRequest(response.getInducedManipulation()));
 
 		Objects.nonNull(p.getId());
 		Objects.nonNull(p.getGlobalId());

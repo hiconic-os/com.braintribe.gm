@@ -742,7 +742,7 @@ public class Smood implements SmoodInterface, IncrementalAccess, ReflectiveIndex
 		return apply() //
 				.generateId(generateId) //
 				.ignoreUnknownEntitiesManipulations(ignoreUnknownEntitiesManipulations) //
-				.request2(manipulationRequest) // This is thread-safe
+				.request(manipulationRequest) // This is thread-safe
 				.getManipulationResponse();
 	}
 
@@ -792,7 +792,7 @@ public class Smood implements SmoodInterface, IncrementalAccess, ReflectiveIndex
 		Manipulation inverseManipulation = createInverse(manipulations);
 		ManipulationRequest inverseRequest = asManipulationRequest(inverseManipulation);
 
-		apply().localRequest(true).request2(inverseRequest);
+		apply().localRequest(true).request(inverseRequest);
 	}
 
 	protected ManipulationResponse w_applyManipulation(ManipulationRequest manipulationRequest, ContextBuilder context) {

@@ -67,7 +67,8 @@ public class AbstractSmoodManipulationTests extends AbstractSmoodTests {
 					.generateId(generateId) //
 					.localRequest(trackedMode == LOCAL) //
 					.manifestUnkownEntities(manifestUnknownEntities()) //
-					.request2(mr).getManipulationResponse();
+					.request(mr) //
+					.getManipulationResponse();
 
 		} catch (ModelAccessException e) {
 			throw new RuntimeException("Something went wrong!", e);

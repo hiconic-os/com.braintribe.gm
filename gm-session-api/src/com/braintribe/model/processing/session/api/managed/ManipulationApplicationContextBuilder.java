@@ -15,16 +15,11 @@ import com.braintribe.model.generic.manipulation.Manipulation;
 import com.braintribe.model.generic.session.exception.GmSessionException;
 
 /**
- * A fluent builder for setting various parameters for the manipulation application process. This was created because we
- * needed to parameterize the {@link ManagedGmSession#applyManipulation(Manipulation)} method in a flexible way, that
- * will not force us to change in interface that much in the future.
+ * A fluent builder for setting various parameters for the manipulation application process.
  */
 public interface ManipulationApplicationContextBuilder {
 
-	/**
-	 * A method that triggers the actual application of the manipulation, similar to
-	 * {@link ManagedGmSession#applyManipulation(Manipulation)}.
-	 */
+	/** Triggers the actual application of the manipulation. */
 	ManipulationReport apply(Manipulation manipulation) throws GmSessionException;
 
 	ManipulationApplicationContext context();

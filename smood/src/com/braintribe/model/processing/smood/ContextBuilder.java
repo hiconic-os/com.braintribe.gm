@@ -71,17 +71,8 @@ public class ContextBuilder implements ManipulationApplicationBuilder {
 		this.response = response;
 	}
 
-	/***
-	 * @deprecated use {@link #request2(ManipulationRequest)}
-	 */
-	@Deprecated
 	@Override
-	public ManipulationResponse request(ManipulationRequest request) throws ModelAccessException {
-		return smood.applyManipulation(request, this);
-	}
-
-	@Override
-	public ManipulationReport request2(ManipulationRequest request) throws ModelAccessException {
+	public ManipulationReport request(ManipulationRequest request) throws ModelAccessException {
 		smood.applyManipulation(request, this);
 		return this;
 	}
