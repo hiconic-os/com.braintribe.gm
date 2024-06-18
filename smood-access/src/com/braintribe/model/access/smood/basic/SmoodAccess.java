@@ -256,7 +256,7 @@ public class SmoodAccess extends AbstractSmoodAccess {
 					.generateId(true) //
 					.ignoreUnknownEntitiesManipulations(false) //
 					.checkRefereesOnDelete(true) //
-					.request2(manipulationRequest);
+					.request(manipulationRequest);
 
 			storeChange(manipulationCollector.toManipulation());
 

@@ -32,6 +32,7 @@ import com.braintribe.model.generic.value.EntityReference;
 import com.braintribe.model.generic.value.PersistentEntityReference;
 import com.braintribe.model.generic.value.PreliminaryEntityReference;
 import com.braintribe.model.processing.manipulator.expert.basic.AbstractManipulatorContext;
+import com.braintribe.model.processing.session.api.managed.ManipulationMode;
 import com.braintribe.model.processing.smood.manipulation.AbsentCollectionIgnoringAddManipulator;
 import com.braintribe.model.processing.smood.manipulation.AbsentCollectionIgnoringRemoveManipulator;
 import com.braintribe.utils.lcd.StringTools;
@@ -43,7 +44,7 @@ public class SmoodManipulatorContext extends AbstractManipulatorContext {
 
 	private final Smood smood;
 	private final GmSession session;
-	private boolean isLocalRequest;
+	private ManipulationMode mode;
 	private boolean checkRefereesOnDelete;
 	private boolean manifestUnknownEntities;
 
@@ -66,10 +67,9 @@ public class SmoodManipulatorContext extends AbstractManipulatorContext {
 		return manifestations;
 	}
 
-	public void setIsLocalRequest(boolean isLocalRequest) {
-		this.isLocalRequest = isLocalRequest;
-
-		setValueResolution(!isLocalRequest);
+	public void setManipulationMode(ManipulationMode mode) {
+		this.mode = mode;
+		setValueResolution(mode != ManipulationMode.LOCAL);
 	}
 
 	/** @see ManipulationApplicationBuilder#checkRefereesOnDelete(boolean) */
@@ -124,7 +124,7 @@ public class SmoodManipulatorContext extends AbstractManipulatorContext {
 		PreliminaryEntityReference reference;
 		GenericEntity entity;
 
-		if (isLocalRequest) {
+		if (mode == ManipulationMode.LOCAL) {
 			entity = entityOrReference;
 			smood.registerEntity(entity, false);
 
@@ -178,7 +178,7 @@ public class SmoodManipulatorContext extends AbstractManipulatorContext {
 
 	@Override
 	public void deleteEntityIfPreliminary(GenericEntity entityOrReference) {
-		if (isLocalRequest) {
+		if (mode == ManipulationMode.LOCAL) {
 			/* This whole "local" request ist BS. We simply attach the entity to Smood, so in case it already had an id, it is not part of
 			 * instantiations */
 			if (entityOrReference.getId() == null)

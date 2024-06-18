@@ -11,6 +11,9 @@
 // ============================================================================
 package com.braintribe.model.processing.test.tools.meta;
 
+import com.braintribe.common.lcd.UnknownEnumException;
+import com.braintribe.model.processing.session.api.managed.ManipulationMode;
+
 /**
  * @author peter.gazdik
  */
@@ -23,6 +26,19 @@ public enum ManipulationTrackingMode {
 	PERSISTENT,
 
 	/** Manipulations are remotified using GLOBAL references. */
-	GLOBAL
+	GLOBAL;
+
+	public ManipulationMode toManipulationMode() {
+		switch (this) {
+			case GLOBAL:
+				return ManipulationMode.REMOTE_GLOBAL;
+			case LOCAL:
+				return ManipulationMode.LOCAL;
+			case PERSISTENT:
+				return ManipulationMode.REMOTE;
+			default:
+				throw new UnknownEnumException(this);
+		}
+	}
 
 }

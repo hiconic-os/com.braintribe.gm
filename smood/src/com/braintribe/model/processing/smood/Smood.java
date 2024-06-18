@@ -107,6 +107,7 @@ import com.braintribe.model.processing.query.support.QueryAdaptingTools;
 import com.braintribe.model.processing.query.support.QueryFunctionTools;
 import com.braintribe.model.processing.query.support.QueryResultBuilder;
 import com.braintribe.model.processing.query.tools.PreparedQueries;
+import com.braintribe.model.processing.session.api.managed.ManipulationMode;
 import com.braintribe.model.processing.session.api.managed.NotFoundException;
 import com.braintribe.model.processing.session.api.notifying.NotifyingGmSession;
 import com.braintribe.model.processing.session.api.notifying.interceptors.CollectionEnhancer;
@@ -792,13 +793,13 @@ public class Smood implements SmoodInterface, IncrementalAccess, ReflectiveIndex
 		Manipulation inverseManipulation = createInverse(manipulations);
 		ManipulationRequest inverseRequest = asManipulationRequest(inverseManipulation);
 
-		apply().localRequest(true).request(inverseRequest);
+		apply().manipulationMode(ManipulationMode.LOCAL).request(inverseRequest);
 	}
 
 	protected ManipulationResponse w_applyManipulation(ManipulationRequest manipulationRequest, ContextBuilder context) {
 		SmoodManipulatorContext manipulationContext = newManipulationContext(context);
 
-		if (context.ignoreManipulationsReferingToUnknownEntities() && !context.isLocalRequest())
+		if (context.ignoreManipulationsReferingToUnknownEntities() && context.getManipulationMode() != ManipulationMode.LOCAL)
 			manipulationContext.setManipulationFilter(this::referencesUnknownEntity);
 
 		ManipulationApplicationListener listener = getListener(context);
@@ -839,7 +840,7 @@ public class Smood implements SmoodInterface, IncrementalAccess, ReflectiveIndex
 
 	private SmoodManipulatorContext newManipulationContext(ContextBuilder context) {
 		SmoodManipulatorContext manipulationContext = new SmoodManipulatorContext(this);
-		manipulationContext.setIsLocalRequest(context.isLocalRequest());
+		manipulationContext.setManipulationMode(context.getManipulationMode());
 		manipulationContext.setCheckRefereesOnDelete(context.checkRefereesOnDelete());
 		manipulationContext.setManifestUnknownEntities(context.manifestUnknownEntities());
 		manipulationContext.setIgnoreAbsentCollectionManipulations(context.ignoreAbsentCollectionManipulations());

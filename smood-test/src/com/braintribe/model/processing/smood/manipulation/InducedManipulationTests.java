@@ -19,6 +19,7 @@ import org.junit.Test;
 import com.braintribe.common.lcd.EmptyReadWriteLock;
 import com.braintribe.model.generic.value.PreliminaryEntityReference;
 import com.braintribe.model.processing.query.test.model.Person;
+import com.braintribe.model.processing.session.api.managed.ManipulationMode;
 import com.braintribe.model.processing.smood.Smood;
 import com.braintribe.model.processing.test.tools.meta.ManipulationTrackingMode;
 
@@ -27,19 +28,22 @@ import com.braintribe.model.processing.test.tools.meta.ManipulationTrackingMode;
  */
 public class InducedManipulationTests extends AbstractSmoodManipulationTests {
 
+	private static ManipulationTrackingMode TRACKING_MODE = ManipulationTrackingMode.PERSISTENT;
+	private static ManipulationMode MANIPULATION_MODE = TRACKING_MODE.toManipulationMode();
+
 	@Before
 	public void setManipulationMode() {
-		defaultManipulationMode = ManipulationTrackingMode.PERSISTENT;
+		defaultManipulationMode = TRACKING_MODE;
 	}
 
 	Person p;
 
 	/**
-	 * In this test we simply track an instantiation manipulation and remember the created entity. Then, we go on to
-	 * attach this entity to a new Smood and on that we apply the induced manipulation.
+	 * In this test we simply track an instantiation manipulation and remember the created entity. Then, we go on to attach this entity to a new Smood
+	 * and on that we apply the induced manipulation.
 	 * 
-	 * NOTE it is important to use the original entity because the induced manipulation uses a
-	 * {@link PreliminaryEntityReference} that is only valid for that concrete instance.
+	 * NOTE it is important to use the original entity because the induced manipulation uses a {@link PreliminaryEntityReference} that is only valid
+	 * for that concrete instance.
 	 */
 	@Test
 	public void checkInducedManipulationIsCorrect() throws Exception {
@@ -54,7 +58,7 @@ public class InducedManipulationTests extends AbstractSmoodManipulationTests {
 		smood.setMetaModel(provideEnrichedMetaModel());
 		smood.registerEntity(p, false);
 
-		smood.apply().generateId(false).localRequest(false).request(asRequest(response.getInducedManipulation()));
+		smood.apply().generateId(false).manipulationMode(MANIPULATION_MODE).request(asRequest(response.getInducedManipulation()));
 
 		Objects.nonNull(p.getId());
 		Objects.nonNull(p.getGlobalId());
@@ -74,7 +78,7 @@ public class InducedManipulationTests extends AbstractSmoodManipulationTests {
 		smood.setMetaModel(provideEnrichedMetaModel());
 		smood.registerEntity(p, false);
 
-		smood.apply().generateId(false).localRequest(false).request(asRequest(response.getInducedManipulation()));
+		smood.apply().generateId(false).manipulationMode(MANIPULATION_MODE).request(asRequest(response.getInducedManipulation()));
 
 		Objects.nonNull(p.getId());
 		Objects.nonNull(p.getGlobalId());

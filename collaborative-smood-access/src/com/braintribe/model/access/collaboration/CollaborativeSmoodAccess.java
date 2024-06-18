@@ -372,7 +372,7 @@ public class CollaborativeSmoodAccess extends AbstractSmoodAccess implements Col
 					.generateId(true) //
 					.checkRefereesOnDelete(true) //
 					.manipulationApplicationListener(csaCollector) //
-					.request2(manipulationRequest);
+					.request(manipulationRequest);
 
 		} finally {
 			database.getGmSession().listeners().remove(csaCollector);

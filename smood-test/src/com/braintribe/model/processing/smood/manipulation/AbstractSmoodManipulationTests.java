@@ -11,8 +11,6 @@
 // ============================================================================
 package com.braintribe.model.processing.smood.manipulation;
 
-import static com.braintribe.model.processing.test.tools.meta.ManipulationTrackingMode.LOCAL;
-
 import java.util.List;
 import java.util.Set;
 
@@ -65,7 +63,7 @@ public class AbstractSmoodManipulationTests extends AbstractSmoodTests {
 		try {
 			response = smood.apply() //
 					.generateId(generateId) //
-					.localRequest(trackedMode == LOCAL) //
+					.manipulationMode(trackedMode.toManipulationMode()) //
 					.manifestUnkownEntities(manifestUnknownEntities()) //
 					.request(mr) //
 					.getManipulationResponse();
