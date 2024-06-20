@@ -17,11 +17,11 @@ import java.util.Set;
 import com.braintribe.model.accessapi.ManipulationResponse;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
-import com.braintribe.model.generic.value.PreliminaryEntityReference;
+import com.braintribe.model.generic.value.EntityReference;
 
 public interface ManipulationReport {
 
-	Map<PreliminaryEntityReference, GenericEntity> getInstantiations();
+	Map<EntityReference, GenericEntity> getInstantiations();
 
 	ManipulationResponse getManipulationResponse();
 

@@ -36,7 +36,7 @@ public class AbstractSmoodManipulationTests extends AbstractSmoodTests {
 	protected final ManipulationDriver manipulationRecorder = new ManipulationDriver();
 	protected boolean generateId = true;
 
-	protected ManipulationTrackingMode defaultManipulationMode;
+	protected ManipulationTrackingMode defaultManipulationMode = ManipulationTrackingMode.LOCAL;
 
 	protected Manipulation trackedManipulation;
 	protected ManipulationTrackingMode trackedMode;

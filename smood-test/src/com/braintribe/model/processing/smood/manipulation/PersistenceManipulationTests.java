@@ -16,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.Test;
 
 import com.braintribe.model.processing.query.test.model.Person;
+import com.braintribe.model.processing.test.tools.meta.ManipulationTrackingMode;
 
 /**
  * 
@@ -23,7 +24,7 @@ import com.braintribe.model.processing.query.test.model.Person;
 public class PersistenceManipulationTests extends AbstractSmoodManipulationTests {
 
 	@Test
-	public void deleteDetachesEntityFromSession() {
+	public void deleteDetachedEntityFromSession() {
 		applyManipulations(session -> {
 			Person p = session.create(Person.T);
 			p.setId(99L);
@@ -32,7 +33,7 @@ public class PersistenceManipulationTests extends AbstractSmoodManipulationTests
 		Person person = smood.findEntity(Person.T, 99L);
 		assertThat(person.session()).isNotNull();
 
-		applyManipulations(session -> {
+		applyManipulations(ManipulationTrackingMode.PERSISTENT, session -> {
 			Person p = Person.T.create();
 			p.setId(99L);
 			p.attach(session);

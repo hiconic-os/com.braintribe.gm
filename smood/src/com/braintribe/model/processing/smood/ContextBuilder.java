@@ -19,7 +19,7 @@ import com.braintribe.model.accessapi.ManipulationRequest;
 import com.braintribe.model.accessapi.ManipulationResponse;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
-import com.braintribe.model.generic.value.PreliminaryEntityReference;
+import com.braintribe.model.generic.value.EntityReference;
 import com.braintribe.model.processing.session.api.managed.ManipulationMode;
 import com.braintribe.model.processing.session.api.managed.ManipulationReport;
 
@@ -37,7 +37,7 @@ public class ContextBuilder implements ManipulationApplicationBuilder {
 	private ManipulationMode mode;
 	private boolean checkRefereesOnDelete = false;
 	private ManipulationApplicationListener listener;
-	private Map<PreliminaryEntityReference, GenericEntity> instantiations;
+	private Map<EntityReference, GenericEntity> instantiations;
 	private Map<EntityType<?>, Set<GenericEntity>> lenientManifestations;
 	private ManipulationResponse response;
 
@@ -46,11 +46,11 @@ public class ContextBuilder implements ManipulationApplicationBuilder {
 	}
 
 	@Override
-	public Map<PreliminaryEntityReference, GenericEntity> getInstantiations() {
+	public Map<EntityReference, GenericEntity> getInstantiations() {
 		return instantiations;
 	}
 
-	public void setInstantiations(Map<PreliminaryEntityReference, GenericEntity> instantiations) {
+	public void setInstantiations(Map<EntityReference, GenericEntity> instantiations) {
 		this.instantiations = instantiations;
 	}
 

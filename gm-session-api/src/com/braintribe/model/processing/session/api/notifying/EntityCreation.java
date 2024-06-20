@@ -13,7 +13,7 @@ public interface EntityCreation<T extends GenericEntity> {
 	 */
 	EntityCreation<T> withPartition(String partition);
 
-	/** Equivalent to calling {@link #global(String)} with a random UUID as parameter. */
+	/** Equivalent to calling {@link #global(String)} with a random UUID as a parameter. */
 	T globalWithRandomUuid();
 
 	/**

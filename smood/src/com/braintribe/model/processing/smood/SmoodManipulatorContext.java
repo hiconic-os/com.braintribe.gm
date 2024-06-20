@@ -29,10 +29,13 @@ import com.braintribe.model.generic.reflection.GenericModelException;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.session.GmSession;
 import com.braintribe.model.generic.value.EntityReference;
+import com.braintribe.model.generic.value.GlobalEntityReference;
 import com.braintribe.model.generic.value.PersistentEntityReference;
 import com.braintribe.model.generic.value.PreliminaryEntityReference;
 import com.braintribe.model.processing.manipulator.expert.basic.AbstractManipulatorContext;
 import com.braintribe.model.processing.session.api.managed.ManipulationMode;
+import com.braintribe.model.processing.session.api.notifying.EntityCreation;
+import com.braintribe.model.processing.session.api.notifying.NotifyingGmSession;
 import com.braintribe.model.processing.smood.manipulation.AbsentCollectionIgnoringAddManipulator;
 import com.braintribe.model.processing.smood.manipulation.AbsentCollectionIgnoringRemoveManipulator;
 import com.braintribe.utils.lcd.StringTools;
@@ -43,12 +46,12 @@ import com.braintribe.utils.lcd.StringTools;
 public class SmoodManipulatorContext extends AbstractManipulatorContext {
 
 	private final Smood smood;
-	private final GmSession session;
+	private final NotifyingGmSession session;
 	private ManipulationMode mode;
 	private boolean checkRefereesOnDelete;
 	private boolean manifestUnknownEntities;
 
-	private final Map<PreliminaryEntityReference, GenericEntity> instantiations = CodingMap.create(newLinkedMap(), EntRefHashingComparator.INSTANCE);
+	private final Map<EntityReference, GenericEntity> instantiations = CodingMap.create(newLinkedMap(), EntRefHashingComparator.INSTANCE);
 	private final Map<EntityType<?>, Set<GenericEntity>> manifestations = newMap();
 
 	public SmoodManipulatorContext(Smood smood) {
@@ -59,7 +62,7 @@ public class SmoodManipulatorContext extends AbstractManipulatorContext {
 		this.manifestionManipulator = smood.getManifestationManipulator();
 	}
 
-	public Map<PreliminaryEntityReference, GenericEntity> getInstantiations() {
+	public Map<EntityReference, GenericEntity> getInstantiations() {
 		return instantiations;
 	}
 
@@ -121,35 +124,54 @@ public class SmoodManipulatorContext extends AbstractManipulatorContext {
 	 */
 	@Override
 	public GenericEntity createPreliminaryEntity(GenericEntity entityOrReference) {
-		PreliminaryEntityReference reference;
+		EntityReference ref;
 		GenericEntity entity;
 
 		if (mode == ManipulationMode.LOCAL) {
 			entity = entityOrReference;
 			smood.registerEntity(entity, false);
 
-			EntityReference ref = entity.reference();
+			ref = entity.reference();
 			if (ref instanceof PersistentEntityReference)
 				return entityOrReference;
 
-			reference = (PreliminaryEntityReference) ref;
+		} else if (entityOrReference instanceof EntityReference) {
+			ref = (EntityReference) entityOrReference;
+			String partition = ref.getRefPartition();
 
-		} else if (entityOrReference instanceof PreliminaryEntityReference) {
-			reference = (PreliminaryEntityReference) entityOrReference;
-			EntityType<GenericEntity> entityType = typeReflection.getType(reference.getTypeSignature());
-			/* All initialization manipulations are tracked, that's how session.create is implemented. Thus, this must use createRaw. */
-			entity = session.createRaw(entityType);
+			EntityCreation<?> creation = session.createEntity(ref.valueType()) //
+					.raw() //
+					.withPartition(partition);
 
-			String partition = reference.getRefPartition();
-			if (partition != null)
-				entity.setPartition(partition);
+			if (ref instanceof PreliminaryEntityReference) {
+				/* All initialization manipulations are tracked, that's how session.create is implemented. Thus, this must use createRaw. */
+				entity = creation.preliminary();
 
-		} else
-			throw new GenericModelException("invalid entity value for InstantiationManipulation: " + entityOrReference);
+			} else if (ref instanceof PersistentEntityReference) {
+				assertReferenceTypeMatchesMode(ref, ManipulationMode.REMOTE);
+				entity = creation.persistent(ref.getRefId());
 
-		instantiations.put(reference, entity);
+			} else if (ref instanceof GlobalEntityReference) {
+				assertReferenceTypeMatchesMode(ref, ManipulationMode.REMOTE_GLOBAL);
+				entity = creation.global((String) ref.getRefId());
+
+			} else {
+				throw new IllegalArgumentException("Unknown EntityReference type " + ref.entityType() + ". Reference: " + ref);
+			}
+
+		} else {
+			throw new IllegalArgumentException("Invalid entity value for InstantiationManipulation: " + entityOrReference);
+		}
+
+		instantiations.put(ref, entity);
 
 		return entity;
+	}
+
+	private void assertReferenceTypeMatchesMode(EntityReference ref, ManipulationMode requiredMode) {
+		if (mode != requiredMode)
+			throw new GenericModelException("Invalid reference for InstantiationManipulation. " + ref.entityType().getShortName()
+					+ " can only be used in " + requiredMode + " mode, but not " + mode + ". Reference: " + ref);
 	}
 
 	private GenericEntity manifestEntity(EntityReference entityReference) {

@@ -15,7 +15,6 @@ import static com.braintribe.model.generic.builder.vd.VdBuilder.referenceWithNew
 import static com.braintribe.model.generic.manipulation.ManipulationType.CHANGE_VALUE;
 import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.changeValue;
 import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.entityProperty;
-import static com.braintribe.model.generic.value.EntityReferenceType.preliminary;
 import static com.braintribe.model.processing.manipulation.basic.tools.ManipulationTools.asManipulationRequest;
 import static com.braintribe.model.processing.manipulation.basic.tools.ManipulationTools.createInverse;
 import static com.braintribe.utils.lcd.CollectionTools2.asSet;
@@ -799,7 +798,9 @@ public class Smood implements SmoodInterface, IncrementalAccess, ReflectiveIndex
 	protected ManipulationResponse w_applyManipulation(ManipulationRequest manipulationRequest, ContextBuilder context) {
 		SmoodManipulatorContext manipulationContext = newManipulationContext(context);
 
-		if (context.ignoreManipulationsReferingToUnknownEntities() && context.getManipulationMode() != ManipulationMode.LOCAL)
+		ManipulationMode mode = context.getManipulationMode();
+
+		if (context.ignoreManipulationsReferingToUnknownEntities() && mode != ManipulationMode.LOCAL)
 			manipulationContext.setManipulationFilter(this::referencesUnknownEntity);
 
 		ManipulationApplicationListener listener = getListener(context);
@@ -811,9 +812,9 @@ public class Smood implements SmoodInterface, IncrementalAccess, ReflectiveIndex
 		ManipulationResponse manipulationResponse = ManipulationResponse.T.create();
 
 		if (context.generateId()) {
-			Map<PreliminaryEntityReference, GenericEntity> referenceMap = manipulationContext.getInstantiations();
+			Map<EntityReference, GenericEntity> referenceMap = manipulationContext.getInstantiations();
 
-			Map<EntityReference, GenericEntity> responseReferenceMap = prepareResponseReferenceMap(referenceMap);
+			Map<EntityReference, GenericEntity> responseReferenceMap = prepareResponseReferenceMap(mode, referenceMap);
 
 			List<Manipulation> inducedManis = newList();
 
@@ -852,17 +853,26 @@ public class Smood implements SmoodInterface, IncrementalAccess, ReflectiveIndex
 		return listener != null ? listener : EmptyManipulationApplicationListener.INSTANCE;
 	}
 
-	private static Map<EntityReference, GenericEntity> prepareResponseReferenceMap(Map<PreliminaryEntityReference, GenericEntity> referenceMap) {
+	private static Map<EntityReference, GenericEntity> prepareResponseReferenceMap( //
+			ManipulationMode mode, Map<EntityReference, GenericEntity> referenceMap) {
+
 		Map<EntityReference, GenericEntity> result = newLinkedMap();
 
-		for (Entry<PreliminaryEntityReference, GenericEntity> entry : referenceMap.entrySet()) {
-			EntityReference ref = entry.getKey();
-			GenericEntity entity = entry.getValue();
+		for (Entry<EntityReference, GenericEntity> e : referenceMap.entrySet()) {
+			EntityReference ref = e.getKey();
+			GenericEntity entity = e.getValue();
 
-			if (entity.getId() != null)
-				ref = entity.reference();
-			else if (entity.getPartition() != null)
-				ref = referenceWithNewPartition(ref, entity.getPartition());
+			if (mode != ManipulationMode.REMOTE_GLOBAL) {
+				if (entity.getId() != null)
+					ref = entity.reference();
+				else if (entity.getPartition() != null)
+					ref = referenceWithNewPartition(ref, entity.getPartition());
+			} else {
+				if (entity.getGlobalId() != null)
+					ref = entity.globalReference();
+				else if (entity.getPartition() != null)
+					ref = referenceWithNewPartition(ref, entity.getPartition());
+			}
 
 			result.put(ref, entity);
 		}
@@ -871,8 +881,8 @@ public class Smood implements SmoodInterface, IncrementalAccess, ReflectiveIndex
 	}
 
 	private void w_ensurePersistenceId(EntityReference reference, GenericEntity preliminaryEntity, List<Manipulation> inducedManis) {
-		// check if the id was not assigned already by the manipulation been sent by the caller
-		if (reference.referenceType() != preliminary)
+		// check if the id was not assigned already by the manipulation sent by the caller
+		if (preliminaryEntity.getId() != null)
 			return;
 
 		w_ensurePersistenceId(preliminaryEntity);
