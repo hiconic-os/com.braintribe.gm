@@ -39,31 +39,39 @@ public abstract class MetaModelRendererTestBase {
 		metaModelRenderer = new MetaModelRenderer(context);
 	}
 
-	protected String renderEntityType(GmEntityType gmEntityType) {
-		return metaModelRenderer.renderEntityType(gmEntityType).sourceCode;
+	protected void renderEntityType(GmEntityType gmEntityType) {
+		currentCode = metaModelRenderer.renderEntityType(gmEntityType).sourceCode;
 	}
 
-	protected String renderEnumType(GmEnumType gmEnumType) {
-		return metaModelRenderer.renderEnumType(gmEnumType).sourceCode;
+	protected void renderEnumType(GmEnumType gmEnumType) {
+		currentCode = metaModelRenderer.renderEnumType(gmEnumType).sourceCode;
 	}
 
-	protected void assertHasAnnotation(Class<? extends Annotation> annotation) {
+	protected void assertHasImportedAnnotation(Class<? extends Annotation> annotation) {
 		assertContainsSubstring("@" + annotation.getSimpleName());
-		assertContainsSubstring("import " + annotation.getName());
+		assertHasImport(annotation);
 	}
 
-	protected void assertHasAnnotation(Class<? extends Annotation> annotation, String value) {
+	protected void assertHasImportedAnnotation(Class<? extends Annotation> annotation, String value) {
 		assertContainsSubstring("@" + annotation.getSimpleName() + "(\"" + value + "\")");
-		assertContainsSubstring("import " + annotation.getName());
+		assertHasImport(annotation);
 	}
 
 	protected void assertHasNoAnnotation(Class<? extends Annotation> annotation) {
 		assertThat(currentCode.contains(annotation.getSimpleName())).as("Annotation should not be present: " + annotation).isFalse();
 	}
 
+	protected void assertHasImport(Class<?> clazz) {
+		assertHasImport(clazz.getName());
+	}
+
+	protected void assertHasImport(String className) {
+		assertContainsSubstring("import " + className);
+	}
+
 	protected void assertHasProperty(String capitalizedName, String type) {
 		String name = StringTools.uncapitalize(capitalizedName);
-		
+
 		assertContainsSubstring("String " + name + " = \"" + name + "\";");
 		assertContainsSubstring("void set" + capitalizedName + "(" + type + " " + name + ");");
 		assertContainsSubstring(type + " get" + capitalizedName + "()");

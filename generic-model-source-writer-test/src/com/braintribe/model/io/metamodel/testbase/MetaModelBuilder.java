@@ -51,6 +51,8 @@ public class MetaModelBuilder {
 	public static String COMMON_PACKAGE = "com.braintribe.model.io.metamodel.testclass";
 
 	public static String PERSON_TYPE_SIGNATURE = COMMON_PACKAGE + ".Person";
+	public static String ENTITY_TYPE_TYPE_SIGNATURE = COMMON_PACKAGE + ".EntityType";
+	public static String ENTITY_TYPES_TYPE_SIGNATURE = COMMON_PACKAGE + ".EntityTypes";
 	public static String SPECIAL_PERSON_TYPE_SIGNATURE = COMMON_PACKAGE + ".SpecialPerson";
 	public static String INTERFACE_FROM_OTHER_PACKAGE_SIGNATURE = COMMON_PACKAGE + ".subpackage.ExtraSpecialPerson";
 	public static String ABSTRACT_INTERFACE = COMMON_PACKAGE + ".AbstractInterface";
@@ -113,6 +115,8 @@ public class MetaModelBuilder {
 
 		GmEntityType genericEntity = newEntity(GenericEntity.class.getName()).create();
 		GmEntityType person = newEntity(PERSON_TYPE_SIGNATURE).setProperties("name", stringType, "age", intType).create();
+		GmEntityType entityTypes = newEntity(ENTITY_TYPES_TYPE_SIGNATURE).addAncestor(genericEntity).create();
+		GmEntityType entityType = newEntity(ENTITY_TYPE_TYPE_SIGNATURE).addAncestor(entityTypes).create();
 		GmEntityType extendingInterface = newEntity(SPECIAL_PERSON_TYPE_SIGNATURE).addAncestor(person)
 				.setProperties("name", stringType, "age", intType, "title", stringType, "slave", person, "longAge", longType).create();
 		GmEntityType interfaceFromOtherPackage = newEntity(INTERFACE_FROM_OTHER_PACKAGE_SIGNATURE).addAncestor(person).create();
@@ -163,6 +167,7 @@ public class MetaModelBuilder {
 		gmMetaModel.getTypes().addAll(asSet(
 				// entity types
 				person,
+				entityType,
 				extendingInterface,
 				interfaceFromOtherPackage,
 				abstractInterface,

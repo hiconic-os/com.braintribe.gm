@@ -25,6 +25,9 @@ import com.braintribe.model.generic.annotation.meta.Max;
 import com.braintribe.model.generic.annotation.meta.Min;
 import com.braintribe.model.generic.annotation.meta.Name;
 import com.braintribe.model.generic.annotation.meta.PositionalArguments;
+import com.braintribe.model.generic.base.EnumBase;
+import com.braintribe.model.generic.reflection.EnumType;
+import com.braintribe.model.generic.reflection.EnumTypes;
 import com.braintribe.model.io.metamodel.testbase.MetaModelBuilder;
 import com.braintribe.model.meta.GmEntityType;
 import com.braintribe.model.meta.GmEnumConstant;
@@ -36,7 +39,7 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	@Test
 	public void testGeneratesCodeForSimpleInterface() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.PERSON_TYPE_SIGNATURE);
-		currentCode = renderEntityType(gmEntityType);
+		renderEntityType(gmEntityType);
 		assertContainsSubstring("package " + MetaModelBuilder.COMMON_PACKAGE);
 		assertHasNoAnnotation(GlobalId.class);
 		assertHasProperty("Name", "String");
@@ -47,14 +50,25 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	}
 
 	@Test
+	public void testUsesFullyQualifiedNameIfEntityNameConflictsWithImport() throws Exception {
+		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.ENTITY_TYPE_TYPE_SIGNATURE);
+		renderEntityType(gmEntityType);
+		assertContainsSubstring("package " + MetaModelBuilder.COMMON_PACKAGE);
+		assertContainsSubstring("public interface EntityType extends EntityTypes");
+		assertContainsSubstring(
+				"com.braintribe.model.generic.reflection.EntityType<EntityType> T = com.braintribe.model.generic.reflection.EntityTypes.T(EntityType.class);");
+		assertNotContains("import");
+	}
+
+	@Test
 	public void testGeneratesCodeForSimpleInterface_CustomGlobalId() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.PERSON_TYPE_SIGNATURE);
 
 		gmEntityType.setGlobalId("entityGlobalid");
 		gmEntityType.getProperties().forEach(p -> p.setGlobalId("property:" + p.getName()));
 
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(GlobalId.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(GlobalId.class);
 		assertHasProperty("Name", "String");
 		assertHasProperty("Age", "Integer");
 		assertContainsSubstring("package " + MetaModelBuilder.COMMON_PACKAGE);
@@ -70,15 +84,19 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	@Test
 	public void testGeneratesCodeForSimpleEnum() throws Exception {
 		GmEnumType gmEnumType = getEnumBySignature(MetaModelBuilder.ENUM_TYPE_SIGNATURE);
-		currentCode = renderEnumType(gmEnumType);
+		renderEnumType(gmEnumType);
 		assertHasNoAnnotation(GlobalId.class);
+
+		assertHasImport(EnumBase.class);
+		assertHasImport(EnumType.class);
+		assertHasImport(EnumTypes.class);
+
 		assertContainsSubstrings("RED,", "GREEN,", "BLUE,");
 		assertContainsSubstrings("BLUE,\n\t;");
 		assertContainsSubstring("package " + MetaModelBuilder.COMMON_PACKAGE);
 
-		assertContainsSubstring(
-				"public static final com.braintribe.model.generic.reflection.EnumType T = com.braintribe.model.generic.reflection.EnumTypes.T(TheEnum.class);");
-		assertContainsSubstring("public com.braintribe.model.generic.reflection.EnumType type() {");
+		assertContainsSubstring("public static final EnumType T = EnumTypes.T(TheEnum.class);");
+		assertContainsSubstring("public EnumType type() {");
 		assertContainsSubstring("return T;");
 	}
 
@@ -89,8 +107,8 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 		gmEnumType.setGlobalId("enumGlobalid");
 		gmEnumType.getConstants().forEach(c -> c.setGlobalId("constant:" + c.getName()));
 
-		currentCode = renderEnumType(gmEnumType);
-		assertHasAnnotation(GlobalId.class);
+		renderEnumType(gmEnumType);
+		assertHasImportedAnnotation(GlobalId.class);
 		assertContainsSubstrings("RED,", "GREEN,", "BLUE,");
 		assertContainsSubstring("package " + MetaModelBuilder.COMMON_PACKAGE);
 
@@ -98,16 +116,15 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 		for (GmEnumConstant c : gmEnumType.getConstants())
 			assertContainsSubstring("@GlobalId(\"" + c.getGlobalId() + "\")");
 
-		assertContainsSubstring(
-				"public static final com.braintribe.model.generic.reflection.EnumType T = com.braintribe.model.generic.reflection.EnumTypes.T(TheEnum.class);");
-		assertContainsSubstring("public com.braintribe.model.generic.reflection.EnumType type() {");
+		assertContainsSubstring("public static final EnumType T = EnumTypes.T(TheEnum.class);");
+		assertContainsSubstring("public EnumType type() {");
 		assertContainsSubstring("return T;");
 	}
 
 	@Test
 	public void testGeneratesCodeForInterfaceWithSuperInterface() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.SPECIAL_PERSON_TYPE_SIGNATURE);
-		currentCode = renderEntityType(gmEntityType);
+		renderEntityType(gmEntityType);
 		assertHasProperty("Title", "String");
 		assertHasProperty("Slave", "Person");
 		assertHasProperty("LongAge", "Long");
@@ -121,7 +138,7 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	@Test
 	public void testGeneratesCodeForInterfaceWithSuperInterfaceInOtherPackage() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.INTERFACE_FROM_OTHER_PACKAGE_SIGNATURE);
-		currentCode = renderEntityType(gmEntityType);
+		renderEntityType(gmEntityType);
 		assertContainsSubstring(".subpackage");
 		assertContainsSubstring(" extends Person");
 	}
@@ -129,51 +146,51 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	@Test
 	public void testAbstractInterfaceHasAnnotation() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.ABSTRACT_INTERFACE);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(Abstract.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(Abstract.class);
 	}
 
 	@Test
 	public void testWorksForInterfaceWithoutPackage() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.INTERFACE_WITHOUT_PACKAGE);
-		currentCode = renderEntityType(gmEntityType);
+		renderEntityType(gmEntityType);
 		assertNotContains("package");
 	}
 
 	@Test
 	public void testWorksForEnumWithoutPackage() throws Exception {
 		GmEnumType gmEnumType = getEnumBySignature(MetaModelBuilder.ENUM_WITHOUT_PACKAGE);
-		currentCode = renderEnumType(gmEnumType);
+		renderEnumType(gmEnumType);
 		assertNotContains("package");
 	}
 
 	@Test
 	public void testWritesPropertyOfBaseTypeCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_BASE_TYPE);
-		currentCode = renderEntityType(gmEntityType);
+		renderEntityType(gmEntityType);
 		assertHasProperty("Base", Object.class.getSimpleName());
 	}
 
 	@Test
 	public void testWritesInitializedPropertyCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_INITIALIZER);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(Initializer.class, "'joe'");
-		assertHasAnnotation(Initializer.class, "GREEN");
-		assertHasAnnotation(Initializer.class, "enum(" + MetaModelBuilder.ENUM_TYPE_SIGNATURE + ",GREEN)");
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(Initializer.class, "'joe'");
+		assertHasImportedAnnotation(Initializer.class, "GREEN");
+		assertHasImportedAnnotation(Initializer.class, "enum(" + MetaModelBuilder.ENUM_TYPE_SIGNATURE + ",GREEN)");
 	}
 
 	@Test
 	public void testWritesEvaluatesToCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_EVALUATES_TO);
-		currentCode = renderEntityType(gmEntityType);
+		renderEntityType(gmEntityType);
 		assertContainsSubstring("EvalContext<String> eval(Evaluator<ServiceRequest> evaluator);");
 	}
 
 	@Test
 	public void testWritesJavaKeywordPropertiesCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_KEYWORD_PROPS);
-		currentCode = renderEntityType(gmEntityType);
+		renderEntityType(gmEntityType);
 		assertHasEscapedProperty("For", "String", "for_", "for_");
 		assertHasEscapedProperty("For_", "String", "for__", "for_");
 		assertHasEscapedProperty("Foobar_", "String", "foobar__", "foobar_");
@@ -182,8 +199,8 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	@Test
 	public void writesTypeRestrictionCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_TYPE_RESTRICTION);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(TypeRestriction.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(TypeRestriction.class);
 		assertContainsSubstring("@TypeRestriction(value={" + MetaModelBuilder.PERSON_TYPE_SIGNATURE + ".class," + MetaModelBuilder.WITH_INITIALIZER
 				+ ".class},key={},allowVd=true,allowKeyVd=false)");
 	}
@@ -191,9 +208,9 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	@Test
 	public void testWritesMinMaxCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_MIN_MAX_PROPERTY);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(Min.class);
-		assertHasAnnotation(Max.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(Min.class);
+		assertHasImportedAnnotation(Max.class);
 		assertContainsSubstring("@Max(exclusive=false, value=\"100\")");
 		assertContainsSubstring("@Min(exclusive=false, value=\"0\")");
 	}
@@ -201,24 +218,24 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	@Test
 	public void testWritesSelectiveInformationCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_SELECTIVE_INFORMATION);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(SelectiveInformation.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(SelectiveInformation.class);
 		assertContainsSubstring("@SelectiveInformation(value=\"Selective INFO\")");
 	}
 
 	@Test
 	public void testWritesCompoundUniqueCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_COMPOUND_UNIQUE);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(CompoundUnique.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(CompoundUnique.class);
 		assertContainsSubstring("@CompoundUnique(value={\"prop1\", \"prop2\"})");
 	}
 
 	@Test
 	public void testWritesCompoundUniquesCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_COMPOUND_UNIQUES);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(CompoundUnique.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(CompoundUnique.class);
 		assertContainsSubstring("@CompoundUnique(globalId=\"gid1\", value={\"prop1\", \"prop2\"})");
 		assertContainsSubstring("@CompoundUnique(globalId=\"gid2\", value={\"propA\", \"propB\"})");
 	}
@@ -226,40 +243,40 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	@Test
 	public void testWritesAliasCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_ALIAS);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(Alias.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(Alias.class);
 		assertContainsSubstring("@Alias(value=\"alias\")");
 	}
 
 	@Test
 	public void testWritesAliasesCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_ALIASES);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(Alias.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(Alias.class);
 		assertContainsSubstring("@Alias(globalId=\"alias2\", value=\"ALIAS\")");
 	}
 
 	@Test
 	public void testWritesAliasesCorrectly_NaturalGid() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_NATURAL_GID_ALIASES);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(Alias.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(Alias.class);
 		assertContainsSubstring("@Alias(value=\"ALIAS\")");
 	}
 
 	@Test
 	public void testWritesPositionalArgumentsCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_POSITIONAL_ARGUMENTS);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(PositionalArguments.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(PositionalArguments.class);
 		assertContainsSubstring("@PositionalArguments(value={\"a1\", \"a2\"})");
 	}
 
 	@Test
 	public void testWritesNameCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_NAME);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(Name.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(Name.class);
 		// NOTE globalId is omitted as it is the natural one
 		assertContainsSubstring("@Name(locale=\"default\", value=\"default name\")");
 	}
@@ -267,8 +284,8 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	@Test
 	public void testWritesNamesCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_NAMES);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(Name.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(Name.class);
 		assertContainsSubstring("@Name(globalId=\"gid1\", locale=\"de\", value=\"Der Name\")");
 		assertContainsSubstring("@Name(globalId=\"gid1\", locale=\"default\", value=\"default name\")");
 	}
@@ -276,8 +293,8 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	@Test
 	public void testWritesDescriptionsCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_DESCRIPTIONS);
-		currentCode = renderEntityType(gmEntityType);
-		assertHasAnnotation(Description.class);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(Description.class);
 		assertContainsSubstring("@Description(globalId=\"gid1\", locale=\"de\", value=\"Unfug\")");
 		assertContainsSubstring("@Description(globalId=\"gid1\", locale=\"default\", value=\"default description\")");
 	}
@@ -285,16 +302,16 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	@Test
 	public void testWritesEnumDescriptionsCorrectly() throws Exception {
 		GmEnumType gmEnumType = getEnumBySignature(MetaModelBuilder.ENUM_WITH_MD_ANNOTATIONS);
-		currentCode = renderEnumType(gmEnumType);
+		renderEnumType(gmEnumType);
 
 		// On Enum itself
-		assertHasAnnotation(Description.class);
+		assertHasImportedAnnotation(Description.class);
 		assertContainsSubstring("@Description(globalId=\"gid1\", locale=\"de\", value=\"Unfug\")");
 		assertContainsSubstring("@Description(globalId=\"gid1\", locale=\"default\", value=\"default description\")");
 
 		// On Constant_!
-		assertHasAnnotation(Min.class);
-		assertHasAnnotation(Max.class);
+		assertHasImportedAnnotation(Min.class);
+		assertHasImportedAnnotation(Max.class);
 		assertContainsSubstring("@Max(exclusive=false, value=\"100\")");
 		assertContainsSubstring("@Min(exclusive=false, value=\"0\")");
 	}
@@ -302,7 +319,7 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	@Test
 	public void testWritesDeprecatedCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.DEPRECATED_ENTITY);
-		currentCode = renderEntityType(gmEntityType);
+		renderEntityType(gmEntityType);
 		assertContainsSubstring("@Deprecated");
 		assertNotContains("@Deprecated("); // no attributes like globalId
 		assertNotContains("java.lang.Deprecated"); // no import

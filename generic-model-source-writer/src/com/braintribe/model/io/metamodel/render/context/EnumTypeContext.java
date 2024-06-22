@@ -11,10 +11,7 @@
 // ============================================================================
 package com.braintribe.model.io.metamodel.render.context;
 
-import static com.braintribe.utils.lcd.CollectionTools2.newSet;
-
 import java.util.List;
-import java.util.Set;
 
 import com.braintribe.model.io.metamodel.render.info.EnumTypeInfo;
 
@@ -26,5 +23,6 @@ public class EnumTypeContext {
 	public EnumTypeInfo typeInfo;
 	public List<ConstantDescriptor> constants;
 	public List<String> annotations;
-	public final Set<String> annotationImports = newSet();
+
+	public ImportManager importManager;
 }

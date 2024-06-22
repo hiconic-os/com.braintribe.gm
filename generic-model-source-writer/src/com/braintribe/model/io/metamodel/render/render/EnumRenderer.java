@@ -11,8 +11,12 @@
 // ============================================================================
 package com.braintribe.model.io.metamodel.render.render;
 
+import com.braintribe.model.generic.base.EnumBase;
+import com.braintribe.model.generic.reflection.EnumType;
+import com.braintribe.model.generic.reflection.EnumTypes;
 import com.braintribe.model.io.metamodel.render.context.ConstantDescriptor;
 import com.braintribe.model.io.metamodel.render.context.EnumTypeContext;
+import com.braintribe.model.io.metamodel.render.context.ImportManager;
 
 /**
  * @author peter.gazdik
@@ -20,14 +24,16 @@ import com.braintribe.model.io.metamodel.render.context.EnumTypeContext;
 public class EnumRenderer extends CustomTypeRenderer {
 
 	private final EnumTypeContext context;
+	private final ImportManager im;
 
 	public EnumRenderer(EnumTypeContext context) {
 		this.context = context;
+		this.im = context.importManager;
 	}
 
 	public String render() {
 		printPackage(context.typeInfo.packageName);
-		printImports(context.annotationImports);
+		printImportGroups(context.importManager.getTypesToImportInGroups());
 		printAnnotations(context.annotations);
 
 		printTypeHeader();
@@ -38,7 +44,7 @@ public class EnumRenderer extends CustomTypeRenderer {
 	}
 
 	private void printTypeHeader() {
-		println("public enum ", context.typeInfo.simpleName, " implements com.braintribe.model.generic.base.EnumBase {");
+		println("public enum ", context.typeInfo.simpleName, " implements ", im.getTypeRef(EnumBase.class), " {");
 	}
 
 	private void printTypeBody() {
@@ -67,7 +73,7 @@ public class EnumRenderer extends CustomTypeRenderer {
 	}
 
 	private void printTypeLiteral() {
-		print("public static final com.braintribe.model.generic.reflection.EnumType T = com.braintribe.model.generic.reflection.EnumTypes.T(");
+		print("public static final ", im.getTypeRef(EnumType.class), " T = ", im.getTypeRef(EnumTypes.class), ".T(");
 		print(context.typeInfo.simpleName);
 		println(".class);");
 		println();
@@ -75,7 +81,7 @@ public class EnumRenderer extends CustomTypeRenderer {
 
 	private void printTypeMethod() {
 		println("@Override");
-		println("public com.braintribe.model.generic.reflection.EnumType type() {");
+		println("public " + im.getTypeRef(EnumType.class) + " type() {");
 
 		levelUp();
 		println("return T;");

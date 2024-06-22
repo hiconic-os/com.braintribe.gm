@@ -20,6 +20,9 @@ import java.util.List;
 import com.braintribe.model.generic.annotation.GlobalId;
 import com.braintribe.model.generic.annotation.meta.api.synthesis.AnnotationDescriptor;
 import com.braintribe.model.generic.annotation.meta.synthesis.MdaSynthesis;
+import com.braintribe.model.generic.base.EnumBase;
+import com.braintribe.model.generic.reflection.EnumType;
+import com.braintribe.model.generic.reflection.EnumTypes;
 import com.braintribe.model.io.metamodel.render.info.MetaModelInfo;
 import com.braintribe.model.meta.GmEnumConstant;
 import com.braintribe.model.meta.GmEnumType;
@@ -28,18 +31,32 @@ public class EnumTypeContextBuilder {
 
 	private final GmEnumType gmEnumType;
 
+	private final ImportManager im;
 	private final EnumTypeContext result = new EnumTypeContext();
 
 	public EnumTypeContextBuilder(GmEnumType gmEnumType, MetaModelInfo metaModelInfo) {
 		this.gmEnumType = gmEnumType;
 		this.result.typeInfo = metaModelInfo.getInfoForEnumType(gmEnumType);
+		this.result.importManager = im = new ImportManager(result.typeInfo.packageName);
 	}
 
 	public EnumTypeContext build() {
+		noteOwnTypeToNotConflictImports();
+		importTypesForTypeLiteral();
 		setConstants();
 		setAnnotations();
 
 		return result;
+	}
+
+	private void noteOwnTypeToNotConflictImports() {
+		im.useType(gmEnumType.getTypeSignature());
+	}
+
+	private void importTypesForTypeLiteral() {
+		im.useType(EnumBase.class);
+		im.useType(EnumType.class);
+		im.useType(EnumTypes.class);
 	}
 
 	private void setConstants() {
@@ -88,7 +105,7 @@ public class EnumTypeContextBuilder {
 	}
 
 	private void addAnnotationImport(Class<? extends Annotation> annotationClass) {
-		result.annotationImports.add(annotationClass.getName());
+		im.useType(annotationClass.getName());
 	}
 
 }

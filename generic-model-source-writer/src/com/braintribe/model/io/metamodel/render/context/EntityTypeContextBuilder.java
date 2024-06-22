@@ -69,6 +69,7 @@ public class EntityTypeContextBuilder {
 	}
 
 	public EntityTypeContext build() {
+		noteOwnTypeToNotConflictImports();
 		importTypesForTypeLiteral();
 
 		setHeaderInfo();
@@ -77,6 +78,10 @@ public class EntityTypeContextBuilder {
 		setEvaluatesToIfEligible();
 
 		return result;
+	}
+
+	private void noteOwnTypeToNotConflictImports() {
+		im.useType(gmEntityType.getTypeSignature());
 	}
 
 	private void importTypesForTypeLiteral() {
