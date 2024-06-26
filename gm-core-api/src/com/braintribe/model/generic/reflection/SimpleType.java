@@ -17,7 +17,7 @@ import jsinterop.annotations.JsType;
 
 @JsType(namespace = GmCoreApiInteropNamespaces.reflection)
 @SuppressWarnings("unusable-by-js")
-public interface SimpleType extends ScalarType, SimpleTypes {
+public interface SimpleType extends ScalarType {
 
 	Class<?> getPrimitiveJavaType();
 

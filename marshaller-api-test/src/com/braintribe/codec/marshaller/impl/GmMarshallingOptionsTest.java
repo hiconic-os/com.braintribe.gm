@@ -23,7 +23,7 @@ import com.braintribe.codec.marshaller.api.OutputPrettiness;
 import com.braintribe.codec.marshaller.api.options.GmSerializationContextBuilder;
 import com.braintribe.codec.marshaller.api.options.attributes.OutputPrettinessOption;
 import com.braintribe.codec.marshaller.api.options.attributes.StabilizeOrderOption;
-import com.braintribe.model.generic.reflection.SimpleType;
+import com.braintribe.model.generic.reflection.SimpleTypes;
 
 public class GmMarshallingOptionsTest {
 
@@ -60,7 +60,7 @@ public class GmMarshallingOptionsTest {
 		DecodingLenience decodingLenience = new DecodingLenience(true);
 
 		GmDeserializationOptions changedOptions = defaultOptions.derive() //
-				.setInferredRootType(SimpleType.TYPE_DATE) //
+				.setInferredRootType(SimpleTypes.TYPE_DATE) //
 				.build() //
 				.derive() //
 				.set(StabilizeOrderOption.class, true) //
@@ -69,7 +69,7 @@ public class GmMarshallingOptionsTest {
 				.setDecodingLenience(decodingLenience) //
 				.build();
 
-		assertThat(SimpleType.TYPE_DATE) //
+		assertThat(SimpleTypes.TYPE_DATE) //
 				.isNotEqualTo(defaultOptions.getInferredRootType()) //
 				.isEqualTo(changedOptions.getInferredRootType());
 

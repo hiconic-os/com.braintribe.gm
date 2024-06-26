@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.Property;
-import com.braintribe.model.generic.reflection.SimpleType;
+import com.braintribe.model.generic.reflection.SimpleTypes;
 import com.braintribe.model.meta.GmProperty;
 import com.braintribe.model.meta.selector.Operator;
 import com.braintribe.model.meta.selector.PropertyValueComparator;
@@ -323,7 +323,7 @@ public class PropertyValueComparatorExpert implements CmdSelectorExpert<Property
 			} else {
 				throw new IllegalArgumentException("Unsupported collection value: "+value+" provided for size comparison.");
 			}
-			nextBase.type = SimpleType.TYPE_INTEGER;
+			nextBase.type = SimpleTypes.TYPE_INTEGER;
 			return true;
 		}
 		return false;

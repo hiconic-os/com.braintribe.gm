@@ -18,7 +18,7 @@ import com.braintribe.model.generic.base.CollectionBase;
 import jsinterop.annotations.JsType;
 
 @JsType(namespace = GmCoreApiInteropNamespaces.reflection)
-public interface CollectionType extends EnhancableCustomType, EssentialCollectionTypes {
+public interface CollectionType extends EnhancableCustomType {
 
 	@JsType(namespace = GmCoreApiInteropNamespaces.reflection)
 	enum CollectionKind {

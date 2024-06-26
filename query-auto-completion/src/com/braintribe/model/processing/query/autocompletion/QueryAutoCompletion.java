@@ -24,7 +24,6 @@ import java.util.TreeSet;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.Property;
-import com.braintribe.model.generic.reflection.SimpleType;
 import com.braintribe.model.generic.reflection.SimpleTypes;
 import com.braintribe.model.meta.GmType;
 import com.braintribe.model.meta.GmTypeKind;
@@ -101,7 +100,7 @@ public class QueryAutoCompletion {
 			String queryString, int cursorPosition, int amountOfSpaces, SignatureExpert expandMode) {
 		
 		if (tokenResult.getInString())
-			return SimpleType.TYPE_STRING.getTypeSignature();
+			return SimpleTypes.TYPE_STRING.getTypeSignature();
 		
 		if (tokenResult.getInEscapeKeyword()) {
 			switch (tokenResult.getQueryToken()) {
@@ -152,13 +151,13 @@ public class QueryAutoCompletion {
 
 			break;
 		case BigDecimal:
-			return SimpleType.TYPE_DECIMAL.getTypeSignature();
+			return SimpleTypes.TYPE_DECIMAL.getTypeSignature();
 		case Boolean:
-			return SimpleType.TYPE_BOOLEAN.getTypeSignature();
+			return SimpleTypes.TYPE_BOOLEAN.getTypeSignature();
 		case Double:
-			return SimpleType.TYPE_DOUBLE.getTypeSignature();
+			return SimpleTypes.TYPE_DOUBLE.getTypeSignature();
 		case Float:
-			return SimpleType.TYPE_FLOAT.getTypeSignature();
+			return SimpleTypes.TYPE_FLOAT.getTypeSignature();
 		case Integer:
 			QueryLexerResult previousToken; //If I am typing a number, I have to check if it is a right operand. If it is, I check what was the left operand type
 			QueryLexerToken previousQueryToken;
@@ -180,9 +179,9 @@ public class QueryAutoCompletion {
 				return typeSignature;
 			}
 			
-			return SimpleType.TYPE_INTEGER.getTypeSignature();
+			return SimpleTypes.TYPE_INTEGER.getTypeSignature();
 		case Long:
-			return SimpleType.TYPE_LONG.getTypeSignature();
+			return SimpleTypes.TYPE_LONG.getTypeSignature();
 		case From:
 			addTypes(possibleHints, modelOracle, expandMode, tokenResult.getFilterString());
 			break;
