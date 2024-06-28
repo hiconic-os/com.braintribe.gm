@@ -13,6 +13,8 @@ package com.braintribe.model.generic.annotation.meta.handlers;
 
 import com.braintribe.model.generic.annotation.meta.Confidential;
 import com.braintribe.model.generic.annotation.meta.Emphasized;
+import com.braintribe.model.generic.annotation.meta.FileName;
+import com.braintribe.model.generic.annotation.meta.FolderName;
 import com.braintribe.model.generic.annotation.meta.Mandatory;
 import com.braintribe.model.generic.annotation.meta.NonDeletable;
 import com.braintribe.model.generic.annotation.meta.Singleton;
@@ -34,6 +36,12 @@ public interface PredicateMdaHandlers {
 
 	MdaHandler<Emphasized, com.braintribe.model.meta.data.display.Emphasized> EMPHASIZED = new BasicMdaHandler<>( //
 			Emphasized.class, com.braintribe.model.meta.data.display.Emphasized.class, Emphasized::globalId);
+
+	MdaHandler<FileName, com.braintribe.model.meta.data.constraint.FileName> FILE_NAME = new BasicMdaHandler<>( //
+			FileName.class, com.braintribe.model.meta.data.constraint.FileName.class, FileName::globalId);
+
+	MdaHandler<FolderName, com.braintribe.model.meta.data.constraint.FolderName> FOLDER_NAME = new BasicMdaHandler<>( //
+			FolderName.class, com.braintribe.model.meta.data.constraint.FolderName.class, FolderName::globalId);
 
 	MdaHandler<Mandatory, com.braintribe.model.meta.data.constraint.Mandatory> MANDATORY = new BasicMdaHandler<>( //
 			Mandatory.class, com.braintribe.model.meta.data.constraint.Mandatory.class, Mandatory::globalId);
