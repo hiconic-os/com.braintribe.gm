@@ -45,8 +45,6 @@ import com.braintribe.model.meta.data.MetaData;
 				PredicateMdaHandlers.CONFIDENTIAL, //
 				PredicateMdaHandlers.DEPRECATED, //
 				PredicateMdaHandlers.EMPHASIZED, //
-				PredicateMdaHandlers.FILE_NAME, //
-				PredicateMdaHandlers.FOLDER_NAME, //
 				PredicateMdaHandlers.MANDATORY, //
 				PredicateMdaHandlers.NON_DELETABLE, //
 				PredicateMdaHandlers.SINGLETON, //
@@ -58,6 +56,8 @@ import com.braintribe.model.meta.data.MetaData;
 		register( //
 				SimpleMdaHandlers.BIDIRECTIONAL, //
 				SimpleMdaHandlers.COLOR, //
+				SimpleMdaHandlers.FILE_NAME, //
+				SimpleMdaHandlers.FOLDER_NAME, //
 				SimpleMdaHandlers.INDEX, //
 				SimpleMdaHandlers.MAX, //
 				SimpleMdaHandlers.MAX_LENGTH, //

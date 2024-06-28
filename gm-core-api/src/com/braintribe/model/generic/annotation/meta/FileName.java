@@ -24,4 +24,5 @@ import java.lang.annotation.Target;
 @Documented
 public @interface FileName {
 	String globalId() default "";
+	boolean mustExist() default false;
 }

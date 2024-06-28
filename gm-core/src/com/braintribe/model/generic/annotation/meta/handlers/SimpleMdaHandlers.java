@@ -20,6 +20,8 @@ import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.annotation.SelectiveInformation;
 import com.braintribe.model.generic.annotation.meta.Bidirectional;
 import com.braintribe.model.generic.annotation.meta.Color;
+import com.braintribe.model.generic.annotation.meta.FileName;
+import com.braintribe.model.generic.annotation.meta.FolderName;
 import com.braintribe.model.generic.annotation.meta.IndexClass;
 import com.braintribe.model.generic.annotation.meta.Indexed;
 import com.braintribe.model.generic.annotation.meta.Max;
@@ -110,6 +112,46 @@ public class SimpleMdaHandlers {
 	private static void copyColorMdProps(MdaSynthesisContext context, SingleAnnotationDescriptor descriptor,
 			com.braintribe.model.meta.data.display.Color md) {
 		descriptor.addAnnotationValue("value", md.getCode());
+	}
+
+	// ###############################################
+	// ## . . . . . . . FILE_NAME . . . . . . . . . ##
+	// ###############################################
+
+	public static final MdaHandler<FileName, com.braintribe.model.meta.data.constraint.FileName> FILE_NAME = new BasicMdaHandler<>( //
+			FileName.class, com.braintribe.model.meta.data.constraint.FileName.class, FileName::globalId, //
+			SimpleMdaHandlers::copyFileNameAnnoProps, //
+			SimpleMdaHandlers::copyFileNameMdProps);
+
+	@SuppressWarnings("unused")
+	private static void copyFileNameAnnoProps(MdaAnalysisContext context, FileName annotation, com.braintribe.model.meta.data.constraint.FileName metaData) {
+		metaData.setMustExist(annotation.mustExist());
+	}
+
+	@SuppressWarnings("unused")
+	private static void copyFileNameMdProps(MdaSynthesisContext context, SingleAnnotationDescriptor descriptor,
+			com.braintribe.model.meta.data.constraint.FileName md) {
+		descriptor.addAnnotationValue("mustExist", md.getMustExist());
+	}
+
+	// ###############################################
+	// ## . . . . . . . FOLDER_NAME . . . . . . . . ##
+	// ###############################################
+
+	public static final MdaHandler<FolderName, com.braintribe.model.meta.data.constraint.FolderName> FOLDER_NAME = new BasicMdaHandler<>( //
+			FolderName.class, com.braintribe.model.meta.data.constraint.FolderName.class, FolderName::globalId, //
+			SimpleMdaHandlers::copyFolderNameAnnoProps, //
+			SimpleMdaHandlers::copyFolderNameMdProps);
+
+	@SuppressWarnings("unused")
+	private static void copyFolderNameAnnoProps(MdaAnalysisContext context, FolderName annotation, com.braintribe.model.meta.data.constraint.FolderName metaData) {
+		metaData.setMustExist(annotation.mustExist());
+	}
+
+	@SuppressWarnings("unused")
+	private static void copyFolderNameMdProps(MdaSynthesisContext context, SingleAnnotationDescriptor descriptor,
+			com.braintribe.model.meta.data.constraint.FolderName md) {
+		descriptor.addAnnotationValue("mustExist", md.getMustExist());
 	}
 
 	// ###############################################
