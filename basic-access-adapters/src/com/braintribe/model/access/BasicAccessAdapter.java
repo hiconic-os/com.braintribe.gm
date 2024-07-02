@@ -1,17 +1,4 @@
 // ============================================================================
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-// ============================================================================
-// ============================================================================
 // Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
 // 
 // This library is free software; you can redistribute it and/or modify it under the terms of the GNU Lesser General Public
@@ -69,7 +56,6 @@ import com.braintribe.model.generic.reflection.StrategyOnCriterionMatch;
 import com.braintribe.model.generic.reflection.TypeCode;
 import com.braintribe.model.generic.tracking.ManipulationListener;
 import com.braintribe.model.generic.value.EntityReference;
-import com.braintribe.model.generic.value.PreliminaryEntityReference;
 import com.braintribe.model.meta.GmMetaModel;
 import com.braintribe.model.processing.query.eval.api.repo.Repository;
 import com.braintribe.model.processing.query.fluent.EntityQueryBuilder;
@@ -541,7 +527,7 @@ public abstract class BasicAccessAdapter extends AbstractAccess {
 			ManipulationReport manipulationReport = session.manipulate().mode(ManipulationMode.REMOTE).apply(manipulationRequest.getManipulation());
 
 			// make sure we have a mapping from GenericEntity to the
-			for (Map.Entry<PreliminaryEntityReference, GenericEntity> instantiationEntry : manipulationReport.getInstantiations().entrySet()) {
+			for (Map.Entry<EntityReference, GenericEntity> instantiationEntry : manipulationReport.getInstantiations().entrySet()) {
 				GenericEntity entity = instantiationEntry.getValue();
 				report.getInstantiations().computeIfAbsent(entity, e -> instantiationEntry.getKey());
 			}
