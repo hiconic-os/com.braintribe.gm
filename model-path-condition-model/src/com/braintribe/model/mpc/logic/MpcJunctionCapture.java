@@ -26,10 +26,10 @@ public enum MpcJunctionCapture implements EnumBase {
 	longest,
 	shortest;
 
-	public static final EnumType T = EnumTypes.T(MpcJunctionCapture.class);
+	public static final EnumType<MpcJunctionCapture> T = EnumTypes.T(MpcJunctionCapture.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<MpcJunctionCapture> type() {
 		return T;
 	}
 

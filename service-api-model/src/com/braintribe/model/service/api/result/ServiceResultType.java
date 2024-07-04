@@ -26,10 +26,10 @@ public enum ServiceResultType implements EnumBase {
 	failure, 
 	stillProcessing;
 
-	public static final EnumType T = EnumTypes.T(ServiceResultType.class);
+	public static final EnumType<ServiceResultType> T = EnumTypes.T(ServiceResultType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<ServiceResultType> type() {
 		return T;
 	}
 }

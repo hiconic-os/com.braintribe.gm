@@ -24,10 +24,10 @@ public enum EnumA implements EnumBase {
 	two,
 	three;
 
-	public static final EnumType T = EnumTypes.T(EnumA.class);
+	public static final EnumType<EnumA> T = EnumTypes.T(EnumA.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<EnumA> type() {
 		return T;
 	}
 

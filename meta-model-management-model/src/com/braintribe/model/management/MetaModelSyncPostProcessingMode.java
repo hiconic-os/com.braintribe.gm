@@ -22,10 +22,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum MetaModelSyncPostProcessingMode implements EnumBase {
 	DRY_RUN, DO_DELETE_IN_TARGET_MODEL, DO_REMOVE_IN_TARGET_MODEL;
 
-	public static final EnumType T = EnumTypes.T(MetaModelSyncPostProcessingMode.class);
+	public static final EnumType<MetaModelSyncPostProcessingMode> T = EnumTypes.T(MetaModelSyncPostProcessingMode.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<MetaModelSyncPostProcessingMode> type() {
 		return T;
 	}
 

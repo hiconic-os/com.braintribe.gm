@@ -29,10 +29,10 @@ public enum PersistenceRequestType implements EnumBase {
 	GetModel,
 	Custom;
 
-	public static final EnumType T = EnumTypes.T(PersistenceRequestType.class);
+	public static final EnumType<PersistenceRequestType> T = EnumTypes.T(PersistenceRequestType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<PersistenceRequestType> type() {
 		return T;
 	}	
 }

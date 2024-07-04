@@ -24,10 +24,10 @@ public enum SizeRange implements EnumBase {
 	medium,
 	large;
 
-	public static final EnumType T = EnumTypes.T(SizeRange.class);
+	public static final EnumType<SizeRange> T = EnumTypes.T(SizeRange.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<SizeRange> type() {
 		return T;
 	}
 }

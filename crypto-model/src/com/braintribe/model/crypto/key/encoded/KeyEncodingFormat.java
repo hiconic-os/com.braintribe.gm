@@ -29,10 +29,10 @@ public enum KeyEncodingFormat implements EnumBase {
 
 	pkcs8, x509, raw;
 
-	public static final EnumType T = EnumTypes.T(KeyEncodingFormat.class);
+	public static final EnumType<KeyEncodingFormat> T = EnumTypes.T(KeyEncodingFormat.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<KeyEncodingFormat> type() {
 		return T;
 	}
 

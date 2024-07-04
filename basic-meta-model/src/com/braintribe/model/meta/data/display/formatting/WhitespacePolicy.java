@@ -30,10 +30,10 @@ public enum WhitespacePolicy implements EnumBase {
 	collapse,
 	replace;
 
-	public static final EnumType T = EnumTypes.T(WhitespacePolicy.class);
+	public static final EnumType<WhitespacePolicy> T = EnumTypes.T(WhitespacePolicy.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<WhitespacePolicy> type() {
 		return T;
 	}	
 }

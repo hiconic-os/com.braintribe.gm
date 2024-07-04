@@ -29,10 +29,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum EntityTypeStrategy implements EnumBase {
 	assignable, equals;
 
-	public static final EnumType T = EnumTypes.T(EntityTypeStrategy.class);
+	public static final EnumType<EntityTypeStrategy> T = EnumTypes.T(EntityTypeStrategy.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<EntityTypeStrategy> type() {
 		return T;
 	}
 }

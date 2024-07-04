@@ -35,10 +35,10 @@ public enum ValueType implements EnumBase {
 	// sub-types from other models which extend this one
 	extension;
 
-	public static final EnumType T = EnumTypes.T(ValueType.class);
+	public static final EnumType<ValueType> T = EnumTypes.T(ValueType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<ValueType> type() {
 		return T;
 	}
 

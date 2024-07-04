@@ -254,10 +254,10 @@ public enum CodeFormat implements EnumBase {
 	/** YAML. */
 	yaml;
 
-	public static final EnumType T = EnumTypes.T(CodeFormat.class);
+	public static final EnumType<CodeFormat> T = EnumTypes.T(CodeFormat.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<CodeFormat> type() {
 		return T;
 	}
 }

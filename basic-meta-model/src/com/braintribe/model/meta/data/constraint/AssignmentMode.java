@@ -25,10 +25,10 @@ public enum AssignmentMode implements EnumBase {
 	shareOnly,
 	createOnly;
 
-	public static final EnumType T = EnumTypes.T(AssignmentMode.class);
+	public static final EnumType<AssignmentMode> T = EnumTypes.T(AssignmentMode.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<AssignmentMode> type() {
 		return T;
 	}	
 

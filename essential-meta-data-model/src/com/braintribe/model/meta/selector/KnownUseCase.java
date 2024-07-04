@@ -34,10 +34,10 @@ public enum KnownUseCase implements EnumBase {
 	globalActionsUseCase("globalActions"),
 	queryEditorUseCase("queryEditor");
 
-	public static final EnumType T = EnumTypes.T(KnownUseCase.class);
+	public static final EnumType<KnownUseCase> T = EnumTypes.T(KnownUseCase.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<KnownUseCase> type() {
 		return T;
 	}
 	private String defaultValue;

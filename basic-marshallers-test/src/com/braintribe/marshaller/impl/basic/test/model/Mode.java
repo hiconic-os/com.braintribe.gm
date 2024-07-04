@@ -24,10 +24,10 @@ public enum Mode implements EnumBase {
 	fast,
 	slow;
 
-	public static final EnumType T = EnumTypes.T(Mode.class);
+	public static final EnumType<Mode> T = EnumTypes.T(Mode.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<Mode> type() {
 		return T;
 	}
 

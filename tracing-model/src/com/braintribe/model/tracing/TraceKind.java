@@ -22,10 +22,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum TraceKind implements EnumBase {
 	trace, info, error, warn;
 
-	public static final EnumType T = EnumTypes.T(TraceKind.class);
+	public static final EnumType<TraceKind> T = EnumTypes.T(TraceKind.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<TraceKind> type() {
 		return T;
 	}	
 }

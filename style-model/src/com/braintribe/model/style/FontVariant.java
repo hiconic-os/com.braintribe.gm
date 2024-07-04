@@ -24,10 +24,10 @@ public enum FontVariant implements EnumBase {
 	
     private final String text;
     
-    public static final EnumType T = EnumTypes.T(FontVariant.class);
+    public static final EnumType<FontVariant> T = EnumTypes.T(FontVariant.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<FontVariant> type() {
 		return T;
 	}
 

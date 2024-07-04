@@ -24,10 +24,10 @@ public enum ValidationMessageLevel implements EnumBase {
 	WARNING,
 	ERROR;
 
-	public static final EnumType T = EnumTypes.T(ValidationMessageLevel.class);
+	public static final EnumType<ValidationMessageLevel> T = EnumTypes.T(ValidationMessageLevel.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<ValidationMessageLevel> type() {
 		return T;
 	}
 }

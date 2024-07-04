@@ -22,10 +22,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum FontStyle implements EnumBase {
 	normal("normal"), italic("italic"), oblique("oblique");
 
-    public static final EnumType T = EnumTypes.T(FontStyle.class);
+    public static final EnumType<FontStyle> T = EnumTypes.T(FontStyle.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<FontStyle> type() {
 		return T;
 	}
     

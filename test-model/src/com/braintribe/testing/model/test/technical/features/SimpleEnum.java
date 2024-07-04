@@ -32,10 +32,10 @@ public enum SimpleEnum implements EnumBase {
 	FOUR,
 	FIVE;
 
-	public static final EnumType T = EnumTypes.T(SimpleEnum.class);
+	public static final EnumType<SimpleEnum> T = EnumTypes.T(SimpleEnum.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<SimpleEnum> type() {
 		return T;
 	}
 

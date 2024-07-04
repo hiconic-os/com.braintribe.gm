@@ -34,10 +34,10 @@ public enum NameConversionStyle implements EnumBase {
 
 	;
 
-	public static final EnumType T = EnumTypes.T(NameConversionStyle.class);
+	public static final EnumType<NameConversionStyle> T = EnumTypes.T(NameConversionStyle.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<NameConversionStyle> type() {
 		return T;
 	}
 

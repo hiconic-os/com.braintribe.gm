@@ -31,10 +31,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum TimeUnit implements EnumBase {
 	planckTime, nanoSecond, microSecond, milliSecond, second, minute, hour, day;
 
-	public static final EnumType T = EnumTypes.T(TimeUnit.class);
+	public static final EnumType<TimeUnit> T = EnumTypes.T(TimeUnit.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<TimeUnit> type() {
 		return T;
 	}
 	

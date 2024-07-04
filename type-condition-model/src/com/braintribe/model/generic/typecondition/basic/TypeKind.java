@@ -39,10 +39,10 @@ public enum TypeKind implements EnumBase {
 	decimalType,
 	dateType;
 
-	public static final EnumType T = EnumTypes.T(TypeKind.class);
+	public static final EnumType<TypeKind> T = EnumTypes.T(TypeKind.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<TypeKind> type() {
 		return T;
 	}
 }

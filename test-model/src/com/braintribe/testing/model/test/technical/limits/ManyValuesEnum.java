@@ -1026,10 +1026,10 @@ public enum ManyValuesEnum implements EnumBase {
 	VALUE_998,
 	VALUE_999;
 
-	public static final EnumType T = EnumTypes.T(ManyValuesEnum.class);
+	public static final EnumType<ManyValuesEnum> T = EnumTypes.T(ManyValuesEnum.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<ManyValuesEnum> type() {
 		return T;
 	}
 }

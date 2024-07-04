@@ -43,10 +43,10 @@ public enum DeletionScope implements EnumBase {
 	 */
 	resource;
 
-	public static final EnumType T = EnumTypes.T(DeletionScope.class);
+	public static final EnumType<DeletionScope> T = EnumTypes.T(DeletionScope.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<DeletionScope> type() {
 		return T;
 	}
 	

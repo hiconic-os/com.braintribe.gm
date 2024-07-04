@@ -59,10 +59,10 @@ public enum CheckCoverage implements EnumBase {
 	 */
 	functional;
 
-	public static final EnumType T = EnumTypes.T(CheckCoverage.class);
+	public static final EnumType<CheckCoverage> T = EnumTypes.T(CheckCoverage.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<CheckCoverage> type() {
 		return T;
 	}
 }

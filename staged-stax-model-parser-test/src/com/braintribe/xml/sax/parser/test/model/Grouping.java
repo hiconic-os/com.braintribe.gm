@@ -24,10 +24,10 @@ public enum Grouping implements EnumBase {
 	functional,
 	misc;
 
-	public static final EnumType T = EnumTypes.T(Grouping.class);
+	public static final EnumType<Grouping> T = EnumTypes.T(Grouping.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<Grouping> type() {
 		return T;
 	}
 }

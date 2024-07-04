@@ -22,10 +22,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum MpcElementAxis implements EnumBase {
 	value, listIndex, mapKey, mapValue, depth;
 
-	public static final EnumType T = EnumTypes.T(MpcElementAxis.class);
+	public static final EnumType<MpcElementAxis> T = EnumTypes.T(MpcElementAxis.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<MpcElementAxis> type() {
 		return T;
 	}	
 }

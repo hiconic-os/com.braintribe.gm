@@ -25,10 +25,10 @@ public enum IndexRangeBoundsAssignment implements EnumBase {
 	UPPER,
 	BOTH;
 
-	public static final EnumType T = EnumTypes.T(IndexRangeBoundsAssignment.class);
+	public static final EnumType<IndexRangeBoundsAssignment> T = EnumTypes.T(IndexRangeBoundsAssignment.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<IndexRangeBoundsAssignment> type() {
 		return T;
 	}	
 }

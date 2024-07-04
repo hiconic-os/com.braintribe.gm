@@ -26,10 +26,10 @@ public enum FamilyStatus implements EnumBase {
 	DIVORCED,
 	WIDOWED;
 
-	public static final EnumType T = EnumTypes.T(FamilyStatus.class);
+	public static final EnumType<FamilyStatus> T = EnumTypes.T(FamilyStatus.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<FamilyStatus> type() {
 		return T;
 	}
 }

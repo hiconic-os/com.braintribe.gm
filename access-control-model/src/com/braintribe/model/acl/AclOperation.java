@@ -31,10 +31,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 	MODIFY_ACL,
 	REPLACE_ACL;
 	
-	public static final EnumType T = EnumTypes.T(AclOperation.class);
+	public static final EnumType<AclOperation> T = EnumTypes.T(AclOperation.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<AclOperation> type() {
 		return T;
 	}
 

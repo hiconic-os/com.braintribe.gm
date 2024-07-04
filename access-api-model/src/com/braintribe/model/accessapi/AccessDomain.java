@@ -25,10 +25,10 @@ public enum AccessDomain implements EnumBase {
 	workbench,
 	meta;
 
-	public static final EnumType T = EnumTypes.T(AccessDomain.class);
+	public static final EnumType<AccessDomain> T = EnumTypes.T(AccessDomain.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<AccessDomain> type() {
 		return T;
 	}
 }

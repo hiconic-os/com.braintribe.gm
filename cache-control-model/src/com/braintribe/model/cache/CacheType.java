@@ -46,10 +46,10 @@ public enum CacheType implements EnumBase {
 	 */
 	privateCache;
 
-	public static final EnumType T = EnumTypes.T(CacheType.class);
+	public static final EnumType<CacheType> T = EnumTypes.T(CacheType.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<CacheType> type() {
 		return T;
 	}
 

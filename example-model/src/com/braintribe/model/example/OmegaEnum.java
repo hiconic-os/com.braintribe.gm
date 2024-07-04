@@ -24,10 +24,10 @@ public enum OmegaEnum implements EnumBase {
 	BETA,
 	GAMMA;
 
-	public static final EnumType T = EnumTypes.T(OmegaEnum.class);
+	public static final EnumType<OmegaEnum> T = EnumTypes.T(OmegaEnum.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<OmegaEnum> type() {
 		return T;
 	}	
 }

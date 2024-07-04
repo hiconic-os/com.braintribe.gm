@@ -52,10 +52,10 @@ public enum JobState implements EnumBase {
 	//notFound: not found
 
 	
-	public static final EnumType T = EnumTypes.T(JobState.class);
+	public static final EnumType<JobState> T = EnumTypes.T(JobState.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<JobState> type() {
 		return T;
 	}
 }

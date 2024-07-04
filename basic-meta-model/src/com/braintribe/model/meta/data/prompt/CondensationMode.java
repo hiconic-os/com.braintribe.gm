@@ -24,10 +24,10 @@ public enum CondensationMode implements EnumBase {
 	auto,
 	forced;
 
-	public static final EnumType T = EnumTypes.T(CondensationMode.class);
+	public static final EnumType<CondensationMode> T = EnumTypes.T(CondensationMode.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<CondensationMode> type() {
 		return T;
 	}	
 }

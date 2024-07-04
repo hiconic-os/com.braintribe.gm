@@ -31,10 +31,10 @@ public enum ExecutionType implements EnumBase {
 	editable("editable"),
 	autoEditable("autoEditable");
 
-	public static final EnumType T = EnumTypes.T(ExecutionType.class);
+	public static final EnumType<ExecutionType> T = EnumTypes.T(ExecutionType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<ExecutionType> type() {
 		return T;
 	}
 

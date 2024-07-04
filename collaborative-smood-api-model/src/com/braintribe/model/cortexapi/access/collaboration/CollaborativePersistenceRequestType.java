@@ -38,10 +38,10 @@ public enum CollaborativePersistenceRequestType implements EnumBase {
 	GetModifiedModelsForStage,
 	GetInitializationIssues;
 
-	public static final EnumType T = EnumTypes.T(CollaborativePersistenceRequestType.class);
+	public static final EnumType<CollaborativePersistenceRequestType> T = EnumTypes.T(CollaborativePersistenceRequestType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<CollaborativePersistenceRequestType> type() {
 		return T;
 	}	
 

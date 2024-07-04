@@ -50,10 +50,10 @@ public enum ConditionType implements EnumBase {
 	 */
 	negation;
 
-	public static final EnumType T = EnumTypes.T(ConditionType.class);
+	public static final EnumType<ConditionType> T = EnumTypes.T(ConditionType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<ConditionType> type() {
 		return T;
 	}
 

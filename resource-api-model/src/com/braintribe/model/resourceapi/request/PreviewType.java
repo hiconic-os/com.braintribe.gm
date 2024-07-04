@@ -24,10 +24,10 @@ public enum PreviewType implements EnumBase {
 	STANDARD,
 	ACTIVE;
 
-	public static final EnumType T = EnumTypes.T(PreviewType.class);
+	public static final EnumType<PreviewType> T = EnumTypes.T(PreviewType.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<PreviewType> type() {
 		return T;
 	}
 }

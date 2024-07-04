@@ -53,10 +53,10 @@ public enum IndexType implements EnumBase {
 	 */
 	metric;
 
-	public static final EnumType T = EnumTypes.T(IndexType.class);
+	public static final EnumType<IndexType> T = EnumTypes.T(IndexType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<IndexType> type() {
 		return T;
 	}	
 }

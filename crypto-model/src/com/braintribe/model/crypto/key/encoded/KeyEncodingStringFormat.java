@@ -29,10 +29,10 @@ public enum KeyEncodingStringFormat implements EnumBase {
 
 	hex, base64;
 
-	public static final EnumType T = EnumTypes.T(KeyEncodingStringFormat.class);
+	public static final EnumType<KeyEncodingStringFormat> T = EnumTypes.T(KeyEncodingStringFormat.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<KeyEncodingStringFormat> type() {
 		return T;
 	}
 

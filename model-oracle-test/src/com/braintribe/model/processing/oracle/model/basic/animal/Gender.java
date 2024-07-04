@@ -27,10 +27,10 @@ public enum Gender implements EnumBase {
 	F,
 	H;
 
-	public static final EnumType T = EnumTypes.T(Gender.class);
+	public static final EnumType<Gender> T = EnumTypes.T(Gender.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<Gender> type() {
 		return T;
 	}
 }

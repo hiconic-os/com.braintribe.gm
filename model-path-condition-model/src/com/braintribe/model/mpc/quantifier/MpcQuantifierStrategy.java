@@ -24,10 +24,10 @@ public enum MpcQuantifierStrategy implements EnumBase {
 	reluctant,
 	possessive;
 
-	public static final EnumType T = EnumTypes.T(MpcQuantifierStrategy.class);
+	public static final EnumType<MpcQuantifierStrategy> T = EnumTypes.T(MpcQuantifierStrategy.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<MpcQuantifierStrategy> type() {
 		return T;
 	}
 

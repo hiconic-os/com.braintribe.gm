@@ -30,10 +30,10 @@ public enum AggregationFunctionType implements EnumBase {
 	min,
 	max;
 
-	public static final EnumType T = EnumTypes.T(AggregationFunctionType.class);
+	public static final EnumType<AggregationFunctionType> T = EnumTypes.T(AggregationFunctionType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<AggregationFunctionType> type() {
 		return T;
 	}
 }

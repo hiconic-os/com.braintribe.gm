@@ -22,10 +22,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum ProcessorKind implements EnumBase {
 	transition, condition;
 
-	public static final EnumType T = EnumTypes.T(ProcessorKind.class);
+	public static final EnumType<ProcessorKind> T = EnumTypes.T(ProcessorKind.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<ProcessorKind> type() {
 		return T;
 	}	
 }

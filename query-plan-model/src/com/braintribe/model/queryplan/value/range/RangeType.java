@@ -26,10 +26,10 @@ public enum RangeType implements EnumBase {
 	simple,
 	intersection;
 
-	public static final EnumType T = EnumTypes.T(RangeType.class);
+	public static final EnumType<RangeType> T = EnumTypes.T(RangeType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<RangeType> type() {
 		return T;
 	}
 }

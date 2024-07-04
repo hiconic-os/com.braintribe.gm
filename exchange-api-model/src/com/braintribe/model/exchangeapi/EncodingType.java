@@ -22,10 +22,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum EncodingType implements EnumBase {
 	xml, json, binary;
 
-	public static final EnumType T = EnumTypes.T(EncodingType.class);
+	public static final EnumType<EncodingType> T = EnumTypes.T(EncodingType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<EncodingType> type() {
 		return T;
 	}
 }

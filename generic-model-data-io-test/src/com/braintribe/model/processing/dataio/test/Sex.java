@@ -23,10 +23,10 @@ public enum Sex implements EnumBase {
 	female,
 	male;
 
-	public static final EnumType T = EnumTypes.T(Sex.class);
+	public static final EnumType<Sex> T = EnumTypes.T(Sex.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<Sex> type() {
 		return T;
 	}
 }

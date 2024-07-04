@@ -24,10 +24,10 @@ public enum StorageOption implements EnumBase {
 	embedded,
 	encoded;
 
-	public static final EnumType T = EnumTypes.T(StorageOption.class);
+	public static final EnumType<StorageOption> T = EnumTypes.T(StorageOption.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<StorageOption> type() {
 		return T;
 	}
 }

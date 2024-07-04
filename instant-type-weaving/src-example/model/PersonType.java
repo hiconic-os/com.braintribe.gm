@@ -28,10 +28,10 @@ public enum PersonType implements EnumBase {
 	B,
 	C;
 
-	public static final EnumType T = EnumTypes.T(PersonType.class);
+	public static final EnumType<PersonType> T = EnumTypes.T(PersonType.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<PersonType> type() {
 		return T;
 	}
 

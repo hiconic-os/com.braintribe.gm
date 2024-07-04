@@ -56,10 +56,10 @@ public enum DeleteMode implements EnumBase {
 	 */
 	ignoreReferences;
 
-	public static final EnumType T = EnumTypes.T(DeleteMode.class);
+	public static final EnumType<DeleteMode> T = EnumTypes.T(DeleteMode.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<DeleteMode> type() {
 		return T;
 	}
 }

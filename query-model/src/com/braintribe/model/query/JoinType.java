@@ -43,10 +43,10 @@ public enum JoinType implements EnumBase {
 	 */
 	full;
 
-	public static final EnumType T = EnumTypes.T(JoinType.class);
+	public static final EnumType<JoinType> T = EnumTypes.T(JoinType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<JoinType> type() {
 		return T;
 	}	
 }

@@ -23,10 +23,10 @@ public enum SortDirection implements EnumBase {
 	ascending,
 	descending;
 
-	public static final EnumType T = EnumTypes.T(SortDirection.class);
+	public static final EnumType<SortDirection> T = EnumTypes.T(SortDirection.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<SortDirection> type() {
 		return T;
 	}	
 }

@@ -29,10 +29,10 @@ public enum ComparisonOperator implements EnumBase {
 	matches,
 	matchesIgnoreCase;
 
-	public static final EnumType T = EnumTypes.T(ComparisonOperator.class);
+	public static final EnumType<ComparisonOperator> T = EnumTypes.T(ComparisonOperator.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<ComparisonOperator> type() {
 		return T;
 	}
 }

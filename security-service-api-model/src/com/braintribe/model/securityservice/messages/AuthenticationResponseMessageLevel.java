@@ -25,10 +25,10 @@ public enum AuthenticationResponseMessageLevel implements EnumBase {
 	
 	error, warn, info, debug, trace;
 
-	public static final EnumType T = EnumTypes.T(AuthenticationResponseMessageLevel.class);
+	public static final EnumType<AuthenticationResponseMessageLevel> T = EnumTypes.T(AuthenticationResponseMessageLevel.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<AuthenticationResponseMessageLevel> type() {
 		return T;
 	}
 }

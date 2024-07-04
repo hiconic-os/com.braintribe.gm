@@ -28,10 +28,10 @@ public enum ReasonCode implements EnumBase {
 	interrupted,
 	generalError;
 
-	public static final EnumType T = EnumTypes.T(ReasonCode.class);
+	public static final EnumType<ReasonCode> T = EnumTypes.T(ReasonCode.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<ReasonCode> type() {
 		return T;
 	}	
 	

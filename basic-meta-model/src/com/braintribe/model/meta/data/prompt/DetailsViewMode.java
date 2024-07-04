@@ -35,10 +35,10 @@ public interface DetailsViewMode extends EntityTypeMetaData {
 		forcedHidden;
 
 		@SuppressWarnings("hiding")
-		public static final EnumType T = EnumTypes.T(DetailsViewModeOption.class);
+		public static final EnumType<DetailsViewModeOption> T = EnumTypes.T(DetailsViewModeOption.class);
 		
 		@Override
-		public EnumType type() {
+		public EnumType<DetailsViewModeOption> type() {
 			return T;
 		}
 	}

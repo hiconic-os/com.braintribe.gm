@@ -24,10 +24,10 @@ public enum Status implements EnumBase {
 	pending,
 	sold;
 
-	public static final EnumType T = EnumTypes.T(Status.class);
+	public static final EnumType<Status> T = EnumTypes.T(Status.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<Status> type() {
 		return T;
 	}
 }

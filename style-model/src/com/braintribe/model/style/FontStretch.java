@@ -23,10 +23,10 @@ public enum FontStretch implements EnumBase {
 	normal("normal"), condensed("condensed"), ultraCondensed("ultra-condensed"), extraCondensed("extra-condensed"), 
 	semiCondensed("semi-condensed"), expanded("expanded"), semiExpanded("semi-expanded"), extraExpanded("extra-expanded"), ultraExpanded("ultra-expanded");
     
-    public static final EnumType T = EnumTypes.T(FontStretch.class);
+    public static final EnumType<FontStretch> T = EnumTypes.T(FontStretch.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<FontStretch> type() {
 		return T;
 	}
     

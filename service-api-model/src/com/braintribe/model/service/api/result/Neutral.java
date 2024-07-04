@@ -29,10 +29,10 @@ import com.braintribe.model.service.api.ServiceRequest;
 public enum Neutral implements EnumBase {
 	NEUTRAL;
 	
-	public static final EnumType T = EnumTypes.T(Neutral.class);
+	public static final EnumType<Neutral> T = EnumTypes.T(Neutral.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<Neutral> type() {
 		return T;
 	}
 	

@@ -42,10 +42,10 @@ public enum GarbageCollectionKind implements EnumBase {
 	 */
 	collect;
 
-	public static final EnumType T = EnumTypes.T(GarbageCollectionKind.class);
+	public static final EnumType<GarbageCollectionKind> T = EnumTypes.T(GarbageCollectionKind.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<GarbageCollectionKind> type() {
 		return T;
 	}
 }

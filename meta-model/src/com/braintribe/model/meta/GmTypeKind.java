@@ -42,10 +42,10 @@ public enum GmTypeKind implements EnumBase {
 	SET,
 	MAP;
 
-	public static final EnumType T = EnumTypes.T(GmTypeKind.class);
+	public static final EnumType<GmTypeKind> T = EnumTypes.T(GmTypeKind.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<GmTypeKind> type() {
 		return T;
 	}
 }

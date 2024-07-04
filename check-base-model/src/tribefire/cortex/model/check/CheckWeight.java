@@ -41,10 +41,10 @@ public enum CheckWeight implements EnumBase {
 	
 	unlimited;
 	
-	public static final EnumType T = EnumTypes.T(CheckWeight.class);
+	public static final EnumType<CheckWeight> T = EnumTypes.T(CheckWeight.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<CheckWeight> type() {
 		return T;
 	}
 }

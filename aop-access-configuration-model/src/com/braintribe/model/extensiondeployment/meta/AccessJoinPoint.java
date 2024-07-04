@@ -22,10 +22,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum AccessJoinPoint implements EnumBase {
 	getMetaModel, query, queryEntities, queryProperties, applyManipulation, getReferences;
 
-	public static final EnumType T = EnumTypes.T(AccessJoinPoint.class);
+	public static final EnumType<AccessJoinPoint> T = EnumTypes.T(AccessJoinPoint.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<AccessJoinPoint> type() {
 		return T;
 	}
 

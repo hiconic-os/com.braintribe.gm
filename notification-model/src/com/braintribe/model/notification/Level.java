@@ -34,10 +34,10 @@ public enum Level implements EnumBase {
 	/** INFO is a message level for informational messages. */
 	INFO;
 
-	public static final EnumType T = EnumTypes.T(Level.class);
+	public static final EnumType<Level> T = EnumTypes.T(Level.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<Level> type() {
 		return T;
 	}
 

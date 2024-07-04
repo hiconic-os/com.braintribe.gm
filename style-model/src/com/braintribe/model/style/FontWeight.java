@@ -23,10 +23,10 @@ public enum FontWeight implements EnumBase {
 	normal("normal"), bold("bold"), weight100("100"), weight200("200"), weight300("300"), weight400("400"), weight500("500"),
 	weight600("600"), weight700("700"), weight800("800"), weight900("900");
 
-    public static final EnumType T = EnumTypes.T(FontWeight.class);
+    public static final EnumType<FontWeight> T = EnumTypes.T(FontWeight.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<FontWeight> type() {
 		return T;
 	}
 

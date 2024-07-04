@@ -27,10 +27,10 @@ public enum Color implements EnumBase {
 	green,
 	blue;
 
-	public static final EnumType T = EnumTypes.T(Color.class);
+	public static final EnumType<Color> T = EnumTypes.T(Color.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<Color> type() {
 		return T;
 	}
 }

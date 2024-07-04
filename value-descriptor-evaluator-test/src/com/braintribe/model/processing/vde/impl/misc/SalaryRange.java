@@ -24,10 +24,10 @@ public enum SalaryRange implements EnumBase {
 	medium,
 	high;
 
-	public static final EnumType T = EnumTypes.T(SalaryRange.class);
+	public static final EnumType<SalaryRange> T = EnumTypes.T(SalaryRange.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<SalaryRange> type() {
 		return T;
 	}
 }

@@ -61,10 +61,10 @@ public enum MetaModelValidationViolationType implements EnumBase {
 	PERSISTENCE_INVALID_COUNT_OF_ID_PROPERTIES,
 	PERSISTENCE_ID_PROPERTY_NOT_NULLABLE;
 
-	public static final EnumType T = EnumTypes.T(MetaModelValidationViolationType.class);
+	public static final EnumType<MetaModelValidationViolationType> T = EnumTypes.T(MetaModelValidationViolationType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<MetaModelValidationViolationType> type() {
 		return T;
 	}
 

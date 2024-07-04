@@ -30,10 +30,10 @@ public enum CsaOperationType implements EnumBase {
 	STORE_RESOURCE,
 	DELETE_RESOURCE;
 
-	public static final EnumType T = EnumTypes.T(CsaOperationType.class);
+	public static final EnumType<CsaOperationType> T = EnumTypes.T(CsaOperationType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<CsaOperationType> type() {
 		return T;
 	}
 }

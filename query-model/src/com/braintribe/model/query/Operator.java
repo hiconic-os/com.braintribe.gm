@@ -36,10 +36,10 @@ public enum Operator implements EnumBase {
 	in,
 	contains;
 	
-	public static final EnumType T = EnumTypes.T(Operator.class);
+	public static final EnumType<Operator> T = EnumTypes.T(Operator.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<Operator> type() {
 		return T;
 	}
 

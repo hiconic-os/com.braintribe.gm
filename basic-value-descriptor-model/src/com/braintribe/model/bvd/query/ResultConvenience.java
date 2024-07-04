@@ -45,10 +45,10 @@ public enum ResultConvenience implements EnumBase {
 	 */
 	value;
 
-	public static final EnumType T = EnumTypes.T(ResultConvenience.class);
+	public static final EnumType<ResultConvenience> T = EnumTypes.T(ResultConvenience.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<ResultConvenience> type() {
 		return T;
 	}	
 	

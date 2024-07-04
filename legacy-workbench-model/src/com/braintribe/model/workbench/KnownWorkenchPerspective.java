@@ -32,10 +32,10 @@ public enum KnownWorkenchPerspective implements EnumBase {
 	webReader("webreader"),
 	webReaderHeaderbar("webreader-headerbar");
 
-	public static final EnumType T = EnumTypes.T(KnownWorkenchPerspective.class);
+	public static final EnumType<KnownWorkenchPerspective> T = EnumTypes.T(KnownWorkenchPerspective.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<KnownWorkenchPerspective> type() {
 		return T;
 	}
 

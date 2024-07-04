@@ -22,10 +22,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum Advice implements EnumBase {
 	before, around, after;
 
-	public static final EnumType T = EnumTypes.T(Advice.class);
+	public static final EnumType<Advice> T = EnumTypes.T(Advice.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<Advice> type() {
 		return T;
 	}	
 }

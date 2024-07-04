@@ -25,10 +25,10 @@ public enum SomeEnum implements EnumBase {
 	fix,
 	foxy;
 
-	public static final EnumType T = EnumTypes.T(SomeEnum.class);
+	public static final EnumType<SomeEnum> T = EnumTypes.T(SomeEnum.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<SomeEnum> type() {
 		return T;
 	}
 }

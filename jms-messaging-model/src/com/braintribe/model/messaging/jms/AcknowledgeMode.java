@@ -22,10 +22,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum AcknowledgeMode implements EnumBase {
 	NONE, AUTO, ONRECEIVE, AFTERPROCESSING;
 
-	public static final EnumType T = EnumTypes.T(AcknowledgeMode.class);
+	public static final EnumType<AcknowledgeMode> T = EnumTypes.T(AcknowledgeMode.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<AcknowledgeMode> type() {
 		return T;
 	}
 

@@ -28,10 +28,10 @@ public enum JoinKind implements EnumBase {
 	right,
 	full;
 
-	public static final EnumType T = EnumTypes.T(JoinKind.class);
+	public static final EnumType<JoinKind> T = EnumTypes.T(JoinKind.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<JoinKind> type() {
 		return T;
 	}	
 }

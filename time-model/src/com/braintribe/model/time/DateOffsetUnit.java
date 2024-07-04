@@ -22,10 +22,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum DateOffsetUnit implements EnumBase {
 	millisecond, second, minute, hour, day, month, year;
 
-	public static final EnumType T = EnumTypes.T(DateOffsetUnit.class);
+	public static final EnumType<DateOffsetUnit> T = EnumTypes.T(DateOffsetUnit.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<DateOffsetUnit> type() {
 		return T;
 	}
 }

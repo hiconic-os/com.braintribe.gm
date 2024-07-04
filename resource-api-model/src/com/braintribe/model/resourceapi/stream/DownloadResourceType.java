@@ -26,10 +26,10 @@ public enum DownloadResourceType implements EnumBase {
 	get,
 	stream;
 
-	public static final EnumType T = EnumTypes.T(DownloadResourceType.class);
+	public static final EnumType<DownloadResourceType> T = EnumTypes.T(DownloadResourceType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<DownloadResourceType> type() {
 		return T;
 	}
 }

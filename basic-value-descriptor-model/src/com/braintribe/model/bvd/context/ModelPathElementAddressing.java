@@ -22,10 +22,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum ModelPathElementAddressing implements EnumBase {
 	full, first, last;
 
-	public static final EnumType T = EnumTypes.T(ModelPathElementAddressing.class);
+	public static final EnumType<ModelPathElementAddressing> T = EnumTypes.T(ModelPathElementAddressing.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<ModelPathElementAddressing> type() {
 		return T;
 	}	
 }

@@ -23,10 +23,10 @@ public enum UserSessionType implements EnumBase {
 	
 	trusted, normal, internal;
 
-	public static final EnumType T = EnumTypes.T(UserSessionType.class);
+	public static final EnumType<UserSessionType> T = EnumTypes.T(UserSessionType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<UserSessionType> type() {
 		return T;
 	}	
 }

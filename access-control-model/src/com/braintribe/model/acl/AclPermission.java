@@ -27,10 +27,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum AclPermission implements EnumBase {
 	GRANT, DENY;
 
-	public static final EnumType T = EnumTypes.T(AclPermission.class);
+	public static final EnumType<AclPermission> T = EnumTypes.T(AclPermission.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<AclPermission> type() {
 		return T;
 	}	
 }

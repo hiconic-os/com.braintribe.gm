@@ -23,10 +23,10 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 public enum ProcessActivity implements EnumBase {
 	processing, waiting, ended;
 
-	public static final EnumType T = EnumTypes.T(ProcessActivity.class);
+	public static final EnumType<ProcessActivity> T = EnumTypes.T(ProcessActivity.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<ProcessActivity> type() {
 		return T;
 	}	
 }

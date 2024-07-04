@@ -24,10 +24,10 @@ public enum StageType implements EnumBase {
 	STATIC,
 	INDEXED;
 
-	public static final EnumType T = EnumTypes.T(StageType.class);
+	public static final EnumType<StageType> T = EnumTypes.T(StageType.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<StageType> type() {
 		return T;
 	}
 

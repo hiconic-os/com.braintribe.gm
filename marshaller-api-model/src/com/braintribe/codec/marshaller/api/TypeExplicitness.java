@@ -48,10 +48,10 @@ public enum TypeExplicitness implements EnumBase {
 	 */
 	never;
 	
-	public static final EnumType T = EnumTypes.T(TypeExplicitness.class);
+	public static final EnumType<TypeExplicitness> T = EnumTypes.T(TypeExplicitness.class);
 	
 	@Override
-	public EnumType type() {
+	public EnumType<TypeExplicitness> type() {
 		return T;
 	}
 
