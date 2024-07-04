@@ -196,7 +196,6 @@ public abstract class AbstractClonerTest {
 		return entityPrinter.buildToString(entity,  entityType);
 	}
 	
-	@SuppressWarnings("unchecked")
 	protected <T> T getAssemblyComplexObjectWithCollections() {
 		
 		ComplexTraversingObject c1 = ComplexTraversingObject.T.create();
@@ -261,7 +260,6 @@ public abstract class AbstractClonerTest {
 		return c1;
 	}
 	
-	@SuppressWarnings("unchecked")
 	protected <T> T getAssemblyComplexObjectWithSet() {
 		
 		ComplexTraversingObject c1 = ComplexTraversingObject.T.create();
@@ -286,7 +284,6 @@ public abstract class AbstractClonerTest {
 		return (T) c1;
 	}
 	
-	@SuppressWarnings("unchecked")
 	protected <T> T getAssemblyComplexObjectWithObjectAndList() {
 		
 		ComplexTraversingObject c1 = ComplexTraversingObject.T.create();
@@ -312,7 +309,7 @@ public abstract class AbstractClonerTest {
 		
 		c4.setEnumComplex(EnumA.three);
 		
-		s1.setNumber(new Integer(3));
+		s1.setNumber(3);
 		s1.setComplexObject(c4);
 		
 		c1.setSimpleObject(s1);
@@ -320,7 +317,6 @@ public abstract class AbstractClonerTest {
 		return (T) c1;
 	}
 	
-	@SuppressWarnings("unchecked")
 	protected <T> T getAssemblySimpleObject() {
 		
 		ComplexTraversingObject c1 = ComplexTraversingObject.T.create();
@@ -334,7 +330,7 @@ public abstract class AbstractClonerTest {
 		c1.setEnumComplex(EnumA.two);
 		
 	//	s1.setDate(new Date());
-		s1.setNumber(new Integer(3));
+		s1.setNumber(3);
 	//	s1.setComplexObject(c1);
 		
 		
@@ -351,7 +347,6 @@ public abstract class AbstractClonerTest {
 	/**
 	 * Generates an Assembly consisting of one {@link ComplexTraversingObject} that has N listItems, N SetItems, N MapItems, each with M children 
 	 */
-	@SuppressWarnings("unchecked")
 	protected <T> T getAssemblyStressComplexObjectWithCollections(int collectionSize,int collectionDepth) {
 		
 		ComplexTraversingObject c1 = ComplexTraversingObject.T.create();

@@ -114,7 +114,7 @@ public class ReasonFormatter {
 		return template;
 	}
 
-	private static Template _resolveTemplate(EntityType<? extends Reason> reasonType) {
+	private static Template _resolveTemplate(@SuppressWarnings("unused") EntityType<? extends Reason> reasonType) {
 //		SelectiveInformation si = reasonType.getJavaType().getAnnotation(SelectiveInformation.class);
 //		
 //		if (si == null)

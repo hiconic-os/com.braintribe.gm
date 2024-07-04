@@ -31,7 +31,7 @@ public interface EnumReference extends DynamicallyTypedDescriptor {
 	void setConstant(String constant);
 	String getConstant();
 
-	default EnumType enumType() {
+	default EnumType<?> enumType() {
 		return GMF.getTypeReflection().getType(getTypeSignature());
 	}
 

@@ -25,9 +25,9 @@ import com.braintribe.model.generic.reflection.EnumType;
 public class ConfigurableEntityVisiting extends EntityVisiting {
 
 	private BiFunction<EntityType<?>, GenericEntity, Boolean> entityAdder;
-	private BiConsumer<EnumType, Enum<?>> enumAdder;
+	private BiConsumer<EnumType<?>, Enum<?>> enumAdder;
 
-	public ConfigurableEntityVisiting(BiFunction<EntityType<?>, GenericEntity, Boolean> entityAdder, BiConsumer<EnumType, Enum<?>> enumAdder) {
+	public ConfigurableEntityVisiting(BiFunction<EntityType<?>, GenericEntity, Boolean> entityAdder, BiConsumer<EnumType<?>, Enum<?>> enumAdder) {
 		super();
 		this.entityAdder = entityAdder;
 		this.enumAdder = enumAdder;
@@ -46,7 +46,7 @@ public class ConfigurableEntityVisiting extends EntityVisiting {
 	}
 
 	@Override
-	protected void add(Enum<?> constant, EnumType type) {
+	protected void add(Enum<?> constant, EnumType<?> type) {
 		enumAdder.accept(type, constant);
 	}
 

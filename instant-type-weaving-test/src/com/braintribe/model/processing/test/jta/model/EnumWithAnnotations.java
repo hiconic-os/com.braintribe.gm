@@ -30,10 +30,10 @@ public enum EnumWithAnnotations implements com.braintribe.model.generic.base.Enu
 	@Color("red")
 	constant1;
 
-	public static final EnumType T = EnumTypes.T(EnumWithAnnotations.class);
+	public static final EnumType<EnumWithAnnotations> T = EnumTypes.T(EnumWithAnnotations.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<EnumWithAnnotations> type() {
 		return T;
 	}
 

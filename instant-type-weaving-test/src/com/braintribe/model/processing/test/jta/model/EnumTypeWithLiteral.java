@@ -22,10 +22,10 @@ public enum EnumTypeWithLiteral implements com.braintribe.model.generic.base.Enu
 
 	enumValue;
 
-	public static final EnumType T = EnumTypes.T(EnumTypeWithLiteral.class);
+	public static final EnumType<EnumTypeWithLiteral> T = EnumTypes.T(EnumTypeWithLiteral.class);
 
 	@Override
-	public EnumType type() {
+	public EnumType<EnumTypeWithLiteral> type() {
 		return T;
 	}
 

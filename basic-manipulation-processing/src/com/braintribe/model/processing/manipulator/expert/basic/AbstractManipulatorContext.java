@@ -205,7 +205,7 @@ public abstract class AbstractManipulatorContext implements ManipulatorContext {
 	}
 
 	private Enum<?> resolveEnum(EnumReference enumRef) {
-		EnumType enumType = typeReflection.getType(enumRef.getTypeSignature());
+		EnumType<?> enumType = typeReflection.getType(enumRef.getTypeSignature());
 		
 		return enumType.getEnumValue(enumRef.getConstant()); 
 	}

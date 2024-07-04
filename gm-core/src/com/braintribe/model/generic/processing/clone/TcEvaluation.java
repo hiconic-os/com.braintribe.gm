@@ -610,7 +610,7 @@ public class TcEvaluation {
 				try {
 					switch (keyType.getTypeCode()) {
 					case enumType:
-						decodedKey = ((EnumType)keyType).getInstance(key);
+						decodedKey = ((EnumType<?>)keyType).getInstance(key);
 						break;
 					case stringType:
 						decodedKey = key;

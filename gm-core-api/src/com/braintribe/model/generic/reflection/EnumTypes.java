@@ -24,8 +24,8 @@ public class EnumTypes {
 
 	private static GenericModelTypeReflection typeReflection = GMF.getTypeReflection();
 
-	public static <E extends Enum<E>> EnumType T(Class<E> clazz) {
-		return typeReflection.getEnumType(clazz);
+	public static <E extends Enum<E>> EnumType<E> T(Class<E> clazz) {
+		return typeReflection.getEnumTypeSafe(clazz);
 	}
 
 }

@@ -51,8 +51,9 @@ public interface GenericModelTypeReflection extends DeprecatedReflectionApi, Ess
 	SimpleType getSimpleType(Class<?> javaType);
 
 	@JsMethod(name = "getEnumTypeOf")
-	EnumType getEnumType(Enum<?> enumConstant);
-	EnumType getEnumType(Class<? extends Enum<?>> enumClass);
+	EnumType<?> getEnumType(Enum<?> enumConstant);
+	EnumType<?> getEnumType(Class<? extends Enum<?>> enumClass);
+	<E extends Enum<E>> EnumType<E> getEnumTypeSafe(Class<E> enumClass);
 
 	<T extends GenericEntity> EntityType<T> getEntityType(Class<? extends GenericEntity> entityClass) throws GenericModelException;
 
@@ -85,10 +86,10 @@ public interface GenericModelTypeReflection extends DeprecatedReflectionApi, Ess
 	@JsMethod(name = "getEntityTypeBySignature")
 	<T extends GenericEntity> EntityType<T> getEntityType(String typeSignature) throws GenericModelException;
 	@JsMethod(name = "getEnumTypeBySignature")
-	EnumType getEnumType(String typeName);
+	EnumType<?> getEnumType(String typeName);
 
 	<T extends GenericEntity> EntityType<T> findEntityType(String typeSignature);
-	EnumType findEnumType(String typeSignature);
+	EnumType<?> findEnumType(String typeSignature);
 
 	/** Returns the {@link GenericModelType} of given value. If the value is null, {@link BaseType} is returned. */
 	@JsMethod(name = "getTypeOf")

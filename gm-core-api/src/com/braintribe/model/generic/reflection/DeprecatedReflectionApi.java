@@ -16,18 +16,11 @@
 package com.braintribe.model.generic.reflection;
 
 import java.lang.reflect.Type;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.value.EntityReference;
 
 public interface DeprecatedReflectionApi {
-
-	/** @deprecated use {@link SimpleTypes#TYPES_SIMPLE} */
-	@Deprecated
-	List<SimpleType> stSimpleTypes = SimpleTypes.TYPES_SIMPLE;
 
 	/** @deprecated call {@link GenericEntity#entityType()} directly */
 	@Deprecated
@@ -48,26 +41,6 @@ public interface DeprecatedReflectionApi {
 	@Deprecated
 	GenericModelType getRegisteredType(String typeSignature) throws GenericModelException;
 
-	/** @deprecated use {@link SimpleTypes#TYPES_SIMPLE} */
-	@Deprecated
-	List<SimpleType> getSimpleTypes();
-
-	/** @deprecated use {@link SimpleTypes#TYPES_SIMPLE} of {@link GenericModelTypeReflection#getType(Class)} */
-	@Deprecated
-	Map<Class<?>, SimpleType> getSimpleTypeMap();
-
-	/** @deprecated use {@link GenericModelTypeReflection#getType(String)} */
-	@Deprecated
-	Map<String, SimpleType> getSimpleTypeNameMap();
-
-	/** @deprecated use {@link GenericModelTypeReflection#getType(Object)} */
-	@Deprecated
-	Set<Class<?>> getSimpleTypeClasses();
-
-	/** @deprecated not sure why anyone would need this... */
-	@Deprecated
-	Set<String> getSimpleTypeNames();
-
 	/** @deprecated use {@link GenericModelTypeReflection#getType(Type)} */
 	@Deprecated
 	GenericModelType getGenericModelType(Type type) throws GenericModelException;
@@ -79,13 +52,6 @@ public interface DeprecatedReflectionApi {
 	/** @deprecated use {@link GenericModelTypeReflection#getType(Object)} */
 	@Deprecated
 	GenericModelType getObjectType(Object value);
-
-	/**
-	 * @deprecated use either {@link GenericModelTypeReflection#getType(String)} or
-	 *             {@link GenericModelTypeReflection#findType(String)}.
-	 */
-	@Deprecated
-	EnumType getEnumType(String typeName, boolean require);
 
 	/**
 	 * @deprecated use {@link GenericModelTypeReflection#getType(String)} or

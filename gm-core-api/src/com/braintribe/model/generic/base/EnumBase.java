@@ -29,7 +29,7 @@ import jsinterop.annotations.JsType;
 public interface EnumBase extends GenericBase {
 
 	@Override
-	EnumType type();
+	EnumType<?> type();
 
 	int ordinal();
 

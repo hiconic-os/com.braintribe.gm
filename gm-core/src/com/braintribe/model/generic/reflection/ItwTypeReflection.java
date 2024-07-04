@@ -25,7 +25,7 @@ public interface ItwTypeReflection extends GenericModelTypeReflection {
 
 	<T extends GenericModelType> T getDeployedType(String typeSignature);
 
-	EnumType deployEnumType(Class<? extends Enum<?>> enumClass);
+	EnumType<?> deployEnumType(Class<? extends Enum<?>> enumClass);
 
 	void deployEntityType(EntityType<?> entityType);
 

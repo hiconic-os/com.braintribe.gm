@@ -198,18 +198,18 @@ public class GenericModelTypeSynthesis extends JavaTypeSynthesis {
 	private final ReentrantLock enumTypeLock = new ReentrantLock();
 
 	/** Returns a fully-initialized {@link EnumType} which corresponds to given {@link ProtoGmEnumType}; */
-	private EnumType _ensureEnumType(ProtoGmEnumType gmEnumType) throws GenericModelTypeSynthesisException {
+	private EnumType<?> _ensureEnumType(ProtoGmEnumType gmEnumType) throws GenericModelTypeSynthesisException {
 		String typeSignature = gmEnumType.getTypeSignature();
 
 		try {
-			EnumType enumType = (EnumType) typeReflection.getDeployedType(typeSignature);
+			EnumType<?> enumType = (EnumType<?>) typeReflection.getDeployedType(typeSignature);
 			if (enumType != null)
 				return enumType;
 
 			/* we are synchronizing for all equal strings, so creating two different enums at the concurrently is possible */
 			enumTypeLock.lock();
 			try {
-				enumType = (EnumType) typeReflection.getDeployedType(typeSignature);
+				enumType = (EnumType<?>) typeReflection.getDeployedType(typeSignature);
 				if (enumType != null)
 					return enumType;
 

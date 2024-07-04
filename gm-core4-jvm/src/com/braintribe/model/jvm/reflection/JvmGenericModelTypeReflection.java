@@ -44,7 +44,6 @@ import com.braintribe.model.generic.GmfException;
 import com.braintribe.model.generic.mdec.ModelDeclaration;
 import com.braintribe.model.generic.reflection.AbstractGenericModelTypeReflection;
 import com.braintribe.model.generic.reflection.EntityType;
-import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.GenericModelException;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.Model;
@@ -143,32 +142,6 @@ public class JvmGenericModelTypeReflection extends AbstractGenericModelTypeRefle
 		}
 
 		return null;
-	}
-
-	@Override
-	@Deprecated
-	public EnumType getEnumType(String typeName, boolean require) {
-		EnumType enumType = super.getEnumType(typeName);
-
-		if (enumType != null)
-			return enumType;
-
-		try {
-			Class<?> clazz = Class.forName(typeName, false, getClassLoader());
-			return getEnumType((Class<? extends Enum<?>>) clazz);
-
-		} catch (ClassNotFoundException e) {
-			if (require)
-				throw new GenericModelException("aquired custom type " + typeName + " not found", e);
-
-			return null;
-		}
-	}
-
-	@Override
-	@Deprecated
-	public EnumType getEnumType(String typeName) {
-		return getEnumType(typeName, true);
 	}
 
 	@Override

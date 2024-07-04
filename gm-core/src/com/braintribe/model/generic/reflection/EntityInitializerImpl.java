@@ -138,7 +138,7 @@ public abstract class EntityInitializerImpl implements EntityInitializer {
 	}
 
 	private static Object resolveEnumConstant(EnumReference enumReference) {
-		EnumType et = GMF.getTypeReflection().getType(enumReference.getTypeSignature());
+		EnumType<?> et = GMF.getTypeReflection().getType(enumReference.getTypeSignature());
 		return et.getEnumValue(enumReference.getConstant());
 	}
 

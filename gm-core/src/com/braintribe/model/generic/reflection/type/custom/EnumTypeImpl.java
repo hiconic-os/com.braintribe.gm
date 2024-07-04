@@ -29,14 +29,14 @@ import com.braintribe.model.generic.reflection.TypeCode;
 import com.braintribe.model.generic.tools.GmValueCodec;
 import com.braintribe.model.generic.value.EnumReference;
 
-public class EnumTypeImpl extends AbstractCustomType implements EnumType {
+public class EnumTypeImpl<E extends Enum<E>> extends AbstractCustomType implements EnumType<E> {
 
 	@Override
-	public Class<? extends Enum<?>> getJavaType() {
-		return (Class<? extends Enum<?>>) super.getJavaType();
+	public Class<E> getJavaType() {
+		return (Class<E>) super.getJavaType();
 	}
 
-	private Map<String, Enum<?>> constants;
+	private Map<String, E> constants;
 
 	public EnumTypeImpl(Class<? extends Enum<?>> javaType) {
 		super(javaType);
@@ -58,22 +58,22 @@ public class EnumTypeImpl extends AbstractCustomType implements EnumType {
 	}
 
 	@Override
-	public Enum<? extends Enum<?>>[] getEnumValues() {
-		Enum<? extends Enum<?>> enumValues[] = getJavaType().getEnumConstants();
+	public E[] getEnumValues() {
+		E enumValues[] = getJavaType().getEnumConstants();
 		return enumValues;
 	}
 
 	@Override
-	public Enum<? extends Enum<?>> getEnumValue(String name) {
+	public E getEnumValue(String name) {
 		return getInstance(name);
 	}
 
 	@Override
-	public Enum<? extends Enum<?>> findEnumValue(String name) {
+	public E findEnumValue(String name) {
 		if (constants == null) {
-			Map<String, Enum<?>> _constants = newMap();
+			Map<String, E> _constants = newMap();
 
-			for (Enum<?> enumValue : getEnumValues())
+			for (E enumValue : getEnumValues())
 				_constants.put(enumValue.name(), enumValue);
 
 			constants = _constants;
@@ -108,8 +108,8 @@ public class EnumTypeImpl extends AbstractCustomType implements EnumType {
 	}
 
 	@Override
-	public <T extends Enum<T>> T getInstance(String value) {
-		return Enum.valueOf((Class<T>) getJavaType(), value);
+	public E getInstance(String value) {
+		return Enum.valueOf(getJavaType(), value);
 	}
 
 	@Override

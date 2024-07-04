@@ -469,7 +469,7 @@ public class AnnotationsItwTests extends ImportantItwTestSuperType {
 		gmType.getMetaData().add(nameMd("md.name", "default", "default name"));
 
 		// Run GMTS
-		EnumType et = (EnumType) gmts.ensureType(gmType);
+		EnumType<?> et = (EnumType<?>) gmts.ensureType(gmType);
 
 		// Assert name annotations
 		Name declaredAnnotation = et.getJavaType().getDeclaredAnnotation(Name.class);
@@ -490,7 +490,7 @@ public class AnnotationsItwTests extends ImportantItwTestSuperType {
 		const1.getMetaData().add(nameMd("md.name", "default", "default name"));
 
 		// Run GMTS
-		EnumType et = (EnumType) gmts.ensureType(gmType);
+		EnumType<?> et = (EnumType<?>) gmts.ensureType(gmType);
 
 		// Assert name annotations
 		Name declaredAnnotation = getAnno(et, "constant1", Name.class);
@@ -505,7 +505,7 @@ public class AnnotationsItwTests extends ImportantItwTestSuperType {
 		return et.getJavaType().getDeclaredMethod(getterName).getDeclaredAnnotation(annoClass);
 	}
 
-	private <A extends Annotation> A getAnno(EnumType et, String constantName, Class<A> annoClass) throws Exception {
+	private <A extends Annotation> A getAnno(EnumType<?> et, String constantName, Class<A> annoClass) throws Exception {
 		return et.getJavaType().getField(constantName).getDeclaredAnnotation(annoClass);
 	}
 

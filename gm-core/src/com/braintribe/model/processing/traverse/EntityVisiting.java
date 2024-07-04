@@ -89,7 +89,7 @@ public abstract class EntityVisiting {
 				return;
 			case enumType:
 				if (visitEnums)
-					add((Enum<?>)value, (EnumType)type);
+					add((Enum<?>)value, (EnumType<?>)type);
 				return;
 				
 			case listType: 
@@ -162,7 +162,7 @@ public abstract class EntityVisiting {
 	
 	protected abstract boolean add(GenericEntity entity, EntityType<?> type);
 	
-	protected abstract void add(Enum<?> constant, EnumType type);
+	protected abstract void add(Enum<?> constant, EnumType<?> type);
 
 	
 	protected static class EnqueuedScan {

@@ -26,7 +26,7 @@ public class EntityCollector extends EntityVisiting {
 	private final Set<GenericEntity> entities = new HashSet<>();
 	private final Set<Enum<?>> enums = new HashSet<>();
 	private final Set<EntityType<?>> entityTypes = new HashSet<>();
-	private final Set<EnumType> enumTypes = new HashSet<>();
+	private final Set<EnumType<?>> enumTypes = new HashSet<>();
 	private boolean collectEnums;
 	private boolean collectEnumTypes;
 	private boolean collectEntityTypes;
@@ -43,7 +43,7 @@ public class EntityCollector extends EntityVisiting {
 		return enums;
 	}
 	
-	public Set<EnumType> getEnumTypes() {
+	public Set<EnumType<?>> getEnumTypes() {
 		return enumTypes;
 	}
 	
@@ -71,7 +71,7 @@ public class EntityCollector extends EntityVisiting {
 	}
 	
 	@Override
-	protected void add(Enum<?> constant, EnumType type) {
+	protected void add(Enum<?> constant, EnumType<?> type) {
 		if (collectEnums) {
 			if (enums.add(constant) && collectEnumTypes) {
 				enumTypes.add(type);
@@ -81,7 +81,7 @@ public class EntityCollector extends EntityVisiting {
 			enumTypes.add(type);
 	}
 	
-	protected boolean add(EnumType enumType) {
+	protected boolean add(EnumType<?> enumType) {
 		return enumTypes.add(enumType);
 	}
 

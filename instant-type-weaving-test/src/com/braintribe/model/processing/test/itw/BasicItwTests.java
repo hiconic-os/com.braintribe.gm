@@ -208,7 +208,7 @@ public class BasicItwTests extends ImportantItwTestSuperType {
 
 		GenericModelTypeSynthesis gmts = GenericModelTypeSynthesis.standardInstance();
 
-		EnumType et = (EnumType) gmts.ensureType(get);
+		EnumType<?> et = (EnumType<?>) gmts.ensureType(get);
 		Class<?> enumClass = et.getJavaType();
 
 		assertEquals("Wrong enum names", dayNames, getValues(enumClass));

@@ -22,18 +22,18 @@ import jsinterop.annotations.JsType;
 
 @JsType(namespace = GmCoreApiInteropNamespaces.reflection)
 @SuppressWarnings("unusable-by-js")
-public interface EnumType extends CustomType, ScalarType {
+public interface EnumType<E extends Enum<E>> extends CustomType, ScalarType {
 
 	@Override
-	Class<? extends Enum<?>> getJavaType();
+	Class<E> getJavaType();
 
-	Enum<? extends Enum<?>>[] getEnumValues();
+	E[] getEnumValues();
 
-	Enum<? extends Enum<?>> getEnumValue(String name);
+	E getEnumValue(String name);
 
-	Enum<? extends Enum<?>> findEnumValue(String name);
+	E findEnumValue(String name);
 
-	<E extends Enum<E>> E getInstance(String value);
+	E getInstance(String value);
 
 	EnumReference getEnumReference(Enum<?> enumConstant);
 

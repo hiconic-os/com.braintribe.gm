@@ -48,7 +48,7 @@ public class MetaModelOnlyItwTests extends ImportantItwTestSuperType {
 
 	private GenericEntity currentEntity;
 	private EntityType<GenericEntity> currentEntityType;
-	private EnumType currentEnumType;
+	private EnumType<?> currentEnumType;
 
 	@Test
 	public void testSimpleEntity() throws Exception {
