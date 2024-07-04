@@ -29,9 +29,11 @@ public class EnumRenderer extends CustomTypeRenderer {
 
 	private final EnumTypeContext context;
 	private final ImportManager im;
+	private String simpleName;
 
 	public EnumRenderer(EnumTypeContext context) {
 		this.context = context;
+		this.simpleName = context.typeInfo.simpleName;
 		this.im = context.importManager;
 	}
 
@@ -48,7 +50,7 @@ public class EnumRenderer extends CustomTypeRenderer {
 	}
 
 	private void printTypeHeader() {
-		println("public enum ", context.typeInfo.simpleName, " implements ", im.getTypeRef(EnumBase.class), " {");
+		println("public enum ", simpleName, " implements ", im.getTypeRef(EnumBase.class), " {");
 	}
 
 	private void printTypeBody() {
@@ -77,15 +79,14 @@ public class EnumRenderer extends CustomTypeRenderer {
 	}
 
 	private void printTypeLiteral() {
-		print("public static final ", im.getTypeRef(EnumType.class), " T = ", im.getTypeRef(EnumTypes.class), ".T(");
-		print(context.typeInfo.simpleName);
-		println(".class);");
+		print("public static final ", im.getTypeRef(EnumType.class), "<", simpleName, "> T = ", //
+				im.getTypeRef(EnumTypes.class), ".T(", simpleName, ".class);");
 		println();
 	}
 
 	private void printTypeMethod() {
 		println("@Override");
-		println("public " + im.getTypeRef(EnumType.class) + " type() {");
+		println("public " + im.getTypeRef(EnumType.class) + "<" + simpleName + "> type() {");
 
 		levelUp();
 		println("return T;");

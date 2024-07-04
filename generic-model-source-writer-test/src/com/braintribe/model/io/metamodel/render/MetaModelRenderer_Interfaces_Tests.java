@@ -99,8 +99,8 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 		assertContainsSubstrings("BLUE,\n\t;");
 		assertContainsSubstring("package " + MetaModelBuilder.COMMON_PACKAGE);
 
-		assertContainsSubstring("public static final EnumType T = EnumTypes.T(TheEnum.class);");
-		assertContainsSubstring("public EnumType type() {");
+		assertContainsSubstring("public static final EnumType<TheEnum> T = EnumTypes.T(TheEnum.class);");
+		assertContainsSubstring("public EnumType<TheEnum> type() {");
 		assertContainsSubstring("return T;");
 	}
 
@@ -120,8 +120,8 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 		for (GmEnumConstant c : gmEnumType.getConstants())
 			assertContainsSubstring("@GlobalId(\"" + c.getGlobalId() + "\")");
 
-		assertContainsSubstring("public static final EnumType T = EnumTypes.T(TheEnum.class);");
-		assertContainsSubstring("public EnumType type() {");
+		assertContainsSubstring("public static final EnumType<TheEnum> T = EnumTypes.T(TheEnum.class);");
+		assertContainsSubstring("public EnumType<TheEnum> type() {");
 		assertContainsSubstring("return T;");
 	}
 
