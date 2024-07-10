@@ -28,7 +28,13 @@ import java.time.temporal.TemporalQueries;
 import java.util.Date;
 import java.util.Locale;
 
-/* package */ class DateCoding {
+import com.braintribe.codec.marshaller.api.DateDefaultZoneOption;
+import com.braintribe.codec.marshaller.api.DateFormatOption;
+import com.braintribe.codec.marshaller.api.DateLocaleOption;
+import com.braintribe.codec.marshaller.api.GmMarshallingOptions;
+import com.braintribe.utils.DateTools;
+
+public class DateCoding {
 
 	private final DateTimeFormatter inFormatter;
 	private DateTimeFormatter outFormatter;
@@ -81,5 +87,17 @@ import java.util.Locale;
 		ZonedDateTime dateTime = ZonedDateTime.ofInstant(date.toInstant(), defaultZone);
 		outFormatter.formatTo(dateTime, writer);
 	}
+	
+	public static DateCoding fromOptions(GmMarshallingOptions options) {
+		String datePattern = options.findOrNull(DateFormatOption.class);
 
+		if (datePattern != null) {
+			ZoneId zoneId = options.findAttribute(DateDefaultZoneOption.class).map(ZoneId::of).orElse(ZoneOffset.UTC);
+			Locale locale = options.findAttribute(DateLocaleOption.class).map(Locale::forLanguageTag).orElse(Locale.US);
+
+			return new DateCoding(datePattern, zoneId, locale);
+		} else {
+			return new DateCoding(DateTools.ISO8601_DATE_WITH_MS_FORMAT_AND_Z_OPTIONAL_TIME, DateTools.ISO8601_DATE_WITH_MS_FORMAT);
+		}
+	}
 }

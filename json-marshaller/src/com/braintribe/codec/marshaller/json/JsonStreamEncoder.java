@@ -19,6 +19,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -88,8 +89,9 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 	private int indent = 0;
 	private int idSequence = 0;
 	private int currentRecurrenceDepth = 0;
+	private boolean scalarsFirst = false;
 
-	public JsonStreamEncoder(GmSerializationOptions options, Writer writer) {
+	public JsonStreamEncoder(GmSerializationOptions options, Writer writer, boolean scalarsFirst) {
 		this.writer = new UnsynchronizedBufferedWriter(writer);
 		this.dateCoding = JsonStreamMarshaller.dateTimeFormatterFromOptions(options);
 		this.rootType = options.findOrDefault(InferredRootTypeOption.class, BaseType.INSTANCE);
@@ -102,6 +104,7 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 		this.entityVisitor = options.findOrDefault(EntityVisitorOption.class, null);
 		this.propertyNameSupplier = options.findOrDefault(PropertySerializationTranslation.class, null);
 		this.typeExplicitness = options.findOrDefault(TypeExplicitnessOption.class, TypeExplicitness.auto);
+		this.scalarsFirst = scalarsFirst;
 
 		initTypeExplicitness();
 	}
@@ -405,9 +408,31 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 		public EntityTypeInfo(EntityType<?> entityType) {
 			this.entityType = entityType;
 			this.typeSignatureChars = entityType.getTypeSignature().toCharArray();
-			this.propertyInfos = entityType.getProperties().stream() //
-					.map(PropertyInfo::new) //
-					.toArray(PropertyInfo[]::new);
+			
+			List<Property> properties = entityType.getProperties();
+			
+			this.propertyInfos = new PropertyInfo[properties.size()];
+
+			if (scalarsFirst) {
+				int i = 0;
+				
+				for (Property property: properties) {
+					if (property.getType().isScalar())
+						propertyInfos[i++] = new PropertyInfo(property);
+				}
+				
+				for (Property property: properties) {
+					if (!property.getType().isScalar())
+						propertyInfos[i++] = new PropertyInfo(property);
+				}
+			}
+			else {
+				int i = 0;
+				
+				for (Property property: properties) {
+					propertyInfos[i++] = new PropertyInfo(property);
+				}
+			}
 		}
 	}
 

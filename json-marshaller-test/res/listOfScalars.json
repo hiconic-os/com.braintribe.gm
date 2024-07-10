@@ -6,6 +6,8 @@
     2.5,
     132132142354215421,
     { "_type": "long", "value": "5"},
+    { "_type": "decimal", "value": "123456789123456789123456789123456789"},
+    { "_type": "date", "value": "1990-01-14Z"},
     { "_type": "com.braintribe.codec.marshaller.json.model.TestEnum", "value": "ONE"},
     { "_type": "com.braintribe.codec.marshaller.json.model.TestEnum", "value": "TWO"},
     { "_type": "com.braintribe.codec.marshaller.json.model.TestEnum", "value": "THREE"},
@@ -27,9 +29,6 @@
         "_type": "com.braintribe.codec.marshaller.json.model.TestEntity"
     },
     { 
-        "integerValue": 1,
-        "floatValue": 2.1,
-        "doubleValue": 3.14,
         "decimalValue": 2.81,
         "_type": "com.braintribe.codec.marshaller.json.model.TestEntity"
     },
@@ -46,6 +45,10 @@
             "floatValue": 1
         },
         "_type": "com.braintribe.codec.marshaller.json.model.TestEntity"
+    },
+    { 
+    	"_type": "com.braintribe.codec.marshaller.json.model.TestEntity",
+		"stringValue": null,
+		"stringMap": ["null", null, "one", "eins"]
     }
-
 ]

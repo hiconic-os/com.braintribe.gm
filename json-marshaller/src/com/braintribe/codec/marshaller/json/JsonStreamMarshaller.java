@@ -28,6 +28,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -59,10 +60,15 @@ import com.braintribe.codec.marshaller.api.HasStringCodec;
 import com.braintribe.codec.marshaller.api.IdTypeSupplier;
 import com.braintribe.codec.marshaller.api.IdentityManagementMode;
 import com.braintribe.codec.marshaller.api.IdentityManagementModeOption;
+import com.braintribe.codec.marshaller.api.JsonDecoderVersion;
 import com.braintribe.codec.marshaller.api.MarshallException;
 import com.braintribe.codec.marshaller.api.PropertyDeserializationTranslation;
 import com.braintribe.codec.marshaller.api.PropertyTypeInferenceOverride;
 import com.braintribe.codec.marshaller.api.options.attributes.InferredRootTypeOption;
+import com.braintribe.codec.marshaller.json.buffer.JsonModelDataParser;
+import com.braintribe.gm.model.reason.Maybe;
+import com.braintribe.gm.model.reason.Reasons;
+import com.braintribe.gm.model.reason.essential.ParseError;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
@@ -82,8 +88,11 @@ import com.braintribe.model.generic.reflection.SetType;
 import com.braintribe.model.generic.reflection.TypeCode;
 import com.braintribe.model.generic.session.GmSession;
 import com.braintribe.utils.DateTools;
+import com.braintribe.utils.collection.impl.AttributeContexts;
+import com.braintribe.utils.lcd.StringTools;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonLocation;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 
@@ -93,6 +102,8 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 
 	private boolean createEnhancedEntities = true;
 	private boolean snakeCaseProperties = false;
+	private Boolean useBufferingDecoder = null;
+	private boolean writeScalarsFirst = false;
 
 	private static class EntityRegistration {
 		public List<Consumer<GenericEntity>> consumers;
@@ -128,6 +139,16 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 	public void setSnakeCaseProperties(boolean snakeCaseProperties) {
 		this.snakeCaseProperties = snakeCaseProperties;
 	}
+	
+	@Configurable
+	public void setUseBufferingDecoder(boolean useBufferingDecoder) {
+		this.useBufferingDecoder = useBufferingDecoder;
+	}
+	
+	@Configurable
+	public void setWriteScalarsFirst(boolean writeScalarsFirst) {
+		this.writeScalarsFirst = writeScalarsFirst;
+	}
 
 	@Override
 	public void marshall(OutputStream out, Object value) throws MarshallException {
@@ -155,10 +176,22 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 
 	@Override
 	public void marshall(Writer writer, Object value, GmSerializationOptions options) throws MarshallException {
-		new JsonStreamEncoder(options, writer).encode(value);
+		new JsonStreamEncoder(options, writer, writeScalarsFirst).encode(value);
 	}
 
 	private static abstract class ContainerDecoder {
+		protected DecodingContext context;
+		protected JsonLocation startLocation;
+		
+		public ContainerDecoder(DecodingContext context) {
+			this.context = context;
+			this.startLocation = context.parser.currentTokenLocation();
+		}
+		
+		public JsonLocation startLocation() {
+			return startLocation;
+		}
+		
 		public abstract ContainerDecoder arrayDecoder() throws Exception;
 		public abstract ContainerDecoder objectDecoder() throws Exception;
 
@@ -193,15 +226,18 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		public abstract Object getValue();
 
 		public abstract EntityRegistration isDeferred();
+		
+		protected JsonModelDataMappingException modelMappingError(String msg) {
+			throw new JsonModelDataMappingException(msg);			
+		}
 	}
 
 	private abstract static class ValueDecoder extends ContainerDecoder {
 		protected GenericModelType inferredType;
-		protected DecodingContext context;
 		protected boolean ignoreValue = false;
 
 		public ValueDecoder(DecodingContext context) {
-			this.context = context;
+			super(context);
 		}
 
 		@Override
@@ -216,7 +252,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 
 			return ignoreValueThisTime;
 		}
-
+		
 		protected String toCamelCase(String value, char delimiter) {
 			String pascalCase = WordUtils.capitalizeFully(value, new char[] { delimiter }).replace(Character.toString(delimiter), "");
 			return Character.toLowerCase(pascalCase.charAt(0)) + pascalCase.substring(1);
@@ -225,7 +261,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		@Override
 		public ContainerDecoder arrayDecoder() throws Exception {
 			if (ignoreValue())
-				return new NoopDecoder();
+				return new NoopDecoder(context);
 
 			switch (inferredType.getTypeCode()) {
 				case objectType:
@@ -237,14 +273,14 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 				case listType:
 					return new TypedCollectionFromArrayDecoder((ListType) inferredType, context);
 				default:
-					throw new IllegalStateException("json array literal is not assignable to: " + inferredType);
+					throw modelMappingError("Syntax error assigning JSON array literal to type " + inferredType);
 			}
 		}
 
 		@Override
 		public ContainerDecoder objectDecoder() {
 			if (ignoreValue())
-				return new NoopDecoder();
+				return new NoopDecoder(context);
 
 			switch (inferredType.getTypeCode()) {
 				case objectType:
@@ -259,10 +295,10 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 				case enumType:
 					return new GenericObjectDecoder(context, inferredType);
 				default:
-					throw new IllegalStateException("json object literal is not assignable to: " + inferredType);
+					throw modelMappingError("Syntax error assigning JSON object literal to type " + inferredType);
 			}
 		}
-
+		
 		@Override
 		public void consumeInteger(Integer value) {
 			if (ignoreValue())
@@ -286,7 +322,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					consumeDirect(EssentialTypes.TYPE_DECIMAL, BigDecimal.valueOf(value));
 					break;
 				default:
-					throw new IllegalStateException(value + " is not assignable to: " + inferredType);
+					onTypeMismatch(inferredType, EssentialTypes.TYPE_INTEGER, value);
 			}
 		}
 
@@ -304,7 +340,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					consumeDirect(EssentialTypes.TYPE_DECIMAL, BigDecimal.valueOf(value));
 					break;
 				default:
-					throw new IllegalStateException(value + " is not assignable to: " + inferredType);
+					onTypeMismatch(inferredType, EssentialTypes.TYPE_LONG, value);
 			}
 		}
 
@@ -325,7 +361,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					consumeDirect(EssentialTypes.TYPE_DECIMAL, BigDecimal.valueOf(value));
 					break;
 				default:
-					throw new IllegalStateException(value + " is not assignable to: " + inferredType);
+					onTypeMismatch(inferredType, EssentialTypes.TYPE_FLOAT, value);
 			}
 		}
 
@@ -346,7 +382,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					consumeDirect(EssentialTypes.TYPE_DECIMAL, BigDecimal.valueOf(value));
 					break;
 				default:
-					throw new IllegalStateException(value + " is not assignable to: " + inferredType);
+					onTypeMismatch(inferredType, EssentialTypes.TYPE_DOUBLE, value);
 			}
 		}
 
@@ -361,7 +397,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					consumeDirect(EssentialTypes.TYPE_DECIMAL, value);
 					break;
 				default:
-					throw new IllegalStateException(value + " is not assignable to: " + inferredType);
+					onTypeMismatch(inferredType, EssentialTypes.TYPE_DECIMAL, value);
 			}
 		}
 
@@ -376,7 +412,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					consumeDirect(EssentialTypes.TYPE_BOOLEAN, value);
 					break;
 				default:
-					throw new IllegalStateException(value + " is not assignable to: " + inferredType);
+					onTypeMismatch(inferredType, EssentialTypes.TYPE_BOOLEAN, value);
 			}
 		}
 
@@ -391,22 +427,60 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					consumeDirect(EssentialTypes.TYPE_STRING, value);
 					break;
 				case dateType:
-					consumeDirect(EssentialTypes.TYPE_DATE, context.dateCoding.decode(value));
+					consumeDirect(EssentialTypes.TYPE_DATE, parseDate(value));
 					break;
 				case longType:
-					consumeDirect(EssentialTypes.TYPE_LONG, Long.parseLong(value));
+					consumeDirect(EssentialTypes.TYPE_LONG, parseLong(value));
 					break;
 				case decimalType:
-					consumeDirect(EssentialTypes.TYPE_DECIMAL, new BigDecimal(value));
+					consumeDirect(EssentialTypes.TYPE_DECIMAL, parseDecimal(value));
 					break;
 				case enumType:
-					consumeDirect(inferredType, ((EnumType) inferredType).findEnumValue(value));
+					consumeDirect(inferredType, parseEnum((EnumType) inferredType, value));
 					break;
 				default:
-					throw new IllegalStateException(value + " is not assignable to: " + inferredType);
+					onTypeMismatch(inferredType, EssentialTypes.TYPE_STRING, value);
 			}
 		}
-
+		
+		private long parseLong(String longString) {
+			try {
+				return Long.parseLong(longString);
+			}
+			catch (NumberFormatException e) {
+				throw modelMappingError(e.getMessage());
+			}
+		}
+		
+		private BigDecimal parseDecimal(String decimalString) {
+			try {
+				return new BigDecimal(decimalString);
+			}
+			catch (NumberFormatException e) {
+				throw modelMappingError(e.getMessage());
+			}
+		}
+		
+		private Date parseDate(String dateString) {
+			try {
+				return context.dateCoding.decode(dateString);
+			}
+			catch (IllegalArgumentException e) {
+				throw modelMappingError(e.getMessage());
+			}
+		}
+		
+		private Enum<? extends Enum<?>> parseEnum(EnumType enumType, String constantString) {
+			Enum<? extends Enum<?>> enumValue = enumType.findEnumValue(constantString);
+			
+			if (enumValue != null)
+				return enumValue;
+			
+			String safeVal = StringTools.truncateIfRequired(constantString, 20, true);
+			
+			throw modelMappingError("Unknown enum constant [" + safeVal + "] in enum type " + enumType.getTypeSignature());
+		}
+		
 		private void consumeMap(MapType mapType, Map<?, ?> value) {
 			if (ignoreValue())
 				return;
@@ -426,7 +500,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					}
 					break;
 				default:
-					throw new IllegalStateException(value + " is not assignable to: " + inferredType);
+					onTypeMismatch(inferredType, mapType, value);
 			}
 		}
 
@@ -450,7 +524,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					}
 					break;
 				default:
-					throw new IllegalStateException(value + " is not assignable to: " + inferredType);
+					onTypeMismatch(inferredType, listType, value);
 			}
 		}
 
@@ -470,10 +544,19 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					}
 					break;
 				default:
-					throw new IllegalStateException(value + " is not assignable to: " + inferredType);
+					onTypeMismatch(inferredType, setType, value);
 			}
 		}
-
+		
+		protected void onTypeMismatch(GenericModelType expected, GenericModelType actual, Object value) {
+			String safeVal = StringTools.truncateIfRequired(String.valueOf(value), 20, true);
+			throw modelMappingError("Value [" + safeVal + "] of type " + actual.getTypeSignature() + " is not assignable to type " + expected.getTypeSignature());
+		}
+		
+		protected JsonModelDataMappingException typeMismatch(GenericModelType expected, GenericModelType actual) {
+			return modelMappingError("Type " + actual.getTypeSignature() + " is not assignable to type " + expected.getTypeSignature());
+		}
+		
 		private Object convertCollection(LinearCollectionType targetType, Collection<?> source) {
 			ContainerDecoder decoder = new TypedCollectionFromArrayDecoder(targetType, context);
 
@@ -566,7 +649,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					if (inferredType.isAssignableFrom(type)) {
 						consumeDirect(type, value);
 					} else {
-						throw new IllegalStateException(value + " is not assignable to: " + inferredType);
+						onTypeMismatch(inferredType, type, value);
 					}
 					break;
 			}
@@ -580,6 +663,9 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 	}
 
 	private static class NoopDecoder extends ContainerDecoder {
+		public NoopDecoder(DecodingContext context) {
+			super(context);
+		}
 		// @formatter:off
 		@Override public ContainerDecoder arrayDecoder() throws Exception { return this; }
 		@Override public ContainerDecoder objectDecoder() throws Exception { return this; }
@@ -599,7 +685,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		@Override public EntityRegistration isDeferred() { return null; }
 		// @formatter:on
 	}
-
+	
 	private static class FieldValue {
 		public String name;
 		public GenericModelType type;
@@ -681,8 +767,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 				String realName = name.substring(1);
 				property = context.resolveProperty(entityType, realName);
 				if (property == null && !context.isPropertyLenient) {
-					throw new NullPointerException(
-							"Property " + realName + " (referenced as " + name + ") of " + entityType + " doesn't exist.");
+					throw modelMappingError("Unknown property [" + realName + "] within type " + entityType.getTypeSignature());
 				}
 				if (property != null) {
 					this.inferredType = AbsenceInformation.T;
@@ -698,7 +783,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 				}
 				property = context.resolveProperty(entityType, name);
 				if (property == null && !context.isPropertyLenient) {
-					throw new NullPointerException("Property " + name + " of " + entityType + " doesn't exist.");
+					throw modelMappingError("Unknown property [" + name + "] within type " + entityType.getTypeSignature());
 				}
 				if (property != null) {
 					this.inferredType = context.getInferredPropertyType(entityType, property);
@@ -727,7 +812,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 				}
 			}
 		}
-
+		
 		private Function<Object, Object> buildCollectionCaster(GenericModelType source, GenericModelType target) {
 			switch (target.getTypeCode()) {
 				case listType:
@@ -744,8 +829,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 						return casted;
 					};
 				default:
-					throw new IllegalStateException(
-							"Cannot assign value of type " + source.getTypeSignature() + " to property with type " + target.getTypeSignature());
+					throw typeMismatch(target, source);
 			}
 		}
 
@@ -843,14 +927,11 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 				case objectType:
 					return new TypedCollectionFromArrayDecoder(EssentialCollectionTypes.TYPE_LIST, context);
 				case mapType:
-					if (encodingType.equals("flatmap"))
-						return new TypedMapFromArrayDecoder((MapType) inferredType, context);
-					else
-						return new TypedMapFromEntryArrayDecoder((MapType) inferredType, context);
+					return new TypedMapFromArrayDecoder((MapType) inferredType, context);
 				case setType:
 					return new TypedCollectionFromArrayDecoder((SetType) inferredType, context);
 				default:
-					throw new IllegalStateException("json array literal is not assignable to: " + inferredType);
+					throw modelMappingError("Syntax error assigning JSON array literal to type " + inferredType);
 			}
 		}
 
@@ -949,13 +1030,13 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		@Override
 		public void setField(String name) {
 			if (!name.equals("_ref"))
-				throw new IllegalStateException("reference object literal can only have the property \"_ref\"");
+				throw modelMappingError("Syntax error: reference object literal can only have the property \"_ref\"");
 		}
 
 		@Override
 		public void consumeDirect(GenericModelType type, Object value) {
 			if (value == null)
-				throw new IllegalStateException("reference object literal must have a null value for the property \"_ref\"");
+				throw modelMappingError("Value error: reference object literal must have a null value for the property \"_ref\"");
 
 			registration = context.lookupEntity(value.toString());
 		}
@@ -983,15 +1064,17 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 				return null;
 		}
 	}
-
+	
 	private static class GenericObjectDecoder extends ContainerDecoder implements Consumer<FieldValue> {
-		private final DecodingContext context;
 		private ContainerDecoder delegate;
 		private final GenericModelType inferredContainerType;
+		
+		private FieldValue firstField;
+		private FieldValue lastField;
 
 		public GenericObjectDecoder(DecodingContext context, GenericModelType inferredContainerType) {
+			super(context);
 			this.delegate = new BufferDecoder(this, context);
-			this.context = context;
 			this.inferredContainerType = inferredContainerType;
 		}
 
@@ -1051,7 +1134,12 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					}
 					break;
 				default:
-					type = GMF.getTypeReflection().getType(typeSignature);
+					type = GMF.getTypeReflection().findType(typeSignature);
+					
+					if (type == null) {
+						throw modelMappingError("Unknown type [" + typeSignature + "]");
+					}
+					
 					break;
 			}
 
@@ -1298,7 +1386,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 				state = 2;
 				inferredType = mapType.getValueType();
 			} else
-				throw new IllegalStateException("expected key or value field but got: " + name);
+				throw modelMappingError("Expected key or value field but got [" + name + "]");
 		}
 
 		@Override
@@ -1311,7 +1399,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					entry.value = value;
 					break;
 				default:
-					throw new IllegalStateException("received a not key/value field value");
+					throw modelMappingError("Received a none key/value field value");
 			}
 		}
 
@@ -1327,7 +1415,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					entry.valueDeferring = registration;
 					break;
 				default:
-					throw new IllegalStateException("received a not key/value field value");
+					throw modelMappingError("Received a none key/value field value");
 			}
 		}
 
@@ -1346,11 +1434,10 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 
 		private final Map<Object, Object> map;
 		private final MapType mapType;
-		private final DecodingContext context;
 
 		public TypedMapFromEntryArrayDecoder(MapType mapType, DecodingContext context) {
+			super(context);
 			this.mapType = mapType;
-			this.context = context;
 			this.map = mapType.createPlain();
 		}
 
@@ -1424,9 +1511,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			JsonFactory factory = new JsonFactory();
 			parser = factory.createParser(in);
 
-			DecodingContext context = new DecodingContext(options, parser, createEnhancedEntities, snakeCaseProperties);
-			return context.unmarshall();
-
+			return unmarshall(parser, options);
 		} catch (Exception e) {
 			String location = getDiagnosticInformation(parser);
 			throw new MarshallException("json codec error during unmarshalling" + location, e);
@@ -1483,12 +1568,66 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			JsonFactory factory = new JsonFactory();
 			JsonParser parser = factory.createParser(reader);
 
-			DecodingContext context = new DecodingContext(options, parser, createEnhancedEntities, snakeCaseProperties);
-			return context.unmarshall();
-
+			return unmarshall(parser, options);
 		} catch (Exception e) {
 			throw new MarshallException("json codec error during unmarshalling", e);
 		}
+	}
+	
+	@Override
+	public Maybe<Object> unmarshallReasoned(InputStream in, GmDeserializationOptions options) {
+		JsonParser parser = null;
+		try {
+			JsonFactory factory = new JsonFactory();
+			parser = factory.createParser(in);
+
+			return unmarshallReasoned(parser, options);
+		} catch (Exception e) {
+			String location = getDiagnosticInformation(parser);
+			throw new MarshallException("json codec error during unmarshalling" + location, e);
+		}
+	}
+	
+	@Override
+	public Maybe<Object> unmarshallReasoned(Reader reader, GmDeserializationOptions options) {
+		try {
+			JsonFactory factory = new JsonFactory();
+			JsonParser parser = factory.createParser(reader);
+
+			return unmarshallReasoned(parser, options);
+		} catch (Exception e) {
+			throw new MarshallException("json codec error during unmarshalling", e);
+		}
+	}
+	
+	private Object unmarshall(JsonParser parser, GmDeserializationOptions options) throws Exception {
+		if (useBufferingDecoder()) {
+			return unmarshallReasoned(parser, options).get();
+		}
+		else {
+			DecodingContext context = new DecodingContext(options, parser, createEnhancedEntities, snakeCaseProperties);
+			return context.unmarshall();
+		}
+	}
+	
+	private Maybe<Object> unmarshallReasoned(JsonParser parser, GmDeserializationOptions options) throws Exception {
+		if (useBufferingDecoder()) {
+			JsonModelDataParser modelDataParser = new JsonModelDataParser(parser, options, createEnhancedEntities, snakeCaseProperties);
+			return modelDataParser.parse();
+		}
+		else {
+			DecodingContext context = new DecodingContext(options, parser, createEnhancedEntities, snakeCaseProperties);
+			return context.unmarshallReasoned();
+		}
+	}
+	
+	private boolean useBufferingDecoder() {
+		if (useBufferingDecoder == null) {
+			Integer decoderVersion = AttributeContexts.peek().findOrDefault(JsonDecoderVersion.class, 1);
+			
+			return decoderVersion > 1;
+		}
+		return useBufferingDecoder;
 	}
 
 	@Override
@@ -1504,6 +1643,11 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		} catch (MarshallException e) {
 			throw new CodecException("error while unmarshalling", e);
 		}
+	}
+	
+	public Maybe<Object> decodeReasoned(String encodedValue, GmDeserializationOptions options) {
+		StringReader reader = new StringReader(encodedValue);
+		return unmarshallReasoned(reader, options);
 	}
 
 	@Override
@@ -1634,30 +1778,27 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		public Property resolveProperty(EntityType<?> entityType, String realName) {
 			return propertySupplier != null ? propertySupplier.apply(entityType, realName) : entityType.findProperty(realName);
 		}
-
+		
 		private Object unmarshall() throws Exception {
 			JsonToken token = null;
 
 			TopDecoder topDecoder = new TopDecoder(inferredRootType, this);
 			Deque<ContainerDecoder> stack = new ArrayDeque<>();
 			ContainerDecoder decoder = topDecoder;
-
-			while ((token = parser.nextValue()) != null) {
-
-				String fieldName = parser.getCurrentName();
+			
+			while ((token = parser.nextToken()) != null) {
 
 				switch (token) {
+					case FIELD_NAME:
+						decoder.setField(parser.getCurrentName());
+						break;
 					case START_OBJECT:
-						if (fieldName != null)
-							decoder.setField(fieldName);
 						ContainerDecoder objectDecoder = decoder.objectDecoder();
 						stack.push(decoder);
 						decoder = objectDecoder;
 						break;
 
 					case START_ARRAY:
-						if (fieldName != null)
-							decoder.setField(fieldName);
 						ContainerDecoder arrayDecoder = decoder.arrayDecoder();
 						stack.push(decoder);
 						decoder = arrayDecoder;
@@ -1678,22 +1819,18 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 						if (deferred != null)
 							decoder.consumeDeferred(deferred);
 						else {
-							checkIfTypeIsMissing(closingObjectContainer, fieldName, stack, decoder);
+							checkIfTypeIsMissing(closingObjectContainer, parser.currentName(), stack, decoder);
 							decoder.consumeAssignable(closingObjectContainer.getType(), closingObjectContainer.getValue());
 						}
 						break;
 
 					case VALUE_NULL:
-						if (fieldName != null)
-							decoder.setField(fieldName);
 						decoder.consumeDirect(BaseType.INSTANCE, null);
 						break;
 
 					case VALUE_NUMBER_FLOAT:
 					case VALUE_NUMBER_INT:
-						if (fieldName != null)
-							decoder.setField(fieldName);
-						if (GenericEntity.id.equals(fieldName)) {
+						if (GenericEntity.id.equals(parser.currentName())) {
 							decoder.consumeLong(parser.getLongValue());
 						} else {
 							switch (parser.getNumberType()) {
@@ -1722,18 +1859,12 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 						break;
 
 					case VALUE_STRING:
-						if (fieldName != null)
-							decoder.setField(fieldName);
 						decoder.consumeString(parser.getText());
 						break;
 					case VALUE_TRUE:
-						if (fieldName != null)
-							decoder.setField(fieldName);
 						decoder.consumeBoolean(Boolean.TRUE);
 						break;
 					case VALUE_FALSE:
-						if (fieldName != null)
-							decoder.setField(fieldName);
 						decoder.consumeBoolean(Boolean.FALSE);
 						break;
 
@@ -1743,6 +1874,35 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			}
 
 			return topDecoder.getValue();
+		}
+		
+		private Maybe<Object> unmarshallReasoned() throws Exception {
+			try {
+				return Maybe.complete(unmarshall());
+			}
+			catch (JsonParseException e) {
+				
+				JsonLocation l1 = parser.currentTokenLocation();
+				JsonLocation l2 = e.getLocation();
+				String msg = e.getOriginalMessage() + " " + asSpanString(l1, l2);
+				return Reasons.build(ParseError.T).text(msg).toMaybe();
+			}
+			catch (JsonModelDataMappingException e) {
+				return Reasons.build(ParseError.T).text(e.getMessage()).toMaybe();
+			}
+		}
+		
+		private String asSpanString(JsonLocation loc1, JsonLocation loc2) {
+			int l1 = loc1.getLineNr();
+			int c1 = loc1.getColumnNr();
+			int l2 = loc2.getLineNr();
+			int c2 = loc2.getColumnNr();
+			
+			if (l1 == l2)
+				return "(line: " + l1+", pos: "+c1+"-"+c2+")";
+			else
+				return "(line: " + l1+", pos: "+c1+" to line: " + l2 + ", pos: " + c2 +")";
+				
 		}
 
 	}

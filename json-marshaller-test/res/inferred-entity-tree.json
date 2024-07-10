@@ -20,7 +20,7 @@
                 "entityValue": { "_ref": "1" }
             },
             "stringObjectMap": {
-                "refkey": { "_ref": 1}
+                "refkey": { "_ref": "1"}
             },
             "stringMap": {
                 "foo": "1",

@@ -43,6 +43,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -80,6 +81,11 @@ import com.braintribe.codec.marshaller.json.model.abstractentities.ThirdLevelImp
 import com.braintribe.codec.marshaller.json.model.pets.Category;
 import com.braintribe.codec.marshaller.json.model.pets.Pet;
 import com.braintribe.codec.marshaller.json.model.pets.Tag;
+import com.braintribe.gm.model.reason.Reason;
+import com.braintribe.gm.model.reason.ReasonException;
+import com.braintribe.gm.model.reason.essential.InvalidArgument;
+import com.braintribe.gm.model.reason.essential.NotFound;
+import com.braintribe.gm.model.reason.essential.ParseError;
 import com.braintribe.model.access.smood.basic.SmoodAccess;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
@@ -120,6 +126,7 @@ import com.braintribe.utils.genericmodel.GmTools;
 import com.braintribe.utils.lcd.StringTools;
 
 public class StreamMarshallerTest {
+	
 
 	@Test
 	public void testCustomDateFormat() {
@@ -127,7 +134,7 @@ public class StreamMarshallerTest {
 
 		String json = "{ \"_type\": \"date\", \"value\": \"1992-10-10\" }";
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		Date dateRead = (Date) marshaller.decode(json, GmDeserializationOptions.deriveDefaults().set(DateFormatOption.class, pattern).build());
 
 		LocalDate localDate = LocalDate.of(1992, 10, 10);
@@ -138,6 +145,10 @@ public class StreamMarshallerTest {
 		String jsonOut = marshaller.encode(dateRead, GmSerializationOptions.deriveDefaults().set(DateFormatOption.class, pattern).build());
 
 		Assert.assertEquals("{\"value\":\"1992-10-10\", \"_type\":\"date\"}", jsonOut);
+	}
+
+	protected JsonStreamMarshaller newJsonMarshaller() {
+		return new JsonStreamMarshaller();
 	}
 
 	@Test
@@ -158,7 +169,7 @@ public class StreamMarshallerTest {
 		}; 
 		
 		
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		
 		PerformanceCertificate parsedEntity = (PerformanceCertificate) marshaller.decode(json, 
 				GmDeserializationOptions.deriveDefaults()
@@ -191,7 +202,7 @@ public class StreamMarshallerTest {
 
 	@Test
 	public void testPropertyTypeInferenceOverride() throws IOException {
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 
 		Map<Property, GenericModelType> inferences = new HashMap<>();
 		inferences.put(BasicEntity.T.getProperty("firstLevelAbstract"), FirstLevelImpl.T);
@@ -227,20 +238,71 @@ public class StreamMarshallerTest {
 
 	@Test
 	public void testPrimitives() throws Exception {
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 
-		Object parsedValue = null;
+		List<Object> parsedValue = null;
 
 		try (InputStream in = new FileInputStream("res/listOfScalars.json")) {
-			parsedValue = marshaller.unmarshall(in);
+			parsedValue = (List<Object>) marshaller.unmarshall(in);
 		}
+		
+		int i = 0;
+		
+		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(1);
+		Assertions.assertThat(parsedValue.get(i++)).isEqualTo("Hallo");
+		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(true);
+		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(false);
+		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(2.5);
+		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(132132142354215421l);
+		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(5l);
+		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(new BigDecimal("123456789123456789123456789123456789"));
+		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(Date.from(LocalDate.of(1990, 1, 14).atStartOfDay(ZoneOffset.UTC).toInstant()));
+		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(TestEnum.ONE);
+		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(TestEnum.TWO);
+		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(TestEnum.THREE);
+		
+		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(Map.of("one", 1, "two", 2, "three", 3));
+		
+		TestEntity e1 = (TestEntity) parsedValue.get(i++);
+		
+		Assertions.assertThat(e1.getIntegerValue()).isEqualTo(1);
+		Assertions.assertThat(e1.getFloatValue()).isEqualTo(2f);
+		
+		TestEntity e2 = (TestEntity) parsedValue.get(i++);
+		
+		Assertions.assertThat(e2.getIntegerValue()).isEqualTo(1);
+		Assertions.assertThat(e2.getFloatValue()).isEqualTo(2.1f);
+		Assertions.assertThat(e2.getDoubleValue()).isEqualTo(3.14);
+		Assertions.assertThat(e2.getDecimalValue()).isEqualTo(new BigDecimal("2.8132142342314231412432315214231423155214231423152314231412212"));
+		
+		TestEntity e3 = (TestEntity) parsedValue.get(i++);
+		
+		Assertions.assertThat(e3.getDecimalValue()).isEqualTo(new BigDecimal("2.81"));
 
-		System.out.println(GmTools.getDescriptionForObject(parsedValue));
+		TestEntity e4 = (TestEntity) parsedValue.get(i++);
+		TestEntity e4_1 = e4.getEntityValue();
+		
+		Assertions.assertThat(e4_1.getStringValue()).isEqualTo("Hallo");
+		Assertions.assertThat(e4_1.getFloatValue()).isEqualTo(1f);
+		
+		TestEntity e5 = (TestEntity) parsedValue.get(i++);
+		TestEntity e5_1 = e4.getEntityValue();
+		
+		Assertions.assertThat(e5_1.getStringValue()).isEqualTo("Hallo");
+		Assertions.assertThat(e5_1.getFloatValue()).isEqualTo(1f);
+		
+		TestEntity e6 = (TestEntity) parsedValue.get(i++);
+		
+		Assertions.assertThat(e6.getStringValue()).isNull();
+		Map<String, String> expectedMap = new HashMap<>();
+		expectedMap.put("null", null);
+		expectedMap.put("one", "eins");
+		Assertions.assertThat(e6.getStringMap()).isEqualTo(expectedMap);
 	}
 
 	@Test
 	public void testDeepTreeInference() throws Exception {
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 
 		Object parsedValue = null;
 
@@ -259,19 +321,30 @@ public class StreamMarshallerTest {
 		e1.setEntityValue(e2);
 		e1.getStringSet().addAll(Arrays.asList("one", "two", "three"));
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 
 		marshaller.marshall(System.out, e1, GmSerializationOptions.deriveDefaults().set(TypeExplicitnessOption.class, TypeExplicitness.polymorphic)
 				.outputPrettiness(OutputPrettiness.high).build());
 	}
 
 	@Test
-	public void testLs() throws Exception {
-		String json = "{\"_type\": \"com.braintribe.model.generic.i18n.LocalizedString\", \"_id\": \"86\","
-				+ "\"globalId\": \"ls:SelectiveInformation:type:com.braintribe.model.meta.GmSimpleType\","
-				+ "\"localizedValues\": {\"_type\": \"map\", \"value\":[" + "{\"key\":\"default\", \"value\":\"${typeSignature}\"}" + "]}}";
+	public void testLocalizedString() throws Exception {
+		String json = """
+				{
+				    "_type": "com.braintribe.model.generic.i18n.LocalizedString",
+				    "_id": "86",
+				    "globalId": "ls:SelectiveInformation:type:com.braintribe.model.meta.GmSimpleType",
+				    "localizedValues": {
+				        "_type": "map",
+				        "value": [
+				            "default",
+				            "${typeSignature}"
+				        ]
+				    }
+				}
+				""";
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		LocalizedString ls = (LocalizedString) marshaller.decode(json);
 
 		Map<String, String> expectedValues = new HashMap<>();
@@ -284,13 +357,15 @@ public class StreamMarshallerTest {
 
 	@Test
 	public void testMap() throws Exception {
-		String json = "{\"_type\": \"map\", \"value\":[" + "{\"key\":\"default\", \"value\":\"${typeSignature}\"}" + "]}";
+		String json = """
+				{"_type": "map", "value":["k1", "v1", "k2", "v2"]}""";
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		Object value = marshaller.decode(json);
 
 		Map<String, String> expectedValues = new HashMap<>();
-		expectedValues.put("default", "${typeSignature}");
+		expectedValues.put("k1", "v1");
+		expectedValues.put("k2", "v2");
 
 		Map<String, String> actualValues = (Map<String, String>) value;
 
@@ -313,7 +388,7 @@ public class StreamMarshallerTest {
 
 		StringWriter writer = new StringWriter();
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 
 		marshaller.marshall(writer, user, GmSerializationOptions.deriveDefaults().outputPrettiness(OutputPrettiness.mid)
 				.set(TypeExplicitnessOption.class, TypeExplicitness.always).build());
@@ -339,7 +414,7 @@ public class StreamMarshallerTest {
 
 		StringWriter writer = new StringWriter();
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 
 		GmSerializationOptions options = GmSerializationOptions.deriveDefaults() //
 				.outputPrettiness(OutputPrettiness.mid) //
@@ -384,7 +459,7 @@ public class StreamMarshallerTest {
 		inputEntity.getObjectObjectMap().put(TestEnum.ONE, TestEnum.ONE);
 		inputEntity.getObjectObjectMap().put(TestEnum.TWO, TestEnum.TWO);
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		ByteArrayOutputStream out = new ByteArrayOutputStream(8192);
 		marshaller.marshall(out, inputEntity, GmSerializationOptions.deriveDefaults().set(TypeExplicitnessOption.class, TypeExplicitness.always)
 				.outputPrettiness(OutputPrettiness.high).build());
@@ -407,7 +482,7 @@ public class StreamMarshallerTest {
 	public void testSeqMap() throws Exception {
 		String json = "{\"_type\": \"flatmap\", \"value\":[" + "\"default\", \"${typeSignature}\"" + "]}";
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		Object value = marshaller.decode(json);
 
 		Map<String, String> expectedValues = new HashMap<>();
@@ -422,7 +497,7 @@ public class StreamMarshallerTest {
 	public void testDirectMap() throws Exception {
 		String json = "{\"_type\": \"map\", \"value\":{" + "\"default\": \"${typeSignature}\"" + "}}";
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		Object value = marshaller.decode(json);
 
 		Map<String, String> expectedValues = new HashMap<>();
@@ -445,7 +520,7 @@ public class StreamMarshallerTest {
 		setMaps(e1);
 		e1.setEntityValue(e2);
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		ByteArrayOutputStream out = new ByteArrayOutputStream(8192);
 		marshaller.marshall(out, e1, GmSerializationOptions.deriveDefaults().set(TypeExplicitnessOption.class, TypeExplicitness.polymorphic)
 				.outputPrettiness(OutputPrettiness.high).build());
@@ -466,7 +541,7 @@ public class StreamMarshallerTest {
 		setMaps(e1);
 		e1.setEntityValue(e2);
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		ByteArrayOutputStream out = new ByteArrayOutputStream(8192);
 		marshaller.marshall(out, e1, GmSerializationOptions.deriveDefaults().set(TypeExplicitnessOption.class, TypeExplicitness.always)
 				.outputPrettiness(OutputPrettiness.high).build());
@@ -487,7 +562,7 @@ public class StreamMarshallerTest {
 		setMaps(e1);
 		e1.setEntityValue(e2);
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		ByteArrayOutputStream out = new ByteArrayOutputStream(8192);
 		marshaller.marshall(out, e1, GmSerializationOptions.deriveDefaults().set(TypeExplicitnessOption.class, TypeExplicitness.never)
 				.outputPrettiness(OutputPrettiness.high).build());
@@ -562,7 +637,7 @@ public class StreamMarshallerTest {
 		persons.add(vladimir);
 		persons.add(dirk);
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 
 		try (BufferedReader inputBuffer = new BufferedReader(new InputStreamReader(new FileInputStream("res/recurrenceDepth-1.json")))) {
 			String expected = inputBuffer.lines().collect(Collectors.joining("\n"));
@@ -615,7 +690,7 @@ public class StreamMarshallerTest {
 
 	@Test
 	public void testEntityDuplication() throws Exception {
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		try (BufferedReader inputBuffer = new BufferedReader(new InputStreamReader(new FileInputStream("res/pets.json")))) {
 			String expected = inputBuffer.lines().collect(Collectors.joining("\n"));
 			GmDeserializationOptions options = GmDeserializationOptions.deriveDefaults() //
@@ -631,7 +706,7 @@ public class StreamMarshallerTest {
 
 	@Test
 	public void testEntityDuplicationOff() throws Exception {
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		try (BufferedReader inputBuffer = new BufferedReader(new InputStreamReader(new FileInputStream("res/pets.json")))) {
 			String expected = inputBuffer.lines().collect(Collectors.joining("\n"));
 			GmDeserializationOptions options = GmDeserializationOptions.deriveDefaults() //
@@ -649,7 +724,7 @@ public class StreamMarshallerTest {
 
 	@Test
 	public void testEntityDuplicationAuto() throws Exception {
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		try (BufferedReader inputBuffer = new BufferedReader(new InputStreamReader(new FileInputStream("res/pets.json")))) {
 			String expected = inputBuffer.lines().collect(Collectors.joining("\n"));
 			GmDeserializationOptions options = GmDeserializationOptions.deriveDefaults() //
@@ -712,7 +787,7 @@ public class StreamMarshallerTest {
 
 	private void testAbstractEntityMarshaller(Resource resource, TypeExplicitness te, int recurenceDepth) {
 		ByteArrayOutputStream out = new ByteArrayOutputStream(8192);
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 
 		marshaller.marshall(out, resource,
 				GmSerializationOptions.deriveDefaults().set(TypeExplicitnessOption.class, te).set(EntityRecurrenceDepth.class, recurenceDepth)
@@ -807,7 +882,7 @@ public class StreamMarshallerTest {
 
 	private void testAbstractEntityInCollectionMarshaller(PlainSet<Resource> resource, TypeExplicitness te, int recurenceDepth, SetType setType) {
 		ByteArrayOutputStream out = new ByteArrayOutputStream(8192);
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 
 		marshaller.marshall(out, resource,
 				GmSerializationOptions.deriveDefaults().set(TypeExplicitnessOption.class, te).set(EntityRecurrenceDepth.class, recurenceDepth)
@@ -830,14 +905,28 @@ public class StreamMarshallerTest {
 				+ "		\"globalId\": null,\n" + "		\"id\": null,\n" + "		\"partition\": null,\n" + "		\"useCase\": null\n" + "	}\n"
 				+ "}";
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		try {
 			marshaller.decode(jsonInput);
 		} catch (CodecException ce) {
 			Throwable cause = getCause(ce);
-			assertEquals(
-					"_type is missing for property: resourceSource with path [com.braintribe.model.resource.source.ResourceSource:resourceSource]",
-					cause.getMessage());
+			
+			if (cause instanceof ReasonException re) {
+				Reason reason = re.getReason();
+				Reason subReason = reason.getReasons().get(0);
+				Reason sub2Reason = subReason.getReasons().get(0);
+				
+				Assertions.assertThat(reason).isInstanceOf(ParseError.class);
+				Assertions.assertThat(subReason).isInstanceOf(InvalidArgument.class);
+				Assertions.assertThat(sub2Reason).isInstanceOf(NotFound.class);
+				Assertions.assertThat(sub2Reason.getText()).startsWith("Cannot resolve polymorphic ambiguity for abstract entity type [com.braintribe.model.resource.source.ResourceSource]");
+
+			}
+			else {
+				assertEquals(
+						"_type is missing for property: resourceSource with path [com.braintribe.model.resource.source.ResourceSource:resourceSource]",
+						cause.getMessage());
+			}
 		}
 
 	}
@@ -850,19 +939,31 @@ public class StreamMarshallerTest {
 				+ "			\"_id\": \"1\",\n" + "			\"globalId\": null,\n" + "			\"id\": null,\n"
 				+ "			\"partition\": null,\n" + "			\"useCase\": null\n" + "		},\n" + "		\"specification\": null,\n"
 				+ "		\"tags\": []\n" + "	},\n" + "	{\n" + "		\"_type\": \"com.braintribe.model.resource.Resource\",\n"
-				+ "		\"_id\": \"0\",\n" + "		\"id\": {\n" + "			\"value\": \"123\",\n" + "			\"_type\": \"decimal\"\n"
-				+ "		},\n" + "		\"resourceSource\": {\n" + "			\"_id\": \"1\",\n" + "			\"globalId\": null,\n"
+				+ "		\"_id\": \"2\",\n" + "		\"id\": {\n" + "			\"value\": \"123\",\n" + "			\"_type\": \"decimal\"\n"
+				+ "		},\n" + "		\"resourceSource\": {\n" + "			\"_id\": \"3\",\n" + "			\"globalId\": null,\n"
 				+ "			\"id\": null,\n" + "			\"partition\": null,\n" + "			\"useCase\": null\n" + "		},\n"
 				+ "		\"specification\": null,\n" + "		\"tags\": []\n" + "	}\n" + "]";
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		try {
 			marshaller.decode(jsonInput);
 		} catch (CodecException ce) {
 			Throwable cause = getCause(ce);
-			assertEquals(
-					"_type is missing for property: resourceSource with path [com.braintribe.model.resource.source.ResourceSource:resourceSource]",
-					cause.getMessage());
+			if (cause instanceof ReasonException reasonEx) {
+				Reason reason = reasonEx.getReason();
+				Reason subReason = reason.getReasons().get(0);
+				Reason sub2Reason = subReason.getReasons().get(0);
+				
+				Assertions.assertThat(reason).isInstanceOf(ParseError.class);
+				Assertions.assertThat(subReason).isInstanceOf(InvalidArgument.class);
+				Assertions.assertThat(sub2Reason).isInstanceOf(NotFound.class);
+				Assertions.assertThat(sub2Reason.getText()).startsWith("Cannot resolve polymorphic ambiguity for abstract entity type [com.braintribe.model.resource.source.ResourceSource]");
+			}
+			else {
+				assertEquals(
+						"_type is missing for property: resourceSource with path [com.braintribe.model.resource.source.ResourceSource:resourceSource]",
+						cause.getMessage());
+			}
 		}
 
 	}
@@ -876,14 +977,27 @@ public class StreamMarshallerTest {
 				+ "   \"globalId\": null,\n" + "   \"id\": null,\n" + "   \"partition\": null,\n" + "   \"thirdLevelAbstract\": { \"_id\": \"3\",\n"
 				+ "    \"globalId\": null,\n" + "    \"id\": null,\n" + "    \"name\": \"Third\",\n" + "    \"partition\": null\n" + "   }\n"
 				+ "  }\n" + " },\n" + " \"globalId\": null,\n" + " \"id\": null,\n" + " \"partition\": null\n" + "}";
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		try {
 			marshaller.decode(json);
 		} catch (CodecException ce) {
 			Throwable cause = getCause(ce);
-			assertEquals(
-					"_type is missing for property: thirdLevelAbstract with path [com.braintribe.codec.marshaller.json.model.abstractentities.BasicEntity:firstLevelAbstract -> com.braintribe.codec.marshaller.json.model.abstractentities.FirstLevelImpl:secondLevelAbstract -> com.braintribe.codec.marshaller.json.model.abstractentities.ThirdLevelAbstract:thirdLevelAbstract]",
-					cause.getMessage());
+			
+			if (cause instanceof ReasonException reasonEx) {
+				Reason reason = reasonEx.getReason();
+				Reason subReason = reason.getReasons().get(0);
+				Reason sub2Reason = subReason.getReasons().get(0);
+				
+				Assertions.assertThat(reason).isInstanceOf(ParseError.class);
+				Assertions.assertThat(subReason).isInstanceOf(InvalidArgument.class);
+				Assertions.assertThat(sub2Reason).isInstanceOf(NotFound.class);
+				Assertions.assertThat(sub2Reason.getText()).startsWith("Cannot resolve polymorphic ambiguity for abstract entity type [com.braintribe.codec.marshaller.json.model.abstractentities.ThirdLevelAbstract]");
+			}
+			else {
+				assertEquals(
+						"_type is missing for property: thirdLevelAbstract with path [com.braintribe.codec.marshaller.json.model.abstractentities.BasicEntity:firstLevelAbstract -> com.braintribe.codec.marshaller.json.model.abstractentities.FirstLevelImpl:secondLevelAbstract -> com.braintribe.codec.marshaller.json.model.abstractentities.ThirdLevelAbstract:thirdLevelAbstract]",
+						cause.getMessage());
+			}
 		}
 	}
 
@@ -916,7 +1030,7 @@ public class StreamMarshallerTest {
 	}
 	private void _testMarshallingOfId(Pet pet, TypeExplicitness te, int entityRecurrenceDepth) {
 		ByteArrayOutputStream out = new ByteArrayOutputStream(8192);
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 
 		marshaller.marshall(out, pet,
 				GmSerializationOptions.deriveDefaults().set(TypeExplicitnessOption.class, te).set(EntityRecurrenceDepth.class, entityRecurrenceDepth)
@@ -1002,7 +1116,7 @@ public class StreamMarshallerTest {
 		File file = new File("res/rest-case.json");
 		String json = IOTools.slurp(file, "UTF-8");
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		Object value = marshaller.decode(json);
 		System.out.println(value);
 		assertThat(value).isInstanceOf(SelectQuery.class);
@@ -1016,7 +1130,7 @@ public class StreamMarshallerTest {
 		testEntity.setDecimalValue(new BigDecimal("10.0001"));
 		testEntity.setLongValue(Long.valueOf("1001"));
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		ByteArrayOutputStream out = new ByteArrayOutputStream(8192);
 		marshaller.marshall(out, testEntity, GmSerializationOptions.deriveDefaults().set(TypeExplicitnessOption.class, TypeExplicitness.polymorphic)
 				.set(StringifyNumbersOption.class, true).outputPrettiness(OutputPrettiness.high).build());
@@ -1037,7 +1151,7 @@ public class StreamMarshallerTest {
 	@Test
 	public void testIntegerId() throws Exception {
 		String json = "{\n" + "	\"entityValue\": {\n" + "		\"id\": 5\n" + "	}\n" + "}";
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 
 		GmDeserializationOptions options = GmDeserializationOptions.deriveDefaults().setInferredRootType(TestEntity.T).build();
 
@@ -1048,7 +1162,7 @@ public class StreamMarshallerTest {
 	@Test
 	public void testConsent() throws Exception {
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 
 		//@formatter:off
 		GmSerializationOptions options = GmSerializationOptions.deriveDefaults() //
@@ -1083,7 +1197,7 @@ public class StreamMarshallerTest {
 		String json = "{\n" + "	\"_link\": \"this is test\",\n" + "	\"_entity\": {\n" + "		\"_link\": \"this is link\",\n"
 				+ "		\"string\": \"my string\",\n" + "		\"int\": 10\n" + "	}\n" + "}";
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		GmDeserializationOptions options = GmDeserializationOptions.deriveDefaults().setInferredRootType(SimpleEntity.T).build();
 
 		Object object = marshaller.unmarshall(new ByteArrayInputStream(json.getBytes()), options);
@@ -1104,7 +1218,7 @@ public class StreamMarshallerTest {
 		String jsonInput = "{\n" + "  \"_type\": \"com.braintribe.model.resource.Resource\",\n" + "  \"name\": \"" + resourceName + "\",\n" + "  \""
 				+ notExistingProperty + "\": null,\n" + "  \"md5\": \"" + resourceMd5 + "\"\n" + "}\n";
 
-		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		// by default we are not lenient, i.e. we expect an exception saying that our property doesn't exist
 		assertThatExecuting(() -> {
 			marshaller.decode(jsonInput);
@@ -1119,5 +1233,16 @@ public class StreamMarshallerTest {
 		assertThat(decodedEntity.getName()).isEqualTo(resourceName);
 		assertThat(decodedEntity.getMd5()).isEqualTo(resourceMd5);
 	}
-
+	
+	protected Reason getUniqueRootCause(Reason r) {
+		List<Reason> reasons = r.getReasons();
+		
+		if (reasons.isEmpty())
+			return r;
+		
+		if (reasons.size() > 1)
+			Assertions.fail("Unexpected reason ambiguity");
+		
+		return getUniqueRootCause(reasons.get(0));
+	}
 }
