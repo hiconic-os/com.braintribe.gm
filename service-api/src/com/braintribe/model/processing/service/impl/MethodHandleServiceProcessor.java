@@ -15,6 +15,7 @@ package com.braintribe.model.processing.service.impl;
 
 import java.lang.invoke.MethodHandle;
 
+import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.processing.service.api.ServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceRequestContext;
 import com.braintribe.model.service.api.ServiceRequest;
@@ -22,26 +23,28 @@ import com.braintribe.model.service.api.ServiceRequest;
 public class MethodHandleServiceProcessor<P extends ServiceRequest, R> implements ServiceProcessor<P, R> {
 
 	private final MethodHandle methodHandle;
-	private final boolean passContext;
+	private SignatureType signatureType;
 
-	public MethodHandleServiceProcessor(MethodHandle methodHandle, boolean passContext) {
+	public MethodHandleServiceProcessor(MethodHandle methodHandle, SignatureType signatureType) {
 		this.methodHandle = methodHandle;
-		this.passContext = passContext;
+		this.signatureType = signatureType;
 	}
 
 	@Override
-	public R process(ServiceRequestContext requestContext, P request) {
+	public R process(ServiceRequestContext context, P request) {
 		try {
-			if (passContext)
-				return (R) methodHandle.invoke(request, requestContext);
-			else
-				return (R) methodHandle.invoke(request);
-
+			switch (signatureType) {
+			case REQUEST: return (R)methodHandle.invoke(request);
+			case CONTEXT_REQUEST: return (R) methodHandle.invoke(context, request);
+			case REQUEST_CONTEXT: return (R) methodHandle.invoke(request, context);
+			default:
+				throw new UnsupportedOperationException("Unsupported signature type: " + signatureType);
+			}
 		} catch (RuntimeException | Error e) {
 			throw e;
+
 		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
 	}
-
 }
