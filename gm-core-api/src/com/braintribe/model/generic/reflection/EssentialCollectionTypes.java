@@ -20,22 +20,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.braintribe.model.generic.GmCoreApiInteropNamespaces;
 import com.braintribe.model.generic.GmPlatform;
 
 import jsinterop.annotations.JsIgnore;
 import jsinterop.annotations.JsProperty;
 
 /**
- * All the possible essential {@link CollectionType} instances in form of static fields. In this case this means that given types are parameterized
- * with Objects (i.e. {@link BaseType}).
+ * All the possible essential {@link CollectionType} instances in form of static fields. In this case this means that
+ * given types are parameterized with Objects (i.e. {@link BaseType}).
  */
 public interface EssentialCollectionTypes {
 
-	@JsProperty(name = "LIST")
+	@JsProperty(name = "LIST", namespace = GmCoreApiInteropNamespaces.reflection)
 	final ListType TYPE_LIST = GmPlatform.INSTANCE.getEssentialType(List.class);
-	@JsProperty(name = "SET")
+
+	@JsProperty(name = "SET", namespace = GmCoreApiInteropNamespaces.reflection)
 	final SetType TYPE_SET = GmPlatform.INSTANCE.getEssentialType(Set.class);
-	@JsProperty(name = "MAP")
+
+	@JsProperty(name = "MAP", namespace = GmCoreApiInteropNamespaces.reflection)
 	final MapType TYPE_MAP = GmPlatform.INSTANCE.getEssentialType(Map.class);
 
 	@JsIgnore

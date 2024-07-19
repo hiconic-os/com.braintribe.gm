@@ -35,4 +35,5 @@ public interface GmCoreApiInteropNamespaces {
 	String query = gm + ".query";
 	String internal = reflection + ".internal";
 
+	String GLOBAL = "<global>"; 
 }

@@ -21,11 +21,11 @@ import java.util.List;
 import com.braintribe.model.generic.GmCoreApiInteropNamespaces;
 
 import jsinterop.annotations.JsIgnore;
-import jsinterop.annotations.JsType;
+import jsinterop.annotations.JsProperty;
 
-@JsType(namespace = GmCoreApiInteropNamespaces.reflection)
 public interface EssentialTypes extends SimpleTypes, EssentialCollectionTypes {
 
+	@JsProperty(name = "OBJECT", namespace = GmCoreApiInteropNamespaces.reflection)
 	final BaseType TYPE_OBJECT = BaseType.INSTANCE;
 
 	// @formatter:off

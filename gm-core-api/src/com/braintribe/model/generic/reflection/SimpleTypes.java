@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
+import com.braintribe.model.generic.GmCoreApiInteropNamespaces;
 import com.braintribe.model.generic.GmPlatform;
 
 import jsinterop.annotations.JsIgnore;
@@ -30,21 +31,28 @@ import jsinterop.annotations.JsProperty;
  */
 public interface SimpleTypes {
 
-	@JsProperty(name = "STRING")
+	@JsProperty(name = "STRING", namespace = GmCoreApiInteropNamespaces.reflection)
 	final StringType TYPE_STRING = GmPlatform.INSTANCE.getEssentialType(String.class);
-	@JsProperty(name = "FLOAT")
+
+	@JsProperty(name = "FLOAT", namespace = GmCoreApiInteropNamespaces.reflection)
 	final FloatType TYPE_FLOAT = GmPlatform.INSTANCE.getEssentialType(Float.class);
-	@JsProperty(name = "DOUBLE")
+
+	@JsProperty(name = "DOUBLE", namespace = GmCoreApiInteropNamespaces.reflection)
 	final DoubleType TYPE_DOUBLE = GmPlatform.INSTANCE.getEssentialType(Double.class);
-	@JsProperty(name = "BOOLEAN")
+
+	@JsProperty(name = "BOOLEAN", namespace = GmCoreApiInteropNamespaces.reflection)
 	final BooleanType TYPE_BOOLEAN = GmPlatform.INSTANCE.getEssentialType(Boolean.class);
-	@JsProperty(name = "INTEGER")
+
+	@JsProperty(name = "INTEGER", namespace = GmCoreApiInteropNamespaces.reflection)
 	final IntegerType TYPE_INTEGER = GmPlatform.INSTANCE.getEssentialType(Integer.class);
-	@JsProperty(name = "LONG")
+
+	@JsProperty(name = "LONG", namespace = GmCoreApiInteropNamespaces.reflection)
 	final LongType TYPE_LONG = GmPlatform.INSTANCE.getEssentialType(Long.class);
-	@JsProperty(name = "DATE")
+
+	@JsProperty(name = "DATE", namespace = GmCoreApiInteropNamespaces.reflection)
 	final DateType TYPE_DATE = GmPlatform.INSTANCE.getEssentialType(Date.class);
-	@JsProperty(name = "DECIMAL")
+
+	@JsProperty(name = "DECIMAL", namespace = GmCoreApiInteropNamespaces.reflection)
 	final DecimalType TYPE_DECIMAL = GmPlatform.INSTANCE.getEssentialType(BigDecimal.class);
 
 	// @formatter:off
