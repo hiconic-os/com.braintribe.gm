@@ -82,7 +82,7 @@ public class TrackingErrorHandler implements GmmlManipulatorErrorHandler {
 	}
 
 	@Override
-	public void enumConstantNotFound(EnumType enumType, String enumConstantName) {
+	public void enumConstantNotFound(EnumType<?> enumType, String enumConstantName) {
 		acquireSet(missingConstants, enumType).add(enumConstantName);
 	}
 

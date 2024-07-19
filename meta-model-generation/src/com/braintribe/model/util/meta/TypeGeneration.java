@@ -26,7 +26,7 @@ import com.braintribe.model.meta.GmMetaModel;
 
 public interface TypeGeneration {
 	public void ensureModelTypes(GmMetaModel gmMetaModel);
-	public EnumType ensureEnumType(GmEnumType gmEnumType);
+	public EnumType<?> ensureEnumType(GmEnumType gmEnumType);
 	public <T extends GenericEntity> EntityType<T> ensureEntityType(GmEntityType gmEntityType);
 	public CollectionType ensureCollectionType(GmCollectionType gmCollectionType);
 }

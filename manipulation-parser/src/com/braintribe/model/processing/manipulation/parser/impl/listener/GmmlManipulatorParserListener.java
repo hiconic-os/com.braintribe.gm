@@ -728,7 +728,7 @@ public class GmmlManipulatorParserListener extends GmmlValueParserListener imple
 				enumValue = missing;
 
 			} else {
-				EnumType enumType = (EnumType) castedType;
+				EnumType<?> enumType = (EnumType<?>) castedType;
 				enumValue = enumType.findEnumValue(enumConstantName);
 
 				if (enumValue == null) {

@@ -746,7 +746,7 @@ public class GmDomCodec<T> implements GmCodec<T, Document> {
 		@Override
 		protected Object decodeString(DecodingContext context, Element element, String s) throws CodecException {
 			String typeSignature = element.getAttribute("type");
-			EnumType enumType = GMF.getTypeReflection().getType(typeSignature);
+			EnumType<?> enumType = GMF.getTypeReflection().getType(typeSignature);
 			return enumType.getInstance(s);
 		}
 	}

@@ -436,7 +436,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 					consumeDirect(EssentialTypes.TYPE_DECIMAL, parseDecimal(value));
 					break;
 				case enumType:
-					consumeDirect(inferredType, parseEnum((EnumType) inferredType, value));
+					consumeDirect(inferredType, parseEnum((EnumType<?>) inferredType, value));
 					break;
 				default:
 					onTypeMismatch(inferredType, EssentialTypes.TYPE_STRING, value);
@@ -470,7 +470,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			}
 		}
 		
-		private Enum<? extends Enum<?>> parseEnum(EnumType enumType, String constantString) {
+		private Enum<? extends Enum<?>> parseEnum(EnumType<?> enumType, String constantString) {
 			Enum<? extends Enum<?>> enumValue = enumType.findEnumValue(constantString);
 			
 			if (enumValue != null)

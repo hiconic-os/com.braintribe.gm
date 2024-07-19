@@ -203,7 +203,7 @@ public class GenericModelJsonCodec<T> implements GmCodec<T, JsonNode> {
 					return decodeJson(context, objectNode, entityType);
 				case enumType:
 					String enumName = extractValue(objectNode).asText();
-					return ((EnumType) genericModelType).getInstance(enumName);
+					return ((EnumType<?>) genericModelType).getInstance(enumName);
 				case dateType:
 					String dateString = extractValue(objectNode).asText();
 					return dateCodec.decode(dateString);

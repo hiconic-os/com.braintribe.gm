@@ -28,10 +28,10 @@ public class EnumDomCoder<T extends Enum<T>> extends DomTextCoder<T> {
 
 	private static final GenericModelTypeReflection typeReflection = GMF.getTypeReflection();
 
-	private EnumType enumType;
+	private EnumType<?> enumType;
 	
 	
-	public EnumDomCoder(EnumType enumType) {
+	public EnumDomCoder(EnumType<?> enumType) {
 		super("e");
 		this.enumType = enumType;
 	}
@@ -47,7 +47,7 @@ public class EnumDomCoder<T extends Enum<T>> extends DomTextCoder<T> {
 		
 		if (enumType == null) {
 			String typeKey = text.substring(0, index); 
-			enumType = (EnumType) context.getTypeInfoByKey(typeKey).type;
+			enumType = (EnumType<?>) context.getTypeInfoByKey(typeKey).type;
 		}
 		
 		String constantName = text.substring(index + 1);
@@ -56,7 +56,7 @@ public class EnumDomCoder<T extends Enum<T>> extends DomTextCoder<T> {
 	
 	@Override
 	protected String encodeText(DomEncodingContext context, T value) throws CodecException {
-		final EnumType type;
+		final EnumType<?> type;
 		if (enumType != null) {
 			type = enumType;
 		} else {

@@ -36,7 +36,7 @@ public class ToEnumVde implements ValueDescriptorEvaluator<ToEnum> {
 		Object result = null;
 		Object operand = context.evaluate(valueDescriptor.getOperand());
 		
-		EnumType enumType = GMF.getTypeReflection().getType(valueDescriptor.getTypeSignature());
+		EnumType<?> enumType = GMF.getTypeReflection().getType(valueDescriptor.getTypeSignature());
 		// operand is either a string or ordinal
 		if (operand instanceof String) {
 			result = enumType.getInstance((String) operand);

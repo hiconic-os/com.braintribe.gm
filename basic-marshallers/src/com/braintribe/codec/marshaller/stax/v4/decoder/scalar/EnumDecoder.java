@@ -29,7 +29,7 @@ public class EnumDecoder extends ScalarValueDecoder {
 		String typeKey = text.substring(0, index); 
 		TypeInfo4Read typeInfo = context.getTypeInfoByKey(typeKey);
 		
-		EnumType enumType = (EnumType) typeInfo.type;
+		EnumType<?> enumType = (EnumType<?>) typeInfo.type;
 		
 		if (enumType == null) {
 			if (context.getDecodingLenience().isTypeLenient()) {

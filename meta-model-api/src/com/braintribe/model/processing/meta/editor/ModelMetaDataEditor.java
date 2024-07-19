@@ -81,7 +81,7 @@ public interface ModelMetaDataEditor {
 
 	EnumTypeMetaDataEditor onEnumType(String typeSignature);
 
-	EnumTypeMetaDataEditor onEnumType(EnumType enumType);
+	EnumTypeMetaDataEditor onEnumType(EnumType<?> enumType);
 
 	EnumTypeMetaDataEditor onEnumType(GmEnumTypeInfo gmEnumTypeInfo);
 

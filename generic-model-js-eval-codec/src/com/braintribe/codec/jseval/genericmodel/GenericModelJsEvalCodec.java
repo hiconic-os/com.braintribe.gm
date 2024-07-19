@@ -445,7 +445,7 @@ public class GenericModelJsEvalCodec<T> implements Codec<T, String> {
 				JavaScriptPrototypes prototypes,
 				EncodingContext encodingContext) throws CodecException {
 			String enumValueName = value.name();
-			EnumType enumType = GMF.getTypeReflection().getEnumType(value.getDeclaringClass());
+			EnumType<?> enumType = GMF.getTypeReflection().getEnumType(value.getDeclaringClass());
 			String enumTypeVarName = encodingContext.aquireTypeVarName(enumType);
 			builder.append(prototypes.parseEnum().evaluate(enumTypeVarName, "\"" + enumValueName + "\""));
 		}

@@ -173,7 +173,7 @@ public class BasicQueryEvaluationContext implements QueryEvaluationContext {
 	}
 
 	private Object resolveEnumReference(EnumReference ref) {
-		EnumType enumType = GMF.getTypeReflection().getType(ref.getTypeSignature());
+		EnumType<?> enumType = GMF.getTypeReflection().getType(ref.getTypeSignature());
 
 		return enumType.getEnumValue(ref.getConstant());
 	}

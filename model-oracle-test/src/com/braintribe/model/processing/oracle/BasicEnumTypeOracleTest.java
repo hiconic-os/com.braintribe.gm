@@ -46,7 +46,7 @@ public class BasicEnumTypeOracleTest extends AbstractOracleTest {
 
 	@Test
 	public void getCorrectType() throws Exception {
-		EnumType enumType = getEnumOracle(Gender.class).asType();
+		EnumType<?> enumType = getEnumOracle(Gender.class).asType();
 
 		Assertions.assertThat(enumType).isNotNull();
 		Assertions.assertThat(enumType.getTypeSignature()).isEqualTo(Gender.class.getName());

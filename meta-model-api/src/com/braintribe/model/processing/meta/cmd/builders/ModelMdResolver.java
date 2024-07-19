@@ -50,7 +50,7 @@ public interface ModelMdResolver extends MdResolver<ModelMdResolver> {
 
 	EnumMdResolver enumClass(Class<? extends Enum<?>> entityClass);
 
-	EnumMdResolver enumType(EnumType enumType);
+	EnumMdResolver enumType(EnumType<?> enumType);
 
 	EnumMdResolver enumType(GmEnumType gmEnumType);
 

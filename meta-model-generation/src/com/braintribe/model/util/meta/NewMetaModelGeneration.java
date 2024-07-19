@@ -260,7 +260,7 @@ public class NewMetaModelGeneration {
 			}
 			case enumType: {
 				GmEnumType gmEnumType = registerNewType(GmEnumType.T, type);
-				initialize((EnumType) type, gmEnumType);
+				initialize((EnumType<?>) type, gmEnumType);
 				return (T) gmEnumType;
 			}
 			case listType: {
@@ -377,7 +377,7 @@ public class NewMetaModelGeneration {
 			gmPropInfo.getMetaData().add(confidential());
 	}
 
-	private void initialize(EnumType enumType, GmEnumType gmEnumType) {
+	private void initialize(EnumType<?> enumType, GmEnumType gmEnumType) {
 		gmEnumType.setDeclaringModel(currentlyBuildMetaModel);
 
 		List<GmEnumConstant> constants = gmEnumType.getConstants();

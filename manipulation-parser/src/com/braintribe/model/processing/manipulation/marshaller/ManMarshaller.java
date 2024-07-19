@@ -562,7 +562,7 @@ public class ManMarshaller implements CharacterMarshaller {
 		}
 
 		private void writeEnum(Enum<?> enumConstant) throws IOException {
-			EnumType enumType = GMF.getTypeReflection().getType(enumConstant);
+			EnumType<?> enumType = GMF.getTypeReflection().getType(enumConstant);
 			writer.write(typeVariables.get(enumType));
 			writer.append("::");
 			writer.append(enumConstant.name());
@@ -656,7 +656,7 @@ public class ManMarshaller implements CharacterMarshaller {
 			switch (type.getTypeCode()) {
 			case objectType: indexValue(GMF.getTypeReflection().getType(value), value); return;
 			case entityType: indexEntity((GenericEntity)value); return;
-			case enumType: indexEnum((EnumType)type, (Enum<?>)value); return;
+			case enumType: indexEnum((EnumType<?>) type, (Enum<?>) value); return;
 			case listType:
 			case setType: indexCollection((LinearCollectionType)type, (Collection<?>)value); return;
 			case mapType: indexMap((MapType)type, (Map<?, ?>)value); return;
@@ -680,7 +680,7 @@ public class ManMarshaller implements CharacterMarshaller {
 			}
 		}
 		
-		private void indexEnum(EnumType enumType, @SuppressWarnings("unused") Enum<?> enumConstant) {
+		private void indexEnum(EnumType<?> enumType, @SuppressWarnings("unused") Enum<?> enumConstant) {
 			typeVariables.computeIfAbsent(enumType, this::nextVar);
 		}
 		

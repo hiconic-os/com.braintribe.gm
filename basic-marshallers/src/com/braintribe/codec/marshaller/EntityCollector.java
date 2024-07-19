@@ -64,7 +64,7 @@ public abstract class EntityCollector {
 				}
 				return;
 			case enumType:
-				add((Enum<?>)value, (EnumType)type);
+				add((Enum<?>)value, (EnumType<?>)type);
 				return;
 				
 			case listType: 
@@ -135,7 +135,7 @@ public abstract class EntityCollector {
 	
 	protected abstract boolean add(GenericEntity entity, EntityType<?> type);
 	
-	protected abstract void add(Enum<?> constant, EnumType type);
+	protected abstract void add(Enum<?> constant, EnumType<?> type);
 
 	
 	private static class EntityScan {

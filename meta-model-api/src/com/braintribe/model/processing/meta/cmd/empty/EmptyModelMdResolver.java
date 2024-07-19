@@ -87,7 +87,7 @@ public class EmptyModelMdResolver extends EmptyMdResolver<ModelMdResolver> imple
 	}
 
 	@Override
-	public EnumMdResolver enumType(EnumType enumType) {
+	public EnumMdResolver enumType(EnumType<?> enumType) {
 		return EmptyEnumMdResolver.INSTANCE;
 	}
 

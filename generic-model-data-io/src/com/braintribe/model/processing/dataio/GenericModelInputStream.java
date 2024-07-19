@@ -712,7 +712,7 @@ public class GenericModelInputStream extends DataInputStream implements ObjectIn
 		public Enum<?> readPayload() throws IOException {
 			String typeSignature = readUTF();
 			String encodedValue = readUTF();
-			EnumType enumType = typeReflection.getType(typeSignature);
+			EnumType<?> enumType = typeReflection.getType(typeSignature);
 			@SuppressWarnings({ "rawtypes", "unchecked" })
 			Enum enumValue = enumType.getInstance(encodedValue);
 			return enumValue;

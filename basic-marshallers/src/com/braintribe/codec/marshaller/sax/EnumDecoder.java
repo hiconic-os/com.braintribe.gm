@@ -30,7 +30,7 @@ class EnumDecoder extends ScalarValueDecoder {
 	}
 	@Override
 	protected Object decode(DecodingContext context, String text) throws MarshallException {
-		EnumType enumType = GMF.getTypeReflection().getType(type);
+		EnumType<?> enumType = GMF.getTypeReflection().getType(type);
 		return enumType.getInstance(text);
 	}
 }

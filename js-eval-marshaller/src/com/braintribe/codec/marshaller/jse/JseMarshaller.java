@@ -236,7 +236,7 @@ public class JseMarshaller implements CharacterMarshaller, HasStringCodec, GmCod
 			return registration;
 		}
 
-		private JsePoolAddress aquireEnumAddress(EnumType type, Object value) throws MarshallException {
+		private JsePoolAddress aquireEnumAddress(EnumType<?> type, Object value) throws MarshallException {
 			JsePoolAddress enumVarName = enums.get(value);
 			if (enumVarName == null) {
 				enumVarName = constantsSequence.createAddress();
@@ -251,7 +251,7 @@ public class JseMarshaller implements CharacterMarshaller, HasStringCodec, GmCod
 			return enumVarName;
 		}
 
-		private JsePoolAddress aquireEnumTypeAddress(EnumType type) throws MarshallException {
+		private JsePoolAddress aquireEnumTypeAddress(EnumType<?> type) throws MarshallException {
 			JsePoolAddress typeVarName = enumTypes.get(type);
 			if (typeVarName == null) {
 				typeVarName = typesSequence.createAddress();
@@ -450,7 +450,7 @@ public class JseMarshaller implements CharacterMarshaller, HasStringCodec, GmCod
 					case entityType:
 						return aquireEntityAddress((GenericEntity) value);
 					case enumType:
-						return aquireEnumAddress((EnumType) type, value);
+						return aquireEnumAddress((EnumType<?>) type, value);
 
 					default:
 						throw new IllegalArgumentException("unsupported type " + type);

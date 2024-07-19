@@ -170,7 +170,7 @@ public class GenericModelDomCodecRegistry {
 			if (type instanceof EnumType) {
 				@SuppressWarnings("rawtypes")
 				EnumCodec<?> enumCodec = new EnumCodec();
-				enumCodec.setEnumType((EnumType)type);
+				enumCodec.setEnumType((EnumType<?>) type);
 				codec = enumCodec;
 			}
 			else if (type instanceof CollectionType) {

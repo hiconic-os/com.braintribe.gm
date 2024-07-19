@@ -263,7 +263,7 @@ public class RemoteManipulationStringifier extends ManipulationStringifier {
 		}
 	}
 
-	private static final EnumType SAMPLE_ENUM_TYPE = new EnumTypeImpl(ManipulationType.class);
+	private static final EnumType<?> SAMPLE_ENUM_TYPE = new EnumTypeImpl(ManipulationType.class);
 	
 	@Override
 	protected GenericModelType resolveActualType(Object value) {

@@ -50,7 +50,7 @@ public interface GmmlManipulatorErrorHandler {
 
 	void propertyNotFound(GenericEntity entity, String propertyName);
 
-	void enumConstantNotFound(EnumType enumType, String enumConstantName);
+	void enumConstantNotFound(EnumType<?> enumType, String enumConstantName);
 
 	void entityNotFound(String globalId);
 

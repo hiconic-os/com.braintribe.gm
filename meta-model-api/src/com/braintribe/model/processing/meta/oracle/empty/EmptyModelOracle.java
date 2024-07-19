@@ -157,7 +157,7 @@ public class EmptyModelOracle implements ModelOracle {
 	}
 
 	@Override
-	public EnumTypeOracle getEnumTypeOracle(EnumType type) {
+	public EnumTypeOracle getEnumTypeOracle(EnumType<?> type) {
 		return getEnumTypeOracle(type.getTypeSignature());
 	}
 
@@ -207,7 +207,7 @@ public class EmptyModelOracle implements ModelOracle {
 	}
 
 	@Override
-	public EnumTypeOracle findEnumTypeOracle(EnumType type) {
+	public EnumTypeOracle findEnumTypeOracle(EnumType<?> type) {
 		return findEnumTypeOracle(type.getTypeSignature());
 	}
 

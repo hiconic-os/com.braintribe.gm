@@ -83,7 +83,7 @@ public class EntityDecoderPreparation {
 			
 		// custom types
 		case entityType: return EntityReferenceDecoderFactory.INSTANCE;
-		case enumType: return new EnumDecoderFactory((EnumType)type);
+		case enumType: return new EnumDecoderFactory((EnumType<?>) type);
 
 		// object type
 		case objectType: return ObjectDecoderFactory.INSTANCE;

@@ -31,7 +31,7 @@ public class EnumDecoder extends ScalarValueDecoder {
 	}
 	@Override
 	protected Object decode(DecodingContext context, String text) throws MarshallException {
-		EnumType enumType = context.findType(type);
+		EnumType<?> enumType = context.findType(type);
 		
 		if (enumType != null) {
 			try {

@@ -55,7 +55,7 @@ public class LenientErrorHandler implements GmmlManipulatorErrorHandler {
 	}
 
 	@Override
-	public void enumConstantNotFound(EnumType enumType, String enumConstantName) {
+	public void enumConstantNotFound(EnumType<?> enumType, String enumConstantName) {
 		// ignore
 	}
 

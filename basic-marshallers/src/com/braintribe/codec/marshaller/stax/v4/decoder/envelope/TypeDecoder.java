@@ -62,7 +62,7 @@ public class TypeDecoder extends ScalarValueDecoder {
 			}
 		}
 		else {
-			EnumType enumType = context.findType(text);
+			EnumType<?> enumType = context.findType(text);
 			
 			if (enumType != null) {
 				typeInfo.type = enumType;

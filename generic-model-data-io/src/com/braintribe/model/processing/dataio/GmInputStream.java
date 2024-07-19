@@ -283,7 +283,7 @@ public class GmInputStream extends DataInputStream implements ObjectInput, GmSer
 
 		// actually preparing enum types with lenient support if required
 		for (EnumTypePreparation enumTypePrepration : enumTypePreparations) {
-			EnumType enumType = typeReflection.findType(enumTypePrepration.typeSignature);
+			EnumType<?> enumType = typeReflection.findType(enumTypePrepration.typeSignature);
 
 			if (enumType != null) {
 				int i = 0;

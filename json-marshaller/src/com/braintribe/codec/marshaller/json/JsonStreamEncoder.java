@@ -293,9 +293,9 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 		}
 	}
 
-	class EnumTypeEncoder extends TypeEncoder<EnumType> {
+	class EnumTypeEncoder extends TypeEncoder<EnumType<?>> {
 		@Override
-		public void encode(GenericModelType ctxType, EnumType superType, Object value, boolean simp, boolean isId) throws IOException {
+		public void encode(GenericModelType ctxType, EnumType<?> superType, Object value, boolean simp, boolean isId) throws IOException {
 			if (simp) {
 				writer.write('"');
 				writer.write(value.toString());

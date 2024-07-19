@@ -105,7 +105,7 @@ public class EncodingContext extends EntityCollector {
 	}
 
 	@Override
-	protected void add(Enum<?> constant, EnumType type) {
+	protected void add(Enum<?> constant, EnumType<?> type) {
 		registerRequiredType(type);
 	}
 

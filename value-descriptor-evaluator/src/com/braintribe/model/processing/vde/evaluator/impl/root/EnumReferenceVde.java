@@ -33,7 +33,7 @@ public class EnumReferenceVde implements ValueDescriptorEvaluator<EnumReference>
 	@Override
 	public VdeResult evaluate(VdeContext context, EnumReference valueDescriptor) throws VdeRuntimeException {
 		try {
-			EnumType enumType = GMF.getTypeReflection().getType(valueDescriptor.getTypeSignature());
+			EnumType<?> enumType = GMF.getTypeReflection().getType(valueDescriptor.getTypeSignature());
 			Enum<?> instance = enumType.getInstance(valueDescriptor.getConstant());
 			return new VdeResultImpl(instance, false);
 		} catch (Exception e) {

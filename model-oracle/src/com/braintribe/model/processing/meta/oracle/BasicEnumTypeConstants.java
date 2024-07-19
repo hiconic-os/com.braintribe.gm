@@ -44,7 +44,7 @@ public class BasicEnumTypeConstants implements EnumTypeConstants {
 
 	@Override
 	public Stream<Enum<?>> asEnums() {
-		EnumType et = BasicModelOracle.typeReflection.getType(enumTypeOracle.flatEnumType.type.getTypeSignature());
+		EnumType<?> et = BasicModelOracle.typeReflection.getType(enumTypeOracle.flatEnumType.type.getTypeSignature());
 		return asGmEnumConstants().map(gmConstant -> et.getEnumValue(gmConstant.getName()));
 	}
 

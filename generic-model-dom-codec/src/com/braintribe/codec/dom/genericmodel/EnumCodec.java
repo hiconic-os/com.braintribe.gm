@@ -30,10 +30,10 @@ import com.braintribe.model.generic.reflection.GenericModelTypeReflection;
 
 public class EnumCodec<T extends Enum<T>> implements Codec<T, Element> {
 	private final GenericModelTypeReflection typeReflection = GMF.getTypeReflection();
-	private EnumType enumType;
+	private EnumType<?> enumType;
 	
 	@Configurable
-	public void setEnumType(EnumType enumType) {
+	public void setEnumType(EnumType<?> enumType) {
 		this.enumType = enumType;
 	}
 	
@@ -43,7 +43,7 @@ public class EnumCodec<T extends Enum<T>> implements Codec<T, Element> {
 	  Document document = ctx.getDocument();
 	  Element enumElement = document.createElement("enum");
 	  Text text = document.createTextNode(value.name());
-	  EnumType enumType = typeReflection.getEnumType(value.getDeclaringClass());
+	  EnumType<?> enumType = typeReflection.getEnumType(value.getDeclaringClass());
 	  String typeSignature = enumType.getTypeSignature();
 	  ctx.registerRequiredType(enumType);
 	  enumElement.setAttribute("type", typeSignature);
@@ -55,7 +55,7 @@ public class EnumCodec<T extends Enum<T>> implements Codec<T, Element> {
 	@SuppressWarnings("unchecked")
 	public T decode(Element encodedValue) throws CodecException {
 		try {
-			EnumType enumType = this.enumType;
+			EnumType<?> enumType = this.enumType;
 			String typeSignature = encodedValue.getAttribute("type");
 			if (typeSignature != null && typeSignature.length() > 0) {
 				try {

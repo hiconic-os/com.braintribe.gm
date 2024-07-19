@@ -71,7 +71,7 @@ public class StandardEntityCollector extends EntityCollector {
 	}
 	
 	@Override
-	protected void add(Enum<?> constant, EnumType type) {
+	protected void add(Enum<?> constant, EnumType<?> type) {
 		if (collectEnums) {
 			if (enums.add(constant) && collectEnumTypes) {
 				enumTypes.add(type);
@@ -81,7 +81,7 @@ public class StandardEntityCollector extends EntityCollector {
 			enumTypes.add(type);
 	}
 	
-	protected boolean add(EnumType enumType) {
+	protected boolean add(EnumType<?> enumType) {
 		return enumTypes.add(enumType);
 	}
 

@@ -23,10 +23,10 @@ import com.braintribe.codec.marshaller.stax.decoder.scalar.StaticEnumDecoder;
 import com.braintribe.model.generic.reflection.EnumType;
 
 public class EnumDecoderFactory extends DecoderFactory {
-	private EnumType enumType;
+	private EnumType<?> enumType;
 	
 	
-	public EnumDecoderFactory(EnumType enumType) {
+	public EnumDecoderFactory(EnumType<?> enumType) {
 		this.enumType = enumType;
 	}
 

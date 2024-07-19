@@ -75,7 +75,7 @@ public class EntityDomCodingPreparations {
 		case longType: return DomCoders.longCoder;
 		
 		// custom types
-		case enumType: return new EnumDomCoder((EnumType)type);
+		case enumType: return new EnumDomCoder((EnumType<?>) type);
 		case entityType: return DomCoders.entityReferenceCoder;
 
 		// object type

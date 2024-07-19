@@ -108,7 +108,7 @@ public interface ModelOracle {
 	EnumTypeOracle getEnumTypeOracle(GmEnumType type);
 
 	/** Same as {@link #getTypeOracle(CustomType)}. */
-	EnumTypeOracle getEnumTypeOracle(EnumType type);
+	EnumTypeOracle getEnumTypeOracle(EnumType<?> type);
 
 	/** @return {@link EnumTypeOracle} for given {@link Enum} class. */
 	EnumTypeOracle getEnumTypeOracle(Class<? extends Enum<?>> enumClass);
@@ -142,7 +142,7 @@ public interface ModelOracle {
 	EnumTypeOracle findEnumTypeOracle(GmEnumType type);
 
 	/** Same as {@link #findTypeOracle(CustomType)}. */
-	EnumTypeOracle findEnumTypeOracle(EnumType type);
+	EnumTypeOracle findEnumTypeOracle(EnumType<?> type);
 
 	/** @return {@link EnumTypeOracle} for given {@link Enum} class. */
 	EnumTypeOracle findEnumTypeOracle(Class<? extends Enum<?>> enumClass);

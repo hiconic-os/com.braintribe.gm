@@ -139,7 +139,7 @@ public class LocalManipulationStringifier extends ManipulationStringifier {
 	@Override
 	protected void writeEnum(Appendable writer, Object enumValue) throws IOException {
 		Enum<?> enumConstant = (Enum<?>)enumValue;
-		EnumType enumType = GMF.getTypeReflection().getType(enumConstant);
+		EnumType<?> enumType = GMF.getTypeReflection().getType(enumConstant);
 		writeTypeReference(writer, enumType);
 		writer.append("::");
 		writer.append(enumConstant.name());

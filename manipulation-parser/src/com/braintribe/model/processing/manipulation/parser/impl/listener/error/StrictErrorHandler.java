@@ -49,7 +49,7 @@ public class StrictErrorHandler implements GmmlManipulatorErrorHandler {
 	}
 
 	@Override
-	public void enumConstantNotFound(EnumType enumType, String enumConstantName) {
+	public void enumConstantNotFound(EnumType<?> enumType, String enumConstantName) {
 		throw new IllegalStateException("Could not resolve enum constant " + enumType.getTypeSignature() + "::" + enumConstantName);
 	}
 

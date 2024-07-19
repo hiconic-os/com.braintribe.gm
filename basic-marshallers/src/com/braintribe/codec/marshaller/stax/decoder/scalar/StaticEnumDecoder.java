@@ -20,9 +20,9 @@ import com.braintribe.codec.marshaller.stax.DecodingContext;
 import com.braintribe.model.generic.reflection.EnumType;
 
 public class StaticEnumDecoder extends ScalarValueDecoder {
-	private final EnumType enumType;
+	private final EnumType<?> enumType;
 	
-	public StaticEnumDecoder(EnumType enumType) {
+	public StaticEnumDecoder(EnumType<?> enumType) {
 		super(true);
 		this.enumType = enumType;
 	}
