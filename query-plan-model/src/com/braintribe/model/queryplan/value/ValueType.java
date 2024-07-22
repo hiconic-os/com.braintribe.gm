@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 /**
  * 
  */
-public enum ValueType implements EnumBase {
+public enum ValueType implements EnumBase<ValueType> {
 
 	aggregateFunction,
 	queryFunction,

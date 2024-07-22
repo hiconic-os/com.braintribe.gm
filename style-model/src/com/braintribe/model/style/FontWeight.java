@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum FontWeight implements EnumBase {
+public enum FontWeight implements EnumBase<FontWeight> {
 	normal("normal"), bold("bold"), weight100("100"), weight200("200"), weight300("300"), weight400("400"), weight500("500"),
 	weight600("600"), weight700("700"), weight800("800"), weight900("900");
 

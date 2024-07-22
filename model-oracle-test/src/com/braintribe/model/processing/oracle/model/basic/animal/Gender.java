@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 /**
  * @author peter.gazdik
  */
-public enum Gender implements EnumBase {
+public enum Gender implements EnumBase<Gender> {
 	M,
 	F,
 	H;

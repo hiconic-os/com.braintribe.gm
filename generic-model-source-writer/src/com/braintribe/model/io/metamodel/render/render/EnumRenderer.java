@@ -50,7 +50,7 @@ public class EnumRenderer extends CustomTypeRenderer {
 	}
 
 	private void printTypeHeader() {
-		println("public enum ", simpleName, " implements ", im.getTypeRef(EnumBase.class), " {");
+		println("public enum ", simpleName, " implements ", im.getTypeRef(EnumBase.class), "<" + simpleName + "> {");
 	}
 
 	private void printTypeBody() {

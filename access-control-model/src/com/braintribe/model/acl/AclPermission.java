@@ -24,7 +24,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * @author Dirk Scheffler
  *
  */
-public enum AclPermission implements EnumBase {
+public enum AclPermission implements EnumBase<AclPermission> {
 	GRANT, DENY;
 
 	public static final EnumType<AclPermission> T = EnumTypes.T(AclPermission.class);

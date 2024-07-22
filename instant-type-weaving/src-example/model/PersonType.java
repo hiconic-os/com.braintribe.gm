@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 /**
  * @author peter.gazdik
  */
-public enum PersonType implements EnumBase {
+public enum PersonType implements EnumBase<PersonType> {
 
 	A,
 	B,

@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum ModelPathElementAddressing implements EnumBase {
+public enum ModelPathElementAddressing implements EnumBase<ModelPathElementAddressing> {
 	full, first, last;
 
 	public static final EnumType<ModelPathElementAddressing> T = EnumTypes.T(ModelPathElementAddressing.class);

@@ -24,7 +24,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * 
  * @author Pit
  */
-public enum WhitespacePolicy implements EnumBase {
+public enum WhitespacePolicy implements EnumBase<WhitespacePolicy> {
 
 	preserve,
 	collapse,

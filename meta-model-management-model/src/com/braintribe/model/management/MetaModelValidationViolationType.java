@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum MetaModelValidationViolationType implements EnumBase {
+public enum MetaModelValidationViolationType implements EnumBase<MetaModelValidationViolationType> {
 	BASIC_METAMODEL_NULL, 
 	BASIC_METAMODEL_NAME_INVALID, 
 	BASIC_METAMODEL_VERSION_INVALID, 

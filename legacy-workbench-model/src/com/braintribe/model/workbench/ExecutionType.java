@@ -25,7 +25,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * @author michel.docouto
  *
  */
-public enum ExecutionType implements EnumBase {
+public enum ExecutionType implements EnumBase<ExecutionType> {
 	
 	auto("auto"),
 	editable("editable"),

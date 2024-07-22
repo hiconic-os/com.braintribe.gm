@@ -24,7 +24,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * 
  * @author michael.lafite
  */
-public enum GarbageCollectionKind implements EnumBase {
+public enum GarbageCollectionKind implements EnumBase<GarbageCollectionKind> {
 
 	/**
 	 * This setting marks entities from where the GC starts its reachability walks. <code>anchor</code> entities will

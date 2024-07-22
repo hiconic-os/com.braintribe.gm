@@ -23,7 +23,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 /**
  * Defines the type of the direction({@link #ascending}, {@link #descending}) in which the results should be ordered
  */
-public enum OrderingDirection implements EnumBase {
+public enum OrderingDirection implements EnumBase<OrderingDirection> {
 	/**
 	 * From the lowest value to the highest
 	 */

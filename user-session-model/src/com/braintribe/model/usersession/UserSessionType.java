@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum UserSessionType implements EnumBase {
+public enum UserSessionType implements EnumBase<UserSessionType> {
 	
 	trusted, normal, internal;
 

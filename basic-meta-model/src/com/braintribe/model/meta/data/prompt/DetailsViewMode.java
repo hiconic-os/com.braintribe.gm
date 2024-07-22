@@ -29,7 +29,7 @@ public interface DetailsViewMode extends EntityTypeMetaData {
 	DetailsViewModeOption getDetailsViewModeOption();
 	void setDetailsViewModeOption(DetailsViewModeOption option);
 	
-	public enum DetailsViewModeOption implements EnumBase {
+	public enum DetailsViewModeOption implements EnumBase<DetailsViewModeOption> {
 		visible,
 		hidden,
 		forcedHidden;

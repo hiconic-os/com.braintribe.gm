@@ -24,7 +24,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * 
  * @author peter.gazdik
  */
-public enum NameConversionStyle implements EnumBase {
+public enum NameConversionStyle implements EnumBase<NameConversionStyle> {
 
 	/** "someText" -> some_text */
 	snakeCase,

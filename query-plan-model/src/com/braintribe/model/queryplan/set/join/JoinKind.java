@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 /**
  * 
  */
-public enum JoinKind implements EnumBase {
+public enum JoinKind implements EnumBase<JoinKind> {
 	inner,
 	left,
 	right,

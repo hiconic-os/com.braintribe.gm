@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum AccessJoinPoint implements EnumBase {
+public enum AccessJoinPoint implements EnumBase<AccessJoinPoint> {
 	getMetaModel, query, queryEntities, queryProperties, applyManipulation, getReferences;
 
 	public static final EnumType<AccessJoinPoint> T = EnumTypes.T(AccessJoinPoint.class);

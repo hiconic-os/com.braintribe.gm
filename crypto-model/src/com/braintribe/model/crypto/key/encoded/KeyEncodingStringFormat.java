@@ -25,7 +25,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * 
  *
  */
-public enum KeyEncodingStringFormat implements EnumBase {
+public enum KeyEncodingStringFormat implements EnumBase<KeyEncodingStringFormat> {
 
 	hex, base64;
 

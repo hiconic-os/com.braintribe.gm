@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum TraceKind implements EnumBase {
+public enum TraceKind implements EnumBase<TraceKind> {
 	trace, info, error, warn;
 
 	public static final EnumType<TraceKind> T = EnumTypes.T(TraceKind.class);

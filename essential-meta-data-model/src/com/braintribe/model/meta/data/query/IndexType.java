@@ -28,7 +28,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * Right now, metric index could be used with property of any type, but it makes no sense to it for entity type and boolean (enum is
  * questionable).
  */
-public enum IndexType implements EnumBase {
+public enum IndexType implements EnumBase<IndexType> {
 
 	/**
 	 * No index should be used.

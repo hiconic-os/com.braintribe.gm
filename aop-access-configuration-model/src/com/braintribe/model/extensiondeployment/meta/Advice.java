@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum Advice implements EnumBase {
+public enum Advice implements EnumBase<Advice> {
 	before, around, after;
 
 	public static final EnumType<Advice> T = EnumTypes.T(Advice.class);

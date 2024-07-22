@@ -24,7 +24,7 @@ import java.util.HashMap;
 /**
  * Defines the type of the <code>operator</code> applied in comparisons.
  */
-public enum Operator implements EnumBase {
+public enum Operator implements EnumBase<Operator> {
 	equal,
 	notEqual,
 	like,

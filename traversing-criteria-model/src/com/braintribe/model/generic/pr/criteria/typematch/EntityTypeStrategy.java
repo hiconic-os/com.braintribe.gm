@@ -26,7 +26,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  *
  */
 @Deprecated
-public enum EntityTypeStrategy implements EnumBase {
+public enum EntityTypeStrategy implements EnumBase<EntityTypeStrategy> {
 	assignable, equals;
 
 	public static final EnumType<EntityTypeStrategy> T = EnumTypes.T(EntityTypeStrategy.class);

@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum EncodingType implements EnumBase {
+public enum EncodingType implements EnumBase<EncodingType> {
 	xml, json, binary;
 
 	public static final EnumType<EncodingType> T = EnumTypes.T(EncodingType.class);

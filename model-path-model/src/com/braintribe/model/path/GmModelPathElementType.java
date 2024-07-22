@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum GmModelPathElementType implements EnumBase {
+public enum GmModelPathElementType implements EnumBase<GmModelPathElementType> {
 	EntryPoint, ListItem, MapKey, MapValue, Property, Root, SetItem;
 
 	public static final EnumType<GmModelPathElementType> T = EnumTypes.T(GmModelPathElementType.class);

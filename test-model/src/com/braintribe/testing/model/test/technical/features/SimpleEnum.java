@@ -24,7 +24,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  *
  * @author michael.lafite
  */
-public enum SimpleEnum implements EnumBase {
+public enum SimpleEnum implements EnumBase<SimpleEnum> {
 
 	ONE,
 	TWO,

@@ -21,7 +21,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 
 
 @Deprecated
-public enum DownloadResourceType implements EnumBase {
+public enum DownloadResourceType implements EnumBase<DownloadResourceType> {
 
 	get,
 	stream;

@@ -23,7 +23,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * Defines the type of {@link Join} used to combine sources. One can be {@link #inner}, {@link #left}, {@link #right},
  * {@link #full}.
  */
-public enum JoinType implements EnumBase {
+public enum JoinType implements EnumBase<JoinType> {
 	/**
 	 * All the records from both sources where the records intersect.
 	 */

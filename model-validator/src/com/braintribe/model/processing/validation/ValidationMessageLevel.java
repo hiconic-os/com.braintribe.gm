@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum ValidationMessageLevel implements EnumBase {
+public enum ValidationMessageLevel implements EnumBase<ValidationMessageLevel> {
 	INFO,
 	WARNING,
 	ERROR;

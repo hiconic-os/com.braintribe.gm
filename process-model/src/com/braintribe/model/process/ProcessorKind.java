@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum ProcessorKind implements EnumBase {
+public enum ProcessorKind implements EnumBase<ProcessorKind> {
 	transition, condition;
 
 	public static final EnumType<ProcessorKind> T = EnumTypes.T(ProcessorKind.class);

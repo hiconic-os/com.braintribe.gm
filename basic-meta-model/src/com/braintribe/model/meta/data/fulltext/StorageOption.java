@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum StorageOption implements EnumBase {
+public enum StorageOption implements EnumBase<StorageOption> {
 	reference,
 	embedded,
 	encoded;

@@ -24,7 +24,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * 
  * @author Dirk Scheffler
  */
- public enum AclOperation implements EnumBase {
+ public enum AclOperation implements EnumBase<AclOperation> {
 	READ,
 	WRITE,
 	DELETE,

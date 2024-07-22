@@ -26,7 +26,7 @@ import com.braintribe.model.service.api.ServiceRequest;
  * {@link Neutral} acts as a replacement for Java's void and is a valid GM value.
  *
  */
-public enum Neutral implements EnumBase {
+public enum Neutral implements EnumBase<Neutral> {
 	NEUTRAL;
 	
 	public static final EnumType<Neutral> T = EnumTypes.T(Neutral.class);

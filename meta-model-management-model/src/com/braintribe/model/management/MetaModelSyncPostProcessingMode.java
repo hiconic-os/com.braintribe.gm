@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum MetaModelSyncPostProcessingMode implements EnumBase {
+public enum MetaModelSyncPostProcessingMode implements EnumBase<MetaModelSyncPostProcessingMode> {
 	DRY_RUN, DO_DELETE_IN_TARGET_MODEL, DO_REMOVE_IN_TARGET_MODEL;
 
 	public static final EnumType<MetaModelSyncPostProcessingMode> T = EnumTypes.T(MetaModelSyncPostProcessingMode.class);

@@ -25,7 +25,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * 
  *
  */
-public enum KeyEncodingFormat implements EnumBase {
+public enum KeyEncodingFormat implements EnumBase<KeyEncodingFormat> {
 
 	pkcs8, x509, raw;
 

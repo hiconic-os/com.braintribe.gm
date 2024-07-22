@@ -99,6 +99,7 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 		assertContainsSubstrings("BLUE,\n\t;");
 		assertContainsSubstring("package " + MetaModelBuilder.COMMON_PACKAGE);
 
+		assertContainsSubstring("public enum TheEnum implements EnumBase<TheEnum> {");
 		assertContainsSubstring("public static final EnumType<TheEnum> T = EnumTypes.T(TheEnum.class);");
 		assertContainsSubstring("public EnumType<TheEnum> type() {");
 		assertContainsSubstring("return T;");

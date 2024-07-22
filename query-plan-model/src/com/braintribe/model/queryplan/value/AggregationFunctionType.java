@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 /**
  * 
  */
-public enum AggregationFunctionType implements EnumBase {
+public enum AggregationFunctionType implements EnumBase<AggregationFunctionType> {
 	count,
 	countDistinct,
 	sum,

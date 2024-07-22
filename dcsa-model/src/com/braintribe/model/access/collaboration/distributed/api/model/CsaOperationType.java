@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 /**
  * @author peter.gazdik
  */
-public enum CsaOperationType implements EnumBase {
+public enum CsaOperationType implements EnumBase<CsaOperationType> {
 
 	APPEND_DATA_MANIPULATION,
 	APPEND_MODEL_MANIPULATION,

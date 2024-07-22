@@ -27,7 +27,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * still result in errors depending on the access' implementation, for example, if an SQL database backs an access and there are foreign keys between
  * entities.
  */
-public enum DeleteMode implements EnumBase {
+public enum DeleteMode implements EnumBase<DeleteMode> {
 
 	/**
 	 * Drops the references, even if not allowed by constraints such as {@link Mandatory}. (e.g. EntityA.entityb = EntityB and entityb is a mandatory

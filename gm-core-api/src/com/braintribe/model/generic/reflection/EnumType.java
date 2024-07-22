@@ -18,6 +18,8 @@ package com.braintribe.model.generic.reflection;
 import com.braintribe.model.generic.GmCoreApiInteropNamespaces;
 import com.braintribe.model.generic.value.EnumReference;
 
+import jsinterop.annotations.JsIgnore;
+import jsinterop.annotations.JsMethod;
 import jsinterop.annotations.JsType;
 
 @JsType(namespace = GmCoreApiInteropNamespaces.reflection)
@@ -27,12 +29,20 @@ public interface EnumType<E extends Enum<E>> extends CustomType, ScalarType {
 	@Override
 	Class<E> getJavaType();
 
+	@JsMethod(name = "constants")
 	E[] getEnumValues();
 
+	@JsMethod(name = "getConstant")
 	E getEnumValue(String name);
 
+	@JsMethod(name = "findConstant")
 	E findEnumValue(String name);
 
+	/**
+	 * @deprecated use {@link #getEnumValue(String)}
+	 */
+	@Deprecated
+	@JsIgnore
 	E getInstance(String value);
 
 	EnumReference getEnumReference(Enum<?> enumConstant);

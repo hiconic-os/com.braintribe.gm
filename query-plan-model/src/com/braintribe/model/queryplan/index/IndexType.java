@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 /**
  * 
  */
-public enum IndexType implements EnumBase {
+public enum IndexType implements EnumBase<IndexType> {
 
 	generated,
 	generatedMetric,

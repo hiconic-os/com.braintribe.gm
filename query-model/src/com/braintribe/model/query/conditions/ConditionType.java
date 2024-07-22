@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 /**
  * Defines the type of {@link Condition} used as a restriction on a query.
  */
-public enum ConditionType implements EnumBase {
+public enum ConditionType implements EnumBase<ConditionType> {
 
 	// comparisons
 	/**

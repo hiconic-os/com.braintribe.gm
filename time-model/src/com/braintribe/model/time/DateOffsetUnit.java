@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum DateOffsetUnit implements EnumBase {
+public enum DateOffsetUnit implements EnumBase<DateOffsetUnit> {
 	millisecond, second, minute, hour, day, month, year;
 
 	public static final EnumType<DateOffsetUnit> T = EnumTypes.T(DateOffsetUnit.class);

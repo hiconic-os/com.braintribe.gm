@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum AcknowledgeMode implements EnumBase {
+public enum AcknowledgeMode implements EnumBase<AcknowledgeMode> {
 	NONE, AUTO, ONRECEIVE, AFTERPROCESSING;
 
 	public static final EnumType<AcknowledgeMode> T = EnumTypes.T(AcknowledgeMode.class);

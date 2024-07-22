@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum MpcElementAxis implements EnumBase {
+public enum MpcElementAxis implements EnumBase<MpcElementAxis> {
 	value, listIndex, mapKey, mapValue, depth;
 
 	public static final EnumType<MpcElementAxis> T = EnumTypes.T(MpcElementAxis.class);

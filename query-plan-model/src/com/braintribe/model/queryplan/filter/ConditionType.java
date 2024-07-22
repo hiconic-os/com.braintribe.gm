@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 /**
  * 
  */
-public enum ConditionType implements EnumBase {
+public enum ConditionType implements EnumBase<ConditionType> {
 
 	// ordering
 	equality,

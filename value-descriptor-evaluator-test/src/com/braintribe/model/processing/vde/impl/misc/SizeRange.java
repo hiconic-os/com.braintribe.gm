@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum SizeRange implements EnumBase {
+public enum SizeRange implements EnumBase<SizeRange> {
 	small,
 	medium,
 	large;

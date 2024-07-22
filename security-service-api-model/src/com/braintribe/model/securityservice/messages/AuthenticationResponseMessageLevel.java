@@ -21,7 +21,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 
 /** @deprecated re-adding as used in GWT */
 @Deprecated
-public enum AuthenticationResponseMessageLevel implements EnumBase {
+public enum AuthenticationResponseMessageLevel implements EnumBase<AuthenticationResponseMessageLevel> {
 	
 	error, warn, info, debug, trace;
 

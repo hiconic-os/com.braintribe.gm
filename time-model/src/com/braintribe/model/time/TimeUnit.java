@@ -28,7 +28,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * Units of measurement for time.
  *
  */
-public enum TimeUnit implements EnumBase {
+public enum TimeUnit implements EnumBase<TimeUnit> {
 	planckTime, nanoSecond, microSecond, milliSecond, second, minute, hour, day;
 
 	public static final EnumType<TimeUnit> T = EnumTypes.T(TimeUnit.class);

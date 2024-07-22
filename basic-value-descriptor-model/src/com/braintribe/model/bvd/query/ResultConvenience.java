@@ -20,7 +20,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum ResultConvenience implements EnumBase {
+public enum ResultConvenience implements EnumBase<ResultConvenience> {
 	
 	/**
 	 * Returns the envelope object (an instance of com.braintribe.model.query.QueryResult returned by the query.

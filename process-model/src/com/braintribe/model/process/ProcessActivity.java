@@ -20,7 +20,7 @@ import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
 
-public enum ProcessActivity implements EnumBase {
+public enum ProcessActivity implements EnumBase<ProcessActivity> {
 	processing, waiting, ended;
 
 	public static final EnumType<ProcessActivity> T = EnumTypes.T(ProcessActivity.class);

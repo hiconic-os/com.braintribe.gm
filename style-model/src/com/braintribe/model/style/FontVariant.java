@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum FontVariant implements EnumBase {
+public enum FontVariant implements EnumBase<FontVariant> {
 	normal("normal"), smallcaps("small-caps"), initial("initial"), inherit("inherit");
 	
     private final String text;

@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum TypeExplicitness implements EnumBase {
+public enum TypeExplicitness implements EnumBase<TypeExplicitness> {
 	/**
 	 * The marshaller decides which of the other options it will choose. Look at the inidividual marshaller's to see for the individual case. 
 	 */

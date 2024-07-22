@@ -24,7 +24,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  *
  * @author michael.lafite
  */
-public enum ManyValuesEnum implements EnumBase {
+public enum ManyValuesEnum implements EnumBase<ManyValuesEnum> {
 
 	VALUE_001,
 	VALUE_002,

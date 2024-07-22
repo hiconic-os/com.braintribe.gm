@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum FontStretch implements EnumBase {
+public enum FontStretch implements EnumBase<FontStretch> {
 	normal("normal"), condensed("condensed"), ultraCondensed("ultra-condensed"), extraCondensed("extra-condensed"), 
 	semiCondensed("semi-condensed"), expanded("expanded"), semiExpanded("semi-expanded"), extraExpanded("extra-expanded"), ultraExpanded("ultra-expanded");
     

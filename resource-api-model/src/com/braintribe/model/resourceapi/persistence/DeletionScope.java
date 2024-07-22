@@ -29,7 +29,7 @@ import com.braintribe.model.resource.source.ResourceSource;
  * @author Neidhart.Orlich
  *
  */
-public enum DeletionScope implements EnumBase {
+public enum DeletionScope implements EnumBase<DeletionScope> {
 	/**
 	 * Delete the binary content of the resource but keep the {@link ResourceSource} and the {@link Resource} entity
 	 */

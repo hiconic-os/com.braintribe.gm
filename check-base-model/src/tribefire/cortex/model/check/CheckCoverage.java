@@ -23,7 +23,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * Classifies different purposes of checks. This classification makes no statement about {@link CheckWeight performance}.
  * 
  */
-public enum CheckCoverage implements EnumBase {
+public enum CheckCoverage implements EnumBase<CheckCoverage> {
 	
 	/**
 	 * Covers checks in order to check the ability to process functionality

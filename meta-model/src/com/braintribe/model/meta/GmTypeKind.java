@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 /**
  * 
  */
-public enum GmTypeKind implements EnumBase {
+public enum GmTypeKind implements EnumBase<GmTypeKind> {
 	BASE,
 	
 	BOOLEAN,

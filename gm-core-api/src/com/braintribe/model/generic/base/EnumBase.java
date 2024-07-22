@@ -18,6 +18,7 @@ package com.braintribe.model.generic.base;
 import com.braintribe.model.generic.GmCoreApiInteropNamespaces;
 import com.braintribe.model.generic.reflection.EnumType;
 
+import jsinterop.annotations.JsMethod;
 import jsinterop.annotations.JsType;
 
 /**
@@ -26,10 +27,11 @@ import jsinterop.annotations.JsType;
  * @see GenericBase
  */
 @JsType(namespace = GmCoreApiInteropNamespaces.reflection)
-public interface EnumBase extends GenericBase {
+public interface EnumBase<E extends Enum<E> & EnumBase<E>> extends GenericBase {
 
 	@Override
-	EnumType<?> type();
+	@JsMethod(name="Type")
+	EnumType<E> type();
 
 	int ordinal();
 

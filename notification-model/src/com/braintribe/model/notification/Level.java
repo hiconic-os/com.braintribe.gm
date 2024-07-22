@@ -24,7 +24,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * Classification of a message.
  * 
  */
-public enum Level implements EnumBase {
+public enum Level implements EnumBase<Level> {
 	/** ERROR is a message level indicating a serious failure. */
 	ERROR,
 	/** WARNING is a message level indicating a potential problem. */

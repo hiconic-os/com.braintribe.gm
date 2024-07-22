@@ -19,7 +19,7 @@ import com.braintribe.model.generic.base.EnumBase;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum ComparisonOperator implements EnumBase {
+public enum ComparisonOperator implements EnumBase<ComparisonOperator> {
 	equal,
 	notEqual,
 	greater,

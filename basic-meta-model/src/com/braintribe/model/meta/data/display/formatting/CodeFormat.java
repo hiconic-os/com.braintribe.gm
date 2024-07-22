@@ -24,7 +24,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  * 
  */
 
-public enum CodeFormat implements EnumBase {
+public enum CodeFormat implements EnumBase<CodeFormat> {
 	/** ABAP (Advanced Business Application Programming). */
 	abap,
 	/** Actionscript. */

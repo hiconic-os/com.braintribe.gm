@@ -20,7 +20,7 @@ import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
 @Deprecated
-public enum IndexRangeBoundsAssignment implements EnumBase {
+public enum IndexRangeBoundsAssignment implements EnumBase<IndexRangeBoundsAssignment> {
 	LOWER,
 	UPPER,
 	BOTH;

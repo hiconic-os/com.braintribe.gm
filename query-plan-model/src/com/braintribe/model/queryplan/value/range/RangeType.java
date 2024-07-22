@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 /**
  * 
  */
-public enum RangeType implements EnumBase {
+public enum RangeType implements EnumBase<RangeType> {
 	simple,
 	intersection;
 

@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EnumTypes;
 /**
  * @author peter.gazdik
  */
-public enum CollaborativePersistenceRequestType implements EnumBase {
+public enum CollaborativePersistenceRequestType implements EnumBase<CollaborativePersistenceRequestType> {
 
 	// modifying state
 	PushStage,
