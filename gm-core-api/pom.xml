@@ -24,6 +24,7 @@ limitations under the License.
     <properties>
         <archetype>library</archetype>
         <jsinterop>true</jsinterop>
+        <npmPackaging>typeScriptDeclaration</npmPackaging>
     </properties>
     <licenses>
         <license>
