@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.function.Function;
 
 import com.braintribe.common.attribute.AttributeContext;
@@ -46,27 +45,19 @@ import com.braintribe.model.generic.pr.criteria.NegationCriterion;
 import com.braintribe.model.generic.pr.criteria.PatternCriterion;
 import com.braintribe.model.generic.pr.criteria.PlaceholderCriterion;
 import com.braintribe.model.generic.pr.criteria.PropertyCriterion;
-import com.braintribe.model.generic.pr.criteria.PropertyTypeCriterion;
 import com.braintribe.model.generic.pr.criteria.RecursionCriterion;
 import com.braintribe.model.generic.pr.criteria.SetElementCriterion;
 import com.braintribe.model.generic.pr.criteria.TraversingCriterion;
 import com.braintribe.model.generic.pr.criteria.TypeConditionCriterion;
 import com.braintribe.model.generic.pr.criteria.TypedCriterion;
 import com.braintribe.model.generic.pr.criteria.ValueConditionCriterion;
-import com.braintribe.model.generic.pr.criteria.typematch.AnyTypeMatch;
-import com.braintribe.model.generic.pr.criteria.typematch.CollectionTypeMatch;
-import com.braintribe.model.generic.pr.criteria.typematch.EntityTypeMatch;
 import com.braintribe.model.generic.pr.criteria.typematch.EntityTypeStrategy;
-import com.braintribe.model.generic.pr.criteria.typematch.EnumTypeMatch;
-import com.braintribe.model.generic.pr.criteria.typematch.SimpleTypeMatch;
-import com.braintribe.model.generic.pr.criteria.typematch.TypeMatch;
 import com.braintribe.model.generic.reflection.CollectionType;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.GenericModelTypeReflection;
 import com.braintribe.model.generic.reflection.Property;
-import com.braintribe.model.generic.reflection.SimpleType;
 import com.braintribe.model.generic.reflection.TraversingContext;
 import com.braintribe.model.generic.typecondition.TypeCondition;
 import com.braintribe.model.generic.value.ValueDescriptor;
@@ -224,8 +215,6 @@ public class StandardMatcher implements Matcher {
 			return matchesAclEntity(it, (AclCriterion)criterion);
 		case TYPE_CONDITION:
 			return matchesTypeCondition(it, (TypeConditionCriterion)criterion);
-		case PROPERTY_TYPE:
-			return matchesPropertyType(it, (PropertyTypeCriterion)criterion);
 		case VALUE_CONDITION:
 			return matchesValueCondition(it, (ValueConditionCriterion)criterion);
 		case PROPERTY:
@@ -406,25 +395,6 @@ public class StandardMatcher implements Matcher {
 
 	}
 	
-	private boolean matchesPropertyType(TcIterator it, PropertyTypeCriterion propertyTypeCriterion) {
-		if (it.hasPrevious()) {
-			it.previous();
-			BasicCriterion candidate = it.getCriterion();
-			
-			if (candidate.criterionType() != CriterionType.PROPERTY)
-				return false;
-			
-			PropertyCriterion propertyCriterion = (PropertyCriterion)candidate;
-	
-			String typeSignature = propertyCriterion.getTypeSignature();
-			GenericModelType type = typeReflection.findType(typeSignature);
-	
-			return type != null && matches(type, propertyTypeCriterion.getTypes());
-		}
-		else
-			return false;
-	}
-	
 	private boolean matchesValueCondition(TcIterator it, ValueConditionCriterion valueConditionCriterion) {
 		if (it.hasPrevious()) {
 			it.previous();
@@ -564,89 +534,6 @@ public class StandardMatcher implements Matcher {
 			return false;
 	}
 	
-	public boolean matches(GenericModelType type, Set<TypeMatch> typeMatches) {
-		for (TypeMatch typeMatch: typeMatches) {
-			if (matches(type, typeMatch))
-				return true;
-		}
-		return false;
-	}
-
-	public boolean matches(GenericModelType type, TypeMatch typeMatch) {
-		if (typeMatch instanceof AnyTypeMatch) {
-			return true;
-		}
-		else if (typeMatch instanceof SimpleTypeMatch) {
-			SimpleTypeMatch simpleTypeMatch = (SimpleTypeMatch)typeMatch;
-			String typeName = simpleTypeMatch.getSimpleTypeName();
-			return (type instanceof SimpleType && (typeName == null || (typeName.equals(type.getTypeName()))));
-		}
-		else if (typeMatch instanceof EnumTypeMatch) {
-			return (type instanceof EnumType);
-		}
-		else if (typeMatch instanceof EntityTypeMatch) {
-			if (type instanceof EntityType<?>) {
-				EntityTypeMatch entityTypeMatch = (EntityTypeMatch)typeMatch;
-				EntityType<?> entityType = (EntityType<?>)type;
-				String typeSignature = entityTypeMatch.getTypeSignature();
-
-				if (typeSignature != null) {
-					EntityType<?> otherEntityType = typeReflection.findEntityType(typeSignature);
-
-					if (otherEntityType == null)
-						return false;
-
-					if (entityTypeMatch.getWithSubClasses()) {
-						while (true) {
-							if (entityType == otherEntityType)
-								return true;
-
-							List<EntityType<?>> superTypes = entityType.getSuperTypes();
-
-							if (superTypes == null || superTypes.isEmpty())
-								return false;
-
-							entityType = superTypes.get(0);
-						}
-					}
-					else {
-						return otherEntityType == entityType;
-					}
-				}
-				else return true;
-			}
-			else return false;
-		}
-		else if (typeMatch instanceof CollectionTypeMatch) {
-			if (type instanceof CollectionType) {
-				CollectionType collectionType = (CollectionType)type;
-				CollectionTypeMatch collectionTypeMatch = (CollectionTypeMatch)typeMatch;
-				String collectionTypeName = collectionTypeMatch.getCollectionTypeName();
-				List<TypeMatch> parameterMatches = collectionTypeMatch.getParameterMatches();
-
-				if (collectionTypeName != null && collectionTypeName.equals(collectionType.getTypeName()))
-					return false;
-
-				if (parameterMatches != null) {
-					for (int i = 0; i < parameterMatches.size() && i < collectionType.getParameterization().length; i++) {
-						TypeMatch parameterTypeMatch = parameterMatches.get(i);
-						GenericModelType parameterType = collectionType.getParameterization()[i];
-
-						if (!matches(parameterType, parameterTypeMatch))
-							return false;
-					}
-
-					return true;
-				}
-
-				return true;
-			}
-			else return false;
-		}
-		else
-			return false;
-	}
-
 	protected boolean matchesValue(BasicCriterion stackCriterion, ValueConditionCriterion criterion, Object stackValue) {
 		String typeSignature = stackCriterion.getTypeSignature();
 		GenericModelType type = typeReflection.findType(typeSignature);

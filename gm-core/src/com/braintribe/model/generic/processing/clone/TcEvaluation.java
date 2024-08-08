@@ -18,7 +18,6 @@ package com.braintribe.model.generic.processing.clone;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
-import java.util.Set;
 
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
@@ -34,19 +33,12 @@ import com.braintribe.model.generic.pr.criteria.MapValueCriterion;
 import com.braintribe.model.generic.pr.criteria.NegationCriterion;
 import com.braintribe.model.generic.pr.criteria.PatternCriterion;
 import com.braintribe.model.generic.pr.criteria.PropertyCriterion;
-import com.braintribe.model.generic.pr.criteria.PropertyTypeCriterion;
 import com.braintribe.model.generic.pr.criteria.RecursionCriterion;
 import com.braintribe.model.generic.pr.criteria.SetElementCriterion;
 import com.braintribe.model.generic.pr.criteria.TraversingCriterion;
 import com.braintribe.model.generic.pr.criteria.TypeConditionCriterion;
 import com.braintribe.model.generic.pr.criteria.ValueConditionCriterion;
-import com.braintribe.model.generic.pr.criteria.typematch.AnyTypeMatch;
-import com.braintribe.model.generic.pr.criteria.typematch.CollectionTypeMatch;
-import com.braintribe.model.generic.pr.criteria.typematch.EntityTypeMatch;
 import com.braintribe.model.generic.pr.criteria.typematch.EntityTypeStrategy;
-import com.braintribe.model.generic.pr.criteria.typematch.EnumTypeMatch;
-import com.braintribe.model.generic.pr.criteria.typematch.SimpleTypeMatch;
-import com.braintribe.model.generic.pr.criteria.typematch.TypeMatch;
 import com.braintribe.model.generic.processing.typecondition.experts.GenericTypeConditionExpert;
 import com.braintribe.model.generic.reflection.CollectionType;
 import com.braintribe.model.generic.reflection.EntityType;
@@ -109,8 +101,6 @@ public class TcEvaluation {
 			return matchesEntity(nodeHolder, (EntityCriterion)criterion);
 		case TYPE_CONDITION:
 			return matchesTypeCondition(nodeHolder, (TypeConditionCriterion)criterion);
-		case PROPERTY_TYPE:
-			return matchesPropertyType(nodeHolder, (PropertyTypeCriterion)criterion);
 		case VALUE_CONDITION:
 			return matchesValueCondition(nodeHolder, (ValueConditionCriterion)criterion);
 		case PROPERTY:
@@ -239,19 +229,6 @@ public class TcEvaluation {
 
 	}
 	
-	private boolean matchesPropertyType(TraversingNodeHolder nodeHolder, PropertyTypeCriterion propertyTypeCriterion) {
-		TraversingNode node = nodeHolder.consum();
-		if (node != null) {
-			if (node.getCriterionType() != CriterionType.PROPERTY)
-				return false;
-			
-			GenericModelType type = node.getType();
-			return matches(type, propertyTypeCriterion.getTypes());
-		}
-		else
-			return false;
-	}
-	
 	private boolean matchesValueCondition(TraversingNodeHolder nodeHolder, ValueConditionCriterion valueConditionCriterion) {
 		TraversingNode node = nodeHolder.consum();
 		if (node != null) {
@@ -378,90 +355,6 @@ public class TcEvaluation {
 			return false;
 	}
 	
-
-	public boolean matches(GenericModelType type, Set<TypeMatch> typeMatches) {
-		for (TypeMatch typeMatch: typeMatches) {
-			if (matches(type, typeMatch))
-				return true;
-		}
-		return false;
-	}
-
-	public boolean matches(GenericModelType type, TypeMatch typeMatch) {
-		if (typeMatch instanceof AnyTypeMatch) {
-			return true;
-		}
-		else if (typeMatch instanceof SimpleTypeMatch) {
-			SimpleTypeMatch simpleTypeMatch = (SimpleTypeMatch)typeMatch;
-			String typeName = simpleTypeMatch.getSimpleTypeName();
-			return (type instanceof SimpleType && (typeName == null || (typeName.equals(type.getTypeName()))));
-		}
-		else if (typeMatch instanceof EnumTypeMatch) {
-			return (type instanceof EnumType);
-		}
-		else if (typeMatch instanceof EntityTypeMatch) {
-			if (type instanceof EntityType<?>) {
-				EntityTypeMatch entityTypeMatch = (EntityTypeMatch)typeMatch;
-				EntityType<?> entityType = (EntityType<?>)type;
-				String typeSignature = entityTypeMatch.getTypeSignature();
-
-				if (typeSignature != null) {
-					EntityType<?> otherEntityType = typeReflection.getEntityType(typeSignature);
-
-					if (entityTypeMatch.getWithSubClasses()) {
-						while (true) {
-							if (entityType == otherEntityType)
-								return true;
-
-							List<EntityType<?>> superTypes = entityType.getSuperTypes();
-
-							if (superTypes == null || superTypes.size() == 0)
-								break;
-							else {
-								entityType = superTypes.get(0);
-							}
-						}
-
-						return false;
-					}
-					else {
-						return otherEntityType == entityType;
-					}
-				}
-				else return true;
-			}
-			else return false;
-		}
-		else if (typeMatch instanceof CollectionTypeMatch) {
-			if (type instanceof CollectionType) {
-				CollectionType collectionType = (CollectionType)type;
-				CollectionTypeMatch collectionTypeMatch = (CollectionTypeMatch)typeMatch;
-				String collectionTypeName = collectionTypeMatch.getCollectionTypeName();
-				List<TypeMatch> parameterMatches = collectionTypeMatch.getParameterMatches();
-
-				if (collectionTypeName != null && collectionTypeName.equals(collectionType.getTypeName()))
-					return false;
-
-				if (parameterMatches != null) {
-					for (int i = 0; i < parameterMatches.size() && i < collectionType.getParameterization().length; i++) {
-						TypeMatch parameterTypeMatch = parameterMatches.get(i);
-						GenericModelType parameterType = collectionType.getParameterization()[i];
-
-						if (!matches(parameterType, parameterTypeMatch))
-							return false;
-					}
-
-					return true;
-				}
-
-				return true;
-			}
-			else return false;
-		}
-		else
-			return false;
-	}
-
 	protected boolean matchesValue(GenericModelType type, ValueConditionCriterion criterion, Object stackValue) {
 		TypeValuePair typeValuePair = new TypeValuePair();
 		typeValuePair.type = type;

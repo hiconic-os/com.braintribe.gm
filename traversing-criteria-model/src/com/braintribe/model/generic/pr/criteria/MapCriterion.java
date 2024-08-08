@@ -18,14 +18,12 @@ package com.braintribe.model.generic.pr.criteria;
 
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
-import com.braintribe.model.generic.typecondition.TypeCondition;
 
 /**
  * The typeSignature (see {@link TypedCriterion#setTypeSignature(String)}) is expected to be in form:
  * {@code map<typeSignature, valueTypeSignature>}.
  * 
  */
-
 public interface MapCriterion extends BasicCriterion {
 
 	final EntityType<MapCriterion> T = EntityTypes.T(MapCriterion.class);

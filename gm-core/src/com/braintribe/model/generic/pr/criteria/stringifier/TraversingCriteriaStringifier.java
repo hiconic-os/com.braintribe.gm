@@ -141,7 +141,6 @@ public class TraversingCriteriaStringifier extends AbstractStringifier {
 
 			// bullshit
 			case BASIC:
-			case PROPERTY_TYPE:
 			default:
 				print(tc.toString());
 		}
