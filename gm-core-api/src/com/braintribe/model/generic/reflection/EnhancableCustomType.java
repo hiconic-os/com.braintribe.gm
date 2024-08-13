@@ -17,11 +17,15 @@ package com.braintribe.model.generic.reflection;
 
 import com.braintribe.model.generic.GmCoreApiInteropNamespaces;
 
+import jsinterop.annotations.JsIgnore;
 import jsinterop.annotations.JsType;
+import jsinterop.annotations.custom.TsUnignoreMethod;
 
 @JsType(namespace = GmCoreApiInteropNamespaces.reflection)
 public interface EnhancableCustomType extends GenericModelType {
 
+	//@JsIgnore
+	//@TsUnignoreMethod
 	Object create();
 
 	Object createPlain();

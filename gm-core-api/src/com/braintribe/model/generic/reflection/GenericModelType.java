@@ -23,6 +23,7 @@ import com.braintribe.model.generic.value.ValueDescriptor;
 
 import jsinterop.annotations.JsIgnore;
 import jsinterop.annotations.JsType;
+import jsinterop.annotations.custom.TsUnignoreMethod;
 
 /**
  * Base interface for all reflection classes which represent types of GM values. Every instance implementing this is
@@ -78,6 +79,8 @@ public interface GenericModelType extends Comparable<GenericModelType> {
 	 * Similar to {@link #getTypeName()}, but also includes the signatures of parameters in case of collections. An
 	 * example for map would be: {@code "map<string,foo.Bar>"}.
 	 */
+	@JsIgnore // See GenericModelTypeJs in gwt-gm-core
+	@TsUnignoreMethod
 	String getTypeSignature();
 
 	/**

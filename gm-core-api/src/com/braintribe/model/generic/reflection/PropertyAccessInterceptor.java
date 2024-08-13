@@ -18,25 +18,41 @@ package com.braintribe.model.generic.reflection;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.GmCoreApiInteropNamespaces;
 
+import jsinterop.annotations.JsIgnore;
+import jsinterop.annotations.JsMethod;
 import jsinterop.annotations.JsType;
 
 /**
  * @author peter.gazdik
  */
-@JsType (namespace = GmCoreApiInteropNamespaces.reflection)
+@JsType(namespace = GmCoreApiInteropNamespaces.reflection)
 @SuppressWarnings("unusable-by-js")
 public abstract class PropertyAccessInterceptor {
 
 	public PropertyAccessInterceptor next;
 
 	/** Default implementation with no side-effects. */
+	@JsIgnore
 	public Object getProperty(Property property, GenericEntity entity, boolean isVd) {
 		return next.getProperty(property, entity, isVd);
 	}
 
 	/** Default implementation with no side-effects. */
+	@JsIgnore
 	public Object setProperty(Property property, GenericEntity entity, Object value, boolean isVd) {
 		return next.setProperty(property, entity, value, isVd);
+	}
+
+	// See GenericModelTypeJs in gwt-gm-core
+	@JsMethod(name = "getProperty")
+	public final Object getPropertyJs(Property property, GenericEntity entity, boolean isVd) {
+		return getProperty(property, entity, isVd);
+	}
+
+	// See GenericModelTypeJs in gwt-gm-core
+	@JsMethod(name = "setProperty")
+	public final Object setPropertyJs(Property property, GenericEntity entity, Object value, boolean isVd) {
+		return setProperty(property, entity, value, isVd);
 	}
 
 }

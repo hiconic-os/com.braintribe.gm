@@ -27,6 +27,7 @@ import com.braintribe.model.generic.value.EntityReference;
 
 import jsinterop.annotations.JsIgnore;
 import jsinterop.annotations.JsType;
+import jsinterop.annotations.custom.TsUnignoreMethod;
 
 @JsType(namespace = GmCoreApiInteropNamespaces.reflection)
 @SuppressWarnings("unusable-by-js")
@@ -60,12 +61,16 @@ public interface EntityType<T extends GenericEntity> extends EntityTypeDeprecati
 	 * @return similar to {@link #findProperty(String)}, but throws a {@link GenericModelException} if no property was found. Note that this works for
 	 *         all properties, also the inherited ones.
 	 */
+	@JsIgnore // See GenericModelTypeJs in gwt-gm-core
+	@TsUnignoreMethod
 	Property getProperty(String name) throws GenericModelException;
 
 	/**
 	 * @return {@link Property} for given name, or <tt>null</tt> if no such property is defined for this entity type. Note that this works for all
 	 *         properties, also the inherited ones.
 	 */
+	@JsIgnore // See GenericModelTypeJs in gwt-gm-core
+	@TsUnignoreMethod
 	Property findProperty(String name);
 
 	/** @return list with the portion of the properties that have types which allow to reach enums or entities */
@@ -151,6 +156,9 @@ public interface EntityType<T extends GenericEntity> extends EntityTypeDeprecati
 	T createPlain();
 
 	@Override
+	@JsIgnore // See GenericModelTypeJs in gwt-gm-core
+	@TsUnignoreMethod
+	@Deprecated
 	T create();
 
 	@JsIgnore
@@ -161,6 +169,8 @@ public interface EntityType<T extends GenericEntity> extends EntityTypeDeprecati
 
 	T createPlainRaw();
 
+	@JsIgnore // See GenericModelTypeJs in gwt-gm-core
+	@TsUnignoreMethod
 	T createRaw();
 
 	@JsIgnore
