@@ -158,7 +158,6 @@ public interface EntityType<T extends GenericEntity> extends EntityTypeDeprecati
 	@Override
 	@JsIgnore // See GenericModelTypeJs in gwt-gm-core
 	@TsUnignoreMethod
-	@Deprecated
 	T create();
 
 	@JsIgnore
