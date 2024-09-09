@@ -19,10 +19,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import com.braintribe.cfg.Configurable;
+import com.braintribe.gm.model.reason.Maybe;
+import com.braintribe.gm.model.reason.Reasons;
+import com.braintribe.gm.model.reason.essential.CommunicationError;
 import com.braintribe.logging.Logger;
+import com.braintribe.model.processing.service.api.ReasonedServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceRequestContext;
-import com.braintribe.model.service.api.AsynchronousRequest;
 import com.braintribe.model.service.api.InstanceId;
 import com.braintribe.model.service.api.MulticastRequest;
 import com.braintribe.model.service.api.ServiceRequest;
@@ -41,7 +44,7 @@ import com.braintribe.processing.async.api.AsyncCallback;
  * and node id) {@link MulticastRequest} instances.
  * 
  */
-public class UnicastProcessor implements ServiceProcessor<UnicastRequest, Object> {
+public class UnicastProcessor implements ReasonedServiceProcessor<UnicastRequest, Object> {
 
 	private static final Logger log = Logger.getLogger(UnicastProcessor.class);
 	
@@ -53,8 +56,7 @@ public class UnicastProcessor implements ServiceProcessor<UnicastRequest, Object
 	}
 
 	@Override
-	public Object process(ServiceRequestContext context, UnicastRequest request) {
-
+	public Maybe<? extends Object> processReasoned(ServiceRequestContext context, UnicastRequest request) {
 		InstanceId addressee = request.getAddressee();
 		
 		if (addressee == null) {
@@ -78,7 +80,7 @@ public class UnicastProcessor implements ServiceProcessor<UnicastRequest, Object
 		}
 	}
 	
-	private Object processRemotely(ServiceRequestContext context, UnicastRequest request) {
+	private Maybe<? extends Object> processRemotely(ServiceRequestContext context, UnicastRequest request) {
 		InstanceId addressee = request.getAddressee();
 		ServiceRequest payloadRequest = request.getServiceRequest();
 
@@ -86,46 +88,56 @@ public class UnicastProcessor implements ServiceProcessor<UnicastRequest, Object
 		multicastRequest.setAddressee(addressee);
 		multicastRequest.setTimeout(request.getTimeout());
 		multicastRequest.setServiceRequest(payloadRequest);
+		multicastRequest.setAsynchronous(request.getAsynchronous());
+
+		Maybe<? extends MulticastResponse> maybe = multicastRequest.eval(context).getReasoned();
+		
+		if (maybe.isUnsatisfied())
+			return Reasons.build(CommunicationError.T).text("Error while executing unicast via multicast").cause(maybe.whyUnsatisfied()).toMaybe();
 		
 		if (request.getAsynchronous()) {
-			multicastRequest.eval(context).get(null);
-			return null;
+			return Maybe.complete(null);
 		}
-		else {
-			MulticastResponse multicastResponse = multicastRequest.eval(context).get();
-			
-			Map<InstanceId, ServiceResult> responses = multicastResponse.getResponses();
-			
-			if (responses.size() != 1)
-				throw new IllegalStateException("Invalid response count from MulticastRequest with fully qualified addressee: " + addressee);
-			
-			Entry<InstanceId, ServiceResult> entry = responses.entrySet().iterator().next();
-			ServiceResult result = entry.getValue();
-			InstanceId responseOrigin = entry.getKey();
-			
-			log.trace(() -> "Processing result from " + responseOrigin + ": " + result);
-			
-			Object response = ServiceResults.evaluate(result);
-			return response;
-		}
+		
+		MulticastResponse multicastResponse = maybe.get();
+		
+		Map<InstanceId, ServiceResult> responses = multicastResponse.getResponses();
+		
+		if (responses.size() != 1)
+			throw new IllegalStateException("Invalid response count from MulticastRequest with fully qualified addressee: " + addressee);
+		
+		Entry<InstanceId, ServiceResult> entry = responses.entrySet().iterator().next();
+		ServiceResult result = entry.getValue();
+		InstanceId responseOrigin = entry.getKey();
+		
+		log.trace(() -> "Processing result from " + responseOrigin + ": " + result);
+		
+		return ServiceResults.evaluateReasoned(result);
 	}
 
-	private Object processLocally(ServiceRequestContext context, UnicastRequest request) {
+	private Maybe<? extends Object> processLocally(ServiceRequestContext context, UnicastRequest request) {
 		ServiceRequest payloadRequest = request.getServiceRequest();
 		if (request.getAsynchronous()) {
-			payloadRequest.eval(context).get(new AsyncCallback<Object>() {
+			
+			AsyncCallback<Maybe<?>> callback = new AsyncCallback<Maybe<?>>() {
 				@Override
 				public void onFailure(Throwable t) {
 					log.error("Error while executing UnicastRequest payload locally and asynchronously: " + payloadRequest, t);
 				}
 				@Override
-				public void onSuccess(Object future) { /* noop */ }
-			});
+				public void onSuccess(Maybe<?> maybe) {
+					if (maybe.isUnsatisfied()) {
+						log.error("Error while executing UnicastRequest payload locally and asynchronously: " + maybe.whyUnsatisfied().stringify());
+					}
+				}
+			};
 			
-			return null;
+			payloadRequest.eval(context).getReasoned(callback);
+			
+			return Maybe.complete(null);
 		}
 		else {
-			return payloadRequest.eval(context).get();
+			return payloadRequest.eval(context).getReasoned();
 		}
 	}
 

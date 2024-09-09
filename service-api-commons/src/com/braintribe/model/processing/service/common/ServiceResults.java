@@ -19,6 +19,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Objects;
 
 import com.braintribe.gm.model.reason.Maybe;
+import com.braintribe.gm.model.reason.ReasonException;
 import com.braintribe.model.service.api.result.Failure;
 import com.braintribe.model.service.api.result.ResponseEnvelope;
 import com.braintribe.model.service.api.result.ServiceResult;
@@ -34,6 +35,26 @@ public class ServiceResults {
 	private ServiceResults() {
 	}
 
+	public static <T> Maybe<T> evaluateReasoned(ServiceResult serviceResult) {
+		Objects.requireNonNull(serviceResult, "serviceResult must not be null");
+
+		switch (serviceResult.resultType()) {
+		case success: return Maybe.complete((T)serviceResult.asResponse().getResult());
+		case unsatisfied: return serviceResult.asUnsatisfied().toMaby();
+		case failure: 
+			Throwable throwable = decodeFailure(serviceResult.asFailure());
+			if (throwable instanceof RuntimeException) {
+				throw (RuntimeException) throwable;
+			} else if (throwable instanceof Error) {
+				throw (Error) throwable;
+			} else {
+				throw new RuntimeException(throwable);
+			}
+		default:
+			throw new IllegalStateException("unexpected result type " + serviceResult.resultType());
+		}
+	}
+	
 	public static <T> T evaluate(ServiceResult serviceResult) {
 
 		Objects.requireNonNull(serviceResult, "serviceResult must not be null");
@@ -44,6 +65,12 @@ public class ServiceResults {
 			return (T) envelope.getResult();
 		}
 
+		Unsatisfied unsatisfied = serviceResult.asUnsatisfied();
+		
+		if (unsatisfied != null) {
+			throw new ReasonException(unsatisfied.getWhy());
+		}
+		
 		Failure failure = serviceResult.asFailure();
 
 		if (failure != null) {
@@ -56,7 +83,7 @@ public class ServiceResults {
 				throw new UndeclaredThrowableException(throwable);
 			}
 		}
-
+		
 		throw new IllegalStateException("Unexpected " + ServiceResult.class.getName() + " type: " + serviceResult);
 
 	}
