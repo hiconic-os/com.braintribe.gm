@@ -18,10 +18,11 @@ package com.braintribe.model.accessapi;
 import com.braintribe.model.generic.annotation.Abstract;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
-import com.braintribe.model.service.api.StandardRequest;
+import com.braintribe.model.service.api.AuthorizedRequest;
+import com.braintribe.model.service.api.DomainRequest;
 
 @Abstract
-public interface PersistenceRequest extends StandardRequest {
+public interface PersistenceRequest extends DomainRequest, AuthorizedRequest {
 
 	EntityType<PersistenceRequest> T = EntityTypes.T(PersistenceRequest.class);
 	

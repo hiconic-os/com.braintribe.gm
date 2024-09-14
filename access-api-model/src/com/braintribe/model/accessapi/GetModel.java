@@ -32,12 +32,11 @@ public interface GetModel extends PersistenceRequest {
 
 	final EntityType<GetModel> T = EntityTypes.T(GetModel.class);
 
-	
 	@Override
 	@Mandatory
 	@Name("accessId")
 	@Description("The id of the access that should be asked for its model environment.")
-	String getServiceId();
+	String getDomainId();
 	
 	@Override
 	EvalContext<? extends GmMetaModel> eval(Evaluator<ServiceRequest> evaluator);

@@ -17,7 +17,6 @@ package com.braintribe.model.cortexapi.access.collaboration;
 
 import com.braintribe.model.accessapi.CustomPersistenceRequest;
 import com.braintribe.model.generic.annotation.Abstract;
-import com.braintribe.model.generic.annotation.meta.Description;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
@@ -28,10 +27,6 @@ import com.braintribe.model.generic.reflection.EntityTypes;
 public interface CollaborativePersistenceRequest extends CustomPersistenceRequest {
 
 	EntityType<CollaborativePersistenceRequest> T = EntityTypes.T(CollaborativePersistenceRequest.class);
-
-	@Override
-	@Description("The externalId of the addressed smood access.")
-	String getServiceId();
 
 	CollaborativePersistenceRequestType collaborativeRequestType();
 

@@ -125,7 +125,7 @@ public class EvaluatingAccessService implements AccessService {
 	@Override
 	public SelectQueryResult query(String accessId, SelectQuery query) throws AccessServiceException {
 		QueryAndSelect request = QueryAndSelect.T.create();
-		request.setServiceId(accessId);
+		request.setDomainId(accessId);
 		request.setQuery(query);
 		return request.eval(evaluator).get();
 	}
@@ -134,14 +134,14 @@ public class EvaluatingAccessService implements AccessService {
 	public PropertyQueryResult queryProperty(String accessId, PropertyQuery query) throws AccessServiceException {
 		QueryProperty request = QueryProperty.T.create();
 		request.setQuery(query);
-		request.setServiceId(accessId);
+		request.setDomainId(accessId);
 		return request.eval(evaluator).get();
 	}
 
 	@Override
 	public EntityQueryResult queryEntities(String accessId, EntityQuery query) throws AccessServiceException {
 		QueryEntities request = QueryEntities.T.create();
-		request.setServiceId(accessId);
+		request.setDomainId(accessId);
 		request.setQuery(query);
 		return request.eval(evaluator).get();
 	}
@@ -149,7 +149,7 @@ public class EvaluatingAccessService implements AccessService {
 	@Override
 	public ManipulationResponse applyManipulation(String accessId, ManipulationRequest manipulationRequest) throws AccessServiceException {
 		ManipulationRequest request = shallowClone(manipulationRequest);
-		request.setServiceId(accessId);
+		request.setDomainId(accessId);
 		
 		return request.eval(evaluator).get();
 	}
@@ -158,7 +158,7 @@ public class EvaluatingAccessService implements AccessService {
 	@Override
 	public ReferencesResponse getReferences(String accessId, ReferencesRequest referencesRequest) throws AccessServiceException {
 		ReferencesRequest request = shallowClone(referencesRequest);
-		request.setServiceId(accessId);
+		request.setDomainId(accessId);
 		
 		return request.eval(evaluator).get();
 	}
@@ -166,11 +166,10 @@ public class EvaluatingAccessService implements AccessService {
 	@Override
 	public Set<String> getPartitions(String accessId) throws AccessServiceException {
 		GetPartitions request = GetPartitions.T.create();
-		request.setServiceId(accessId);
+		request.setDomainId(accessId);
 		
 		return request.eval(evaluator).get();
 	}
-	
 
 	private static <S extends GenericEntity> S shallowClone(S source) {
 		S clone = (S) source.entityType().create();
