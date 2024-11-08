@@ -71,7 +71,7 @@ import java.util.regex.Pattern;
 			DbVariant.other, "org.hibernate.dialect.Dialect", //
 			"boolean", //
 			"integer", "bigint", "float", "double", "numeric($p,$s)", //
-			"timestamp", "nvarchar(4000)", "nvarchar(255)", "clob", "blob");
+			"timestamp", "nvarchar($l)", "nvarchar(255)", "clob", "blob");
 
 	/* package */ static class JdbcDialectMapping {
 		Pattern pattern;
