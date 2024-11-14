@@ -1,5 +1,5 @@
 {
-  "name": "@dev.hiconic/gm_hc-js-base",
+  "name": "@dev.hiconic/hc-js-base",
   "version": "@VERSION",
   "description": "Exposes core namespaces - T for model types and hc for the exposed API",
   "main": "dist/hc-js-base.js",
