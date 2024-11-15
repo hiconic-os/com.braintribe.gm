@@ -15,10 +15,12 @@
 // ============================================================================
 package com.braintribe.model.generic;
 
+import jsinterop.context.JsInteropNamespaces;
+
 public interface GmCoreApiInteropNamespaces {
 
-	String type = "$T";
-	String gm = "$tf";
+	String type = JsInteropNamespaces.type;
+	String gm = JsInteropNamespaces.gm;
 	String attr = gm + ".attr";
 	String reflection = gm + ".reflection";
 	String session = gm + ".session";
