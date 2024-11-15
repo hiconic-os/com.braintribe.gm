@@ -1,2 +1,2 @@
-export namespace T {};
-export namespace hc {};
+export namespace T {}
+export namespace hc {}
