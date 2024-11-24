@@ -18,18 +18,20 @@ package com.braintribe.model.generic.reflection;
 import com.braintribe.model.generic.GmCoreApiInteropNamespaces;
 import com.braintribe.model.generic.GmPlatform;
 
+import jsinterop.annotations.JsIgnore;
 import jsinterop.annotations.JsType;
 
 /**
- * This represents a value of type Object (i.e. if your entity has a property of type Object, the corresponding
- * {@link Property#getType()} method would return an instance of {@linkplain BaseType}).
+ * This represents a value of type Object (i.e. if your entity has a property of type Object, the corresponding {@link Property#getType()} method
+ * would return an instance of {@linkplain BaseType}).
  * 
- * This means BaseType can only be a type of a property, or a generic parameter of a collection, but it is never
- * returned as a type of a GM value. In other words {@link GenericModelTypeReflection#getType(Object)} never returns an
- * instance of BaseType.
+ * This means BaseType can only be a type of a property, or a generic parameter of a collection, but it is never returned as a type of a GM value. In
+ * other words {@link GenericModelTypeReflection#getType(Object)} never returns an instance of BaseType.
  */
 @JsType(namespace = GmCoreApiInteropNamespaces.reflection)
 public interface BaseType extends GenericModelType {
+
+	@JsIgnore
 	public static final BaseType INSTANCE = GmPlatform.INSTANCE.getEssentialType(Object.class);
 
 }
