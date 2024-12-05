@@ -17,14 +17,13 @@ package com.braintribe.model.processing.session.impl.session.collection;
 
 import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.addManipulation;
 import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.clearManipulation;
+import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.newPlainMap;
 import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.removeManipulation;
 import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.voidManipulation;
-import static com.braintribe.utils.lcd.CollectionTools2.asMap;
-import static com.braintribe.utils.lcd.CollectionTools2.newLinkedSet;
+ import static com.braintribe.utils.lcd.CollectionTools2.newLinkedSet;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +51,7 @@ public class EnhancedSet<E> implements Set<E>, EnhancedCollection {
 	private GenericEntity entity;
 	private boolean incomplete;
 	private boolean loaded;
-	private ReentrantLock loadLock = new ReentrantLock();
+	private final ReentrantLock loadLock = new ReentrantLock();
 
 	public EnhancedSet(SetType setType) {
 		this(setType, newLinkedSet(), false);
@@ -72,7 +71,7 @@ public class EnhancedSet<E> implements Set<E>, EnhancedCollection {
 	@Override
 	public void addManipulationListener(ManipulationListener listener) {
 		if (listeners == null) {
-			listeners = new ArrayList<ManipulationListener>(2);
+			listeners = new ArrayList<>(2);
 		}
 		listeners.add(listener);
 	}
@@ -170,8 +169,8 @@ public class EnhancedSet<E> implements Set<E>, EnhancedCollection {
 		boolean added = delegate.add(e);
 
 		if (added && isNoticing()) {
-			AddManipulation manipulation = addManipulation(asMap(e, e), owner);
-			RemoveManipulation inverseManipulation = removeManipulation(asMap(e, e), owner);
+			AddManipulation manipulation = addManipulation(e, e, owner);
+			RemoveManipulation inverseManipulation = removeManipulation(e, e, owner);
 
 			manipulation.linkInverse(inverseManipulation);
 
@@ -184,8 +183,8 @@ public class EnhancedSet<E> implements Set<E>, EnhancedCollection {
 	@Override
 	public boolean addAll(Collection<? extends E> c) {
 		ensureComplete();
-		Map<Object, Object> items = new HashMap<Object, Object>();
-		Map<Object, Object> addedItems = new HashMap<Object, Object>();
+		Map<Object, Object> items = newPlainMap();
+		Map<Object, Object> addedItems = newPlainMap();
 
 		for (E e : c) {
 			Object valueDescriptor = e;
@@ -222,7 +221,7 @@ public class EnhancedSet<E> implements Set<E>, EnhancedCollection {
 		if (delegate.isEmpty())
 			return;
 
-		Map<Object, Object> items = new HashMap<Object, Object>();
+		Map<Object, Object> items = newPlainMap();
 
 		for (E e : delegate) {
 			Object valueDescriptor = e;
@@ -304,8 +303,8 @@ public class EnhancedSet<E> implements Set<E>, EnhancedCollection {
 	@Override
 	public boolean removeAll(Collection<?> c) {
 		ensureComplete();
-		Map<Object, Object> items = new HashMap<Object, Object>();
-		Map<Object, Object> deletedItems = new HashMap<Object, Object>();
+		Map<Object, Object> items = newPlainMap();
+		Map<Object, Object> deletedItems = newPlainMap();
 
 		Collection<E> elementCollection = (Collection<E>) c;
 
@@ -339,7 +338,7 @@ public class EnhancedSet<E> implements Set<E>, EnhancedCollection {
 	@Override
 	public boolean retainAll(Collection<?> c) {
 		ensureComplete();
-		Map<Object, Object> items = new HashMap<Object, Object>();
+		Map<Object, Object> items = newPlainMap();
 
 		Iterator<E> delegateIt = delegate.iterator();
 

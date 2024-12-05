@@ -26,6 +26,8 @@ public interface CompoundManipulation extends Manipulation {
 
 	EntityType<CompoundManipulation> T = EntityTypes.T(CompoundManipulation.class);
 
+	String compoundManipulationList = "compoundManipulationList";
+
 	List<Manipulation> getCompoundManipulationList();
 	void setCompoundManipulationList(List<Manipulation> compoundManipulationList);
 

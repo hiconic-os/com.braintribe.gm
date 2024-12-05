@@ -17,6 +17,7 @@ package com.braintribe.model.processing.session.impl.session.collection;
 
 import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.addManipulation;
 import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.clearManipulation;
+import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.newPlainMap;
 import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.removeManipulation;
 import static com.braintribe.model.processing.manipulation.basic.tools.ManipulationTools.createInverse;
 import static com.braintribe.utils.lcd.CollectionTools2.newList;
@@ -25,7 +26,6 @@ import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +54,7 @@ public class EnhancedList<E> extends AbstractList<E> implements ListBase<E>, Enh
 	private GenericEntity entity;
 	private boolean incomplete;
 	private boolean loaded;
-	private ReentrantLock loadLock = new ReentrantLock();
+	private final ReentrantLock loadLock = new ReentrantLock();
 
 	public EnhancedList(ListType listType) {
 		this(listType, newList(), false);
@@ -105,7 +105,7 @@ public class EnhancedList<E> extends AbstractList<E> implements ListBase<E>, Enh
 	@Override
 	public void addManipulationListener(ManipulationListener listener) {
 		if (listeners == null) {
-			listeners = new ArrayList<ManipulationListener>(2);
+			listeners = new ArrayList<>(2);
 		}
 		listeners.add(listener);
 	}
@@ -215,7 +215,7 @@ public class EnhancedList<E> extends AbstractList<E> implements ListBase<E>, Enh
 		if (!isNoticing())
 			return delegate.addAll(index, c);
 
-		Map<Object, Object> itemsToAdd = new HashMap<Object, Object>();
+		Map<Object, Object> itemsToAdd = newPlainMap();
 
 		int i = index;
 		for (E element : c) {
@@ -245,7 +245,7 @@ public class EnhancedList<E> extends AbstractList<E> implements ListBase<E>, Enh
 		}
 
 		ensureComplete();
-		Map<Object, Object> items = new HashMap<Object, Object>();
+		Map<Object, Object> items = newPlainMap();
 
 		int i = 0;
 		for (E element : delegate) {
@@ -282,7 +282,7 @@ public class EnhancedList<E> extends AbstractList<E> implements ListBase<E>, Enh
 
 	protected boolean removeAll(Collection<?> c, boolean notContained) {
 		ensureComplete();
-		List<Manipulation> manipulations = new ArrayList<Manipulation>();
+		List<Manipulation> manipulations = new ArrayList<>();
 
 		int s = -1;
 		int e = -1;
@@ -346,7 +346,7 @@ public class EnhancedList<E> extends AbstractList<E> implements ListBase<E>, Enh
 
 	// TODO optimize -> no need to track manipulations all the time - but beware of usages
 	protected Manipulation _removeRange(int index, int toIndex) {
-		Map<Object, Object> items = new HashMap<Object, Object>();
+		Map<Object, Object> items = newPlainMap();
 
 		for (int i = index; i < toIndex; i++) {
 			E element = delegate.get(i);

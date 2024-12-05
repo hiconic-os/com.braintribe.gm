@@ -21,7 +21,6 @@ import static com.braintribe.utils.lcd.CollectionTools2.newList;
 
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.manipulation.LocalEntityProperty;
-import com.braintribe.model.generic.reflection.BaseType;
 import com.braintribe.model.generic.reflection.CollectionType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.ListType;
@@ -104,7 +103,7 @@ public class CollectionEnhancingPropertyAccessInterceptor extends PropertyAccess
 			GenericModelType type = property.getType();
 
 			if (type.isBase())
-				type = ((BaseType) type).getActualType(value);
+				type = type.getActualType(value);
 
 			if (type.isCollection()) {
 				CollectionType collectionType = (CollectionType) type;

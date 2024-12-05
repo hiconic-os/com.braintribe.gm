@@ -18,10 +18,9 @@ package com.braintribe.model.processing.session.impl.session.collection;
 import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.addManipulation;
 import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.clearManipulation;
 import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.compound;
+import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.newPlainMap;
 import static com.braintribe.model.generic.manipulation.util.ManipulationBuilder.removeManipulation;
-import static com.braintribe.utils.lcd.CollectionTools2.asMap;
 import static com.braintribe.utils.lcd.CollectionTools2.newLinkedMap;
-import static com.braintribe.utils.lcd.CollectionTools2.newMap;
 
 import java.util.AbstractCollection;
 import java.util.AbstractMap;
@@ -38,6 +37,7 @@ import java.util.function.BiConsumer;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.collection.MapBase;
+import com.braintribe.model.generic.collection.PlainMap;
 import com.braintribe.model.generic.manipulation.AddManipulation;
 import com.braintribe.model.generic.manipulation.ClearCollectionManipulation;
 import com.braintribe.model.generic.manipulation.CollectionManipulation;
@@ -46,6 +46,7 @@ import com.braintribe.model.generic.manipulation.LocalEntityProperty;
 import com.braintribe.model.generic.manipulation.Manipulation;
 import com.braintribe.model.generic.manipulation.RemoveManipulation;
 import com.braintribe.model.generic.manipulation.util.ManipulationBuilder;
+import com.braintribe.model.generic.reflection.EssentialCollectionTypes;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.model.generic.session.GmSession;
@@ -59,7 +60,7 @@ public class EnhancedMap<K, V> extends AbstractMap<K, V> implements MapBase<K, V
 	private GenericEntity entity;
 	private boolean incomplete;
 	private boolean loaded;
-	private ReentrantLock loadLock = new ReentrantLock();
+	private final ReentrantLock loadLock = new ReentrantLock();
 
 	public EnhancedMap(MapType mapType) {
 		this(mapType, newLinkedMap(), false);
@@ -202,7 +203,7 @@ public class EnhancedMap<K, V> extends AbstractMap<K, V> implements MapBase<K, V
 		}
 
 		ensureComplete();
-		Map<Object, Object> items = newMap();
+		Map<Object, Object> items = newPlainMap();
 
 		for (Map.Entry<K, V> entry : delegate.entrySet()) {
 			Object keyDescriptor = entry.getKey();
@@ -217,7 +218,6 @@ public class EnhancedMap<K, V> extends AbstractMap<K, V> implements MapBase<K, V
 			ClearCollectionManipulation manipulation = clearManipulation(owner);
 
 			AddManipulation inverseManipulation = ManipulationBuilder.addManipulation(items, owner);
-			inverseManipulation.setItemsToAdd(items);
 
 			manipulation.linkInverse(inverseManipulation);
 
@@ -248,7 +248,6 @@ public class EnhancedMap<K, V> extends AbstractMap<K, V> implements MapBase<K, V
 			manipulation.linkInverse(inverseManipulation);
 		} else {
 			RemoveManipulation inverseManipulation = removeManipulation(keyDescriptor, valueDescriptor, owner);
-			inverseManipulation.setItemsToRemove(asMap(keyDescriptor, valueDescriptor));
 
 			manipulation.linkInverse(inverseManipulation);
 		}
@@ -266,9 +265,9 @@ public class EnhancedMap<K, V> extends AbstractMap<K, V> implements MapBase<K, V
 			return;
 		}
 
-		Map<Object, Object> itemsToAdd = newMap();
-		Map<Object, Object> itemsToReAdd = newMap();
-		Map<Object, Object> itemsToRemove = newMap();
+		Map<Object, Object> itemsToAdd = newPlainMap();
+		Map<Object, Object> itemsToReAdd = newPlainMap();
+		Map<Object, Object> itemsToRemove = newPlainMap();
 
 		for (Map.Entry<? extends K, ? extends V> entry : m.entrySet()) {
 			K key = entry.getKey();
@@ -394,7 +393,7 @@ public class EnhancedMap<K, V> extends AbstractMap<K, V> implements MapBase<K, V
 
 			Collection<Map.Entry<K, V>> entryCollection = (Collection<Map.Entry<K, V>>) c;
 
-			Map<Object, Object> items = newMap();
+			Map<Object, Object> items = new PlainMap<>(EssentialCollectionTypes.TYPE_MAP);
 
 			Set<Map.Entry<K, V>> delegateEntrySet = delegate.entrySet();
 
@@ -427,7 +426,7 @@ public class EnhancedMap<K, V> extends AbstractMap<K, V> implements MapBase<K, V
 			if (!isNoticing())
 				return delegate.entrySet().retainAll(c);
 
-			Map<Object, Object> items = newMap();
+			Map<Object, Object> items = new PlainMap<>(EssentialCollectionTypes.TYPE_MAP);
 
 			Iterator<Map.Entry<K, V>> delegateIt = delegate.entrySet().iterator();
 			while (delegateIt.hasNext()) {
@@ -494,7 +493,7 @@ public class EnhancedMap<K, V> extends AbstractMap<K, V> implements MapBase<K, V
 				return delegate.keySet().removeAll(c);
 
 			Collection<K> keyCollection = (Collection<K>) c;
-			Map<Object, Object> items = newMap();
+			Map<Object, Object> items = new PlainMap<>(EssentialCollectionTypes.TYPE_MAP);
 
 			for (K key : keyCollection) {
 				if (EnhancedMap.this.containsKey(key)) {
@@ -524,7 +523,7 @@ public class EnhancedMap<K, V> extends AbstractMap<K, V> implements MapBase<K, V
 			if (!isNoticing())
 				return delegate.keySet().retainAll(c);
 
-			Map<Object, Object> items = newMap();
+			Map<Object, Object> items = new PlainMap<>(EssentialCollectionTypes.TYPE_MAP);
 
 			Iterator<Map.Entry<K, V>> delegateIt = delegate.entrySet().iterator();
 
@@ -595,7 +594,7 @@ public class EnhancedMap<K, V> extends AbstractMap<K, V> implements MapBase<K, V
 		}
 
 		protected boolean removeAll(Collection<?> c, boolean notContained) {
-			Map<Object, Object> items = newMap();
+			Map<Object, Object> items = new PlainMap<>(EssentialCollectionTypes.TYPE_MAP);
 			Iterator<Map.Entry<K, V>> delegateIt = delegate.entrySet().iterator();
 
 			while (delegateIt.hasNext()) {
