@@ -40,7 +40,7 @@ import com.braintribe.model.generic.value.EntityReference;
 import com.braintribe.model.meta.GmMetaModel;
 import com.braintribe.model.processing.session.api.managed.EntityAccessBuilder;
 import com.braintribe.model.processing.session.api.managed.EntityQueryExecution;
-import com.braintribe.model.processing.session.api.managed.EntityView;
+import com.braintribe.model.processing.session.api.managed.EntitiesView;
 import com.braintribe.model.processing.session.api.managed.ManagedGmSession;
 import com.braintribe.model.processing.session.api.managed.ManipulationApplicationContext;
 import com.braintribe.model.processing.session.api.managed.ManipulationApplicationContextBuilder;
@@ -127,7 +127,7 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 	}
 
 	@Override
-	public EntityView getEntityView() {
+	public EntitiesView getEntitiesView() {
 		return backup;
 	}
 

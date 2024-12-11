@@ -61,8 +61,8 @@ public interface ManagedGmSession extends NotifyingGmSession, HasResourceReadAcc
 	/** Creates a {@link SessionQueryBuilder} that can be used to expressively build and execute all kinds of queries. */
 	SessionQueryBuilder query();
 
-	/** Returns the {@link EntityView} on the entities managed by this session. */
-	EntityView getEntityView();
+	/** Returns the {@link EntitiesView} on the entities managed by this session. */
+	EntitiesView getEntitiesView();
 
 	/**
 	 * Returns the {@link ModelAccessory} that can be used to access meta information for the model.

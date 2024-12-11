@@ -29,12 +29,12 @@ import com.braintribe.model.generic.manipulation.ManifestationManipulation;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.tracking.ManipulationListener;
 import com.braintribe.model.generic.value.EntityReference;
-import com.braintribe.model.processing.session.api.managed.EntityView;
+import com.braintribe.model.processing.session.api.managed.EntitiesView;
 
 /**
  * 
  */
-public interface SmoodInterface extends EntityView {
+public interface SmoodInterface extends EntitiesView {
 
 	/**
 	 * Traverses given entity and registers all generic entities reached. Note that this method can be invoked at any
