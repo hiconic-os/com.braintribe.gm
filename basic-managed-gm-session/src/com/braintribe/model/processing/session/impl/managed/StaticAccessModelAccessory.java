@@ -26,7 +26,6 @@ import com.braintribe.model.processing.meta.oracle.BasicModelOracle;
 import com.braintribe.model.processing.meta.oracle.ModelOracle;
 import com.braintribe.model.processing.session.api.managed.ManagedGmSession;
 import com.braintribe.model.processing.session.api.managed.ModelAccessory;
-import com.braintribe.model.processing.session.impl.managed.BasicManagedGmSession;
 
 public class StaticAccessModelAccessory implements ModelAccessory {
 

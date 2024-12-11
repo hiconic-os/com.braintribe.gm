@@ -40,6 +40,7 @@ import com.braintribe.model.generic.value.EntityReference;
 import com.braintribe.model.meta.GmMetaModel;
 import com.braintribe.model.processing.session.api.managed.EntityAccessBuilder;
 import com.braintribe.model.processing.session.api.managed.EntityQueryExecution;
+import com.braintribe.model.processing.session.api.managed.EntityView;
 import com.braintribe.model.processing.session.api.managed.ManagedGmSession;
 import com.braintribe.model.processing.session.api.managed.ManipulationApplicationContext;
 import com.braintribe.model.processing.session.api.managed.ManipulationApplicationContextBuilder;
@@ -121,8 +122,13 @@ public abstract class AbstractManagedGmSession extends BasicNotifyingGmSession i
 	 * @param ignored
 	 *            no purpose, just to distinguish from the default constructor
 	 */
-	protected AbstractManagedGmSession(boolean ignored) {
+	protected AbstractManagedGmSession(@SuppressWarnings("unused") boolean ignored) {
 		// make sure to call setBackup
+	}
+
+	@Override
+	public EntityView getEntityView() {
+		return backup;
 	}
 
 	protected void setBackup(Smood backup) {

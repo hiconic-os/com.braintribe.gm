@@ -229,7 +229,7 @@ public class ContinuableMerger<M> {
 
 		switch (type.getTypeCode()) {
 			case objectType:
-				return createAdaptedValue(source, ((BaseType) type).getActualType(source));
+				return createAdaptedValue(source, type.getActualType(source));
 			case entityType:
 				return sourceDrainMap.get(source);
 			case listType:
