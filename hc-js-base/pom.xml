@@ -20,7 +20,7 @@ limitations under the License.
         <version>[2.0,2.1)</version>
     </parent>
     <artifactId>hc-js-base</artifactId>
-    <version>2.0.4</version>
+    <version>2.0.5</version>
     <properties>
         <npmPackaging>npmLibrary</npmPackaging>
     </properties>
