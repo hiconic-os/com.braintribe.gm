@@ -24,7 +24,6 @@ import com.braintribe.model.generic.reflection.EntityTypes;
 
 import jsinterop.annotations.JsMethod;
 
-
 public interface LocalizedString extends GenericEntity {
 
 	EntityType<LocalizedString> T = EntityTypes.T(LocalizedString.class);
@@ -79,7 +78,7 @@ public interface LocalizedString extends GenericEntity {
 		return map.get(LOCALE_DEFAULT);
 	}
 	
-	@JsMethod(name = "createLocalizedString", namespace = "$tf.i18n")
+	@JsMethod(name = "createLocalizedString", namespace = "hc.i18n")
 	static LocalizedString create(String defaultValue) {
 		return T.create().putDefault(defaultValue);
 	}
