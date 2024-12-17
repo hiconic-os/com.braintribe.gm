@@ -22,8 +22,6 @@ import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
-import jsinterop.annotations.JsMethod;
-
 public interface LocalizedString extends GenericEntity {
 
 	EntityType<LocalizedString> T = EntityTypes.T(LocalizedString.class);
@@ -32,29 +30,23 @@ public interface LocalizedString extends GenericEntity {
 
 	String localizedValues = "localizedValues";
 
-	// @formatter:off
-	void setLocalizedValues(Map<String, String> localizedValues);
 	Map<String, String> getLocalizedValues();
-	// @formatter:on
+	void setLocalizedValues(Map<String, String> localizedValues);
 
-	@JsMethod
 	default LocalizedString put(String locale, String value) {
 		getLocalizedValues().put(locale, value);
 		return this;
 	}
 	
-	@JsMethod
 	default LocalizedString putDefault(String value) {
 		getLocalizedValues().put(LOCALE_DEFAULT, value);
 		return this;
 	}
 	
-	@JsMethod(name="defaultValue")
 	default String value() {
 		return value(GMF.getLocale());
 	}
 
-	@JsMethod(name="value")
 	default String value(String locale) {	
 		Map<String, String> map = getLocalizedValues();
 
@@ -78,7 +70,6 @@ public interface LocalizedString extends GenericEntity {
 		return map.get(LOCALE_DEFAULT);
 	}
 	
-	@JsMethod(name = "createLocalizedString", namespace = "hc.i18n")
 	static LocalizedString create(String defaultValue) {
 		return T.create().putDefault(defaultValue);
 	}
