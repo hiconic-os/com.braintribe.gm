@@ -11,6 +11,16 @@ declare module "@dev.hiconic/hc-js-base" {
     type set<T> = T.Set<T>;
     type map<K, V> = T.Map<K, V>;
 
+	// Shortcuts
+    type GenericEntity = T.com.braintribe.model.generic.GenericEntity;
+    type Enum = hc.Enum<any>;
+
+    // Useful types
+    type Simple = boolean | string | integer | long | float | double | decimal | date;
+    type Scalar = Simple | Enum;
+    type CollectionElement = Scalar | GenericEntity;
+    type Base = CollectionElement | T.Map<CollectionElement, CollectionElement> | T.Set<CollectionElement> | T.Array<CollectionElement>;
+
     namespace T {
 
         class Double extends Number {
