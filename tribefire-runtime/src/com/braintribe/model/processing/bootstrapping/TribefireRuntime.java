@@ -52,16 +52,14 @@ import com.braintribe.utils.template.model.MergeContext;
  * They include:
  * <ul>
  * 
- * <li>ENVIRONMENT_STORAGE_DIR: A variable that includes the path of the initial storage. If it is not set, the invoker
- * of TribeFireRuntime will have to handle this special case by a fall back mechanism. Otherwise, if it is provided, it
- * can either be an absolute or a relative path. In case of a relative path, it will be automatically appended to
- * {@link TribefireRuntime#getContainerRoot()}.</li>
+ * <li>ENVIRONMENT_STORAGE_DIR: A variable that includes the path of the initial storage. If it is not set, the invoker of TribeFireRuntime will have
+ * to handle this special case by a fall back mechanism. Otherwise, if it is provided, it can either be an absolute or a relative path. In case of a
+ * relative path, it will be automatically appended to {@link TribefireRuntime#getContainerRoot()}.</li>
  * 
- * <li>ENVIRONMENT_IS_CLUSTERED: Indicates that this tribefire component is running on a environment capable of being
- * clustered.</li>
+ * <li>ENVIRONMENT_IS_CLUSTERED: Indicates that this tribefire component is running on a environment capable of being clustered.</li>
  * 
- * <li>ENVIRONMENT_EXECUTION_MODE: Determines the execution mode of tribefire services, possible values being 'design',
- * 'runtime' and 'mixed' (default)</li>
+ * <li>ENVIRONMENT_EXECUTION_MODE: Determines the execution mode of tribefire services, possible values being 'design', 'runtime' and 'mixed'
+ * (default)</li>
  * 
  * </ul>
  * 
@@ -106,8 +104,7 @@ public class TribefireRuntime extends TribefireRuntimeDeprecation {
 	public static final String ENVIRONMENT_IP6_ADDRESS = "TRIBEFIRE_IP6_ADDRESS";
 
 	/**
-	 * The directory pointing to the installation root which is used for further resolving of directories like the conf
-	 * directory or the storage.
+	 * The directory pointing to the installation root which is used for further resolving of directories like the conf directory or the storage.
 	 */
 	public static final String ENVIRONMENT_INSTALLATION_ROOT_DIR = "TRIBEFIRE_INSTALLATION_ROOT_DIR";
 
@@ -117,55 +114,52 @@ public class TribefireRuntime extends TribefireRuntimeDeprecation {
 	public static final String ENVIRONMENT_CONFIGURATION_DIR = "TRIBEFIRE_CONFIGURATION_DIR";
 
 	/**
-	 * Defines the URL pointing to an external configuration file which will be read at startup and fills the internal
-	 * DeployableRegistry. e.g.: for external configuration of ConnectionPools.
+	 * Defines the URL pointing to an external configuration file which will be read at startup and fills the internal DeployableRegistry. e.g.: for
+	 * external configuration of ConnectionPools.
 	 */
 	public static final String ENVIRONMENT_CONFIGURATION_INJECTION_URL = "TRIBEFIRE_CONFIGURATION_INJECTION_URL";
 
 	/**
-	 * Defines the name of the environment variable that contains an external configuration JSON which will be read at
-	 * startup and fills the internal DeployableRegistry. e.g.: for external configuration of ConnectionPools.
+	 * Defines the name of the environment variable that contains an external configuration JSON which will be read at startup and fills the internal
+	 * DeployableRegistry. e.g.: for external configuration of ConnectionPools.
 	 */
 	public static final String ENVIRONMENT_CONFIGURATION_INJECTION_ENVVARIABLE = "TRIBEFIRE_CONFIGURATION_INJECTION_ENVVARIABLE";
 
 	/**
-	 * Defines the maximum idle time of standard user sessions as a single string containing the value and time unit.
-	 * e.g.: {@code 30m} = thirty minutes, {@code 2h} = two hours, {@code 1.5d} = one day and a half, {@code 1000s} =
-	 * one thousand seconds etc.
+	 * Defines the maximum idle time of standard user sessions as a single string containing the value and time unit. e.g.: {@code 30m} = thirty
+	 * minutes, {@code 2h} = two hours, {@code 1.5d} = one day and a half, {@code 1000s} = one thousand seconds etc.
 	 */
 	public static final String ENVIRONMENT_USER_SESSIONS_MAX_IDLE_TIME = "TRIBEFIRE_USER_SESSIONS_MAX_IDLE_TIME";
 
 	/**
-	 * Defines whether information about the user sessions created by the tribefire services instance are to be
-	 * persisted to the user statistics access.
+	 * Defines whether information about the user sessions created by the tribefire services instance are to be persisted to the user statistics
+	 * access.
 	 */
 	public static final String ENVIRONMENT_USER_SESSIONS_STATISTICS_ENABLED = "TRIBEFIRE_USER_SESSIONS_STATISTICS_ENABLED";
 
 	/**
-	 * Defines whether the internal user sessions created by the tribefire services instance is to be recycled over
-	 * time.
+	 * Defines whether the internal user sessions created by the tribefire services instance is to be recycled over time.
 	 */
 	public static final String ENVIRONMENT_INTERNAL_USER_SESSIONS_RECYCLING_ENABLED = "TRIBEFIRE_INTERNAL_USER_SESSIONS_RECYCLING_ENABLED";
 
 	/**
-	 * Defines the interval of the recycling of the internal user sessions created by the tribefire services. This
-	 * interval must be shorted than the max age or max idle time of the internal user sessions.
+	 * Defines the interval of the recycling of the internal user sessions created by the tribefire services. This interval must be shorted than the
+	 * max age or max idle time of the internal user sessions.
 	 */
 	public static final String ENVIRONMENT_INTERNAL_USER_SESSIONS_RECYCLING_INTERVAL = "TRIBEFIRE_INTERNAL_USER_SESSIONS_RECYCLING_INTERVAL";
 
 	/**
-	 * Defines the maximum idle time of internal user sessions created by the tribefire services instance. When the
-	 * recycling of the internal user sessions is disabled, this value is only set to the internal user session when the
-	 * instance is shutting down. The value must be a single string containing the value and time unit. e.g.:
-	 * {@code 30m} = thirty minutes, {@code 2h} = two hours, {@code 1.5d} = one day and a half, {@code 1000s} = one
-	 * thousand seconds etc.
+	 * Defines the maximum idle time of internal user sessions created by the tribefire services instance. When the recycling of the internal user
+	 * sessions is disabled, this value is only set to the internal user session when the instance is shutting down. The value must be a single string
+	 * containing the value and time unit. e.g.: {@code 30m} = thirty minutes, {@code 2h} = two hours, {@code 1.5d} = one day and a half,
+	 * {@code 1000s} = one thousand seconds etc.
 	 */
 	public static final String ENVIRONMENT_INTERNAL_USER_SESSIONS_MAX_IDLE_TIME = "TRIBEFIRE_INTERNAL_USER_SESSIONS_MAX_IDLE_TIME";
 
 	/**
-	 * Defines the maximum age internal user sessions created by the tribefire services instance. The value must be a
-	 * single string containing the value and time unit. e.g.: {@code 30m} = thirty minutes, {@code 2h} = two hours,
-	 * {@code 1.5d} = one day and a half, {@code 1000s} = one thousand seconds etc.
+	 * Defines the maximum age internal user sessions created by the tribefire services instance. The value must be a single string containing the
+	 * value and time unit. e.g.: {@code 30m} = thirty minutes, {@code 2h} = two hours, {@code 1.5d} = one day and a half, {@code 1000s} = one
+	 * thousand seconds etc.
 	 */
 	public static final String ENVIRONMENT_INTERNAL_USER_SESSIONS_MAX_AGE = "TRIBEFIRE_INTERNAL_USER_SESSIONS_MAX_AGE";
 
@@ -185,19 +179,17 @@ public class TribefireRuntime extends TribefireRuntimeDeprecation {
 	 */
 	public static final String ENVIRONMENT_THREAD_RENAMING = "TRIBEFIRE_THREAD_RENAMING";
 	/**
-	 * Defines the prefix for all topics/queues used for messaging. If this is not set, the value of TRIBEFIRE_TENANT_ID
-	 * will be used instead. If that is not set, no prefix will be used. If this value is "none", no prefix will be
-	 * used.
+	 * Defines the prefix for all topics/queues used for messaging. If this is not set, the value of TRIBEFIRE_TENANT_ID will be used instead. If that
+	 * is not set, no prefix will be used. If this value is "none", no prefix will be used.
 	 */
 	public static final String ENVIRONMENT_MESSAGING_DESTINATION_PREFIX = "TRIBEFIRE_MESSAGING_DESTINATION_PREFIX";
 	/**
-	 * Defines how long (in milliseconds) a multicast processor waits for responses from the known instances if no
-	 * request timeout is given in the multicast request itself.
+	 * Defines how long (in milliseconds) a multicast processor waits for responses from the known instances if no request timeout is given in the
+	 * multicast request itself.
 	 */
 	public static final String ENVIRONMENT_MULTICAST_PROCESSING_TIMEOUT = "TRIBEFIRE_MULTICAST_PROCESSING_TIMEOUT";
 	/**
-	 * Defines the threshold (in milliseconds) of a multicast request processing to enforce logging of the query on
-	 * WARNING level.
+	 * Defines the threshold (in milliseconds) of a multicast request processing to enforce logging of the query on WARNING level.
 	 */
 	public static final String ENVIRONMENT_MULTICAST_PROCESSING_WARNINGTHRESHOLD = "TRIBEFIRE_MULTICAST_PROCESSING_WARNINGTHRESHOLD";
 	/**
@@ -216,9 +208,9 @@ public class TribefireRuntime extends TribefireRuntimeDeprecation {
 	public static final String ENVIRONMENT_PLATFORM_SETUP_SUPPORT = "TRIBEFIRE_PLATFORM_SETUP_SUPPORT";
 
 	/**
-	 * Activated in case further analysis of installed or deployed assets is necessary. If set to true temporarily
-	 * created asset artifacts are being kept in the respective temp folder (which is storage/tmp). This folder contains
-	 * files like the specific part files as well as hashes of the artifact.
+	 * Activated in case further analysis of installed or deployed assets is necessary. If set to true temporarily created asset artifacts are being
+	 * kept in the respective temp folder (which is storage/tmp). This folder contains files like the specific part files as well as hashes of the
+	 * artifact.
 	 */
 	public static final String ENVIRONMENT_KEEP_TRANSFERRED_ASSET_DATA = "TRIBEFIRE_KEEP_TRANSFERRED_ASSET_DATA";
 
@@ -273,9 +265,8 @@ public class TribefireRuntime extends TribefireRuntimeDeprecation {
 	public static final String ENVIRONMENT_MANIPULATION_PRIMING_PREINIT = "TRIBEFIRE_MANIPULATION_PRIMING_PREINIT";
 
 	// cortex CSA - temporary
-	/* We have switched cortex in web-platform to initialized model/data together, stage by stage. Temporarily, if we
-	 * want to return the logic to first all models, then all data, it's possible via setting this property to
-	 * "true". */
+	/* We have switched cortex in web-platform to initialized model/data together, stage by stage. Temporarily, if we want to return the logic to
+	 * first all models, then all data, it's possible via setting this property to "true". */
 	public static final String ENVIRONMENT_CORTEX_MODELS_FIRST = "TRIBEFIRE_CORTEX_MODELS_FIRST";
 
 	// If set to true, default system accesses (auth, user-sessions, ..) are forced and CortexConfiguration is ignored.
@@ -402,8 +393,8 @@ public class TribefireRuntime extends TribefireRuntimeDeprecation {
 	}
 
 	/**
-	 * Returns the value of a property with its property placeholder recursively resolved as an Optional. If any
-	 * resolution during the recursion cannot be resolved the optional will be empty.
+	 * Returns the value of a property with its property placeholder recursively resolved as an Optional. If any resolution during the recursion
+	 * cannot be resolved the optional will be empty.
 	 */
 	public static Optional<String> getResolvedProperty(String propertyName) {
 		String result = getProperty(propertyName, null, false);
@@ -485,7 +476,7 @@ public class TribefireRuntime extends TribefireRuntimeDeprecation {
 
 			if (mergeContext.isResolutionIncomplete()) {
 				logger.info(() -> "The variable " + propertyName + " could not be resolved to an actual value (raw value is " + rawValue + ").");
-				return null;
+				return rawValue;
 			}
 
 			if (CACHEABLE_RUNTIME_PROPERTIES.contains(propertyName)) {
@@ -1086,5 +1077,5 @@ public class TribefireRuntime extends TribefireRuntimeDeprecation {
 	private static void setDefault(String name, String defaultValue) {
 		properties.put(name, new DynamicValueWithDefault(name, defaultValue));
 	}
-	
+
 }
