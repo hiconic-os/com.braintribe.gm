@@ -1,5 +1,3 @@
-import '@dev.hiconic/runtime';
-
 declare module "@dev.hiconic/hc-js-base" {
     type integer = number;
     type long = bigint;
@@ -11,7 +9,7 @@ declare module "@dev.hiconic/hc-js-base" {
     type set<T> = T.Set<T>;
     type map<K, V> = T.Map<K, V>;
 
-	// Shortcuts
+    // Shortcuts
     type GenericEntity = T.com.braintribe.model.generic.GenericEntity;
     type Enum = hc.Enum<any>;
 
@@ -21,20 +19,57 @@ declare module "@dev.hiconic/hc-js-base" {
     type CollectionElement = Scalar | GenericEntity;
     type Base = CollectionElement | T.Map<CollectionElement, CollectionElement> | T.Set<CollectionElement> | T.Array<CollectionElement>;
 
+    // ************************************
+    // Model Type Declaration Utility Types
+    // ************************************
+
+    type EssentialPropertyMetaData = {}
+
+    type PropertyMeta = {
+        nullable?: boolean,
+        md?: EssentialPropertyMetaData[]
+    }
+
+    /** Use to declare a non-nullable property and/or additional metadata. */
+    type P<T extends Base, M extends PropertyMeta = {}> = {
+        type: T;
+        meta: M;
+    };
+
+    type PropertyDeclarationType = Base | P<any, any>;
+
+    type ActualPropertyType<T extends PropertyDeclarationType> = T extends P<infer U, any> ? U : T;
+
+    /** Ensures properties are nullable by default, but can be made non-nullable with P<type, { nullable: false }> */
+    type Entity<T extends Record<string, PropertyDeclarationType>> = {
+        [K in keyof T]: T[K] extends P<infer U, { nullable: false }>
+        ? U
+        : ActualPropertyType<T[K]> | null
+    };
+
+    type Evaluable<RESULT extends Base> = {
+            Eval(evaluator: hc.eval.Evaluator<GenericEntity>): hc.eval.JsEvalContext<RESULT>;
+            EvalAndGet(evaluator: hc.eval.Evaluator<GenericEntity>): globalThis.Promise<RESULT>;
+            EvalAndGetReasoned(evaluator: hc.eval.Evaluator<GenericEntity>): globalThis.Promise<hc.reason.Maybe<RESULT>>;
+    }
+
+    // ***********************************
+    // T + hc namespaces
+    // ***********************************
+
     namespace T {
 
         class Double extends Number {
             constructor(value: number);
-            type(): string; // returns 'd'
+            type(): "d";
         }
 
         class Float extends Number {
             constructor(value: number);
-            type(): string; // returns 'f'
+            type(): "f";
         }
 
         interface Array<T> {
-
             // ###################
             //        es5
             // ###################
@@ -102,10 +137,9 @@ declare module "@dev.hiconic/hc-js-base" {
             // ###################
 
             at(index: number): T | undefined;
-       }
+        }
 
-       interface Set<T> {
-
+        interface Set<T> {
             // ###################
             // es2015.collections
             // ###################
@@ -125,11 +159,9 @@ declare module "@dev.hiconic/hc-js-base" {
             entries(): IterableIterator<[T, T]>;
             keys(): IterableIterator<T>;
             values(): IterableIterator<T>;
+        }
 
-       }
-
-       interface Map<K, V> {
-
+        interface Map<K, V> {
             // ###################
             // es2015.collections
             // ###################
@@ -150,7 +182,6 @@ declare module "@dev.hiconic/hc-js-base" {
             entries(): IterableIterator<[K, V]>;
             keys(): IterableIterator<K>;
             values(): IterableIterator<V>;
-
         }
 
     }
@@ -161,7 +192,6 @@ declare module "@dev.hiconic/hc-js-base" {
         }
     }
 }
-
 
 declare module '@dev.hiconic/hc-js-base' {
 
