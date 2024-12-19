@@ -19,7 +19,8 @@ declare module "@dev.hiconic/hc-js-base" {
     type Simple = boolean | string | integer | long | float | double | decimal | date;
     type Scalar = Simple | Enum;
     type CollectionElement = Scalar | GenericEntity;
-    type Base = CollectionElement | T.Map<CollectionElement, CollectionElement> | T.Set<CollectionElement> | T.Array<CollectionElement>;
+    type CollectionType = T.Map<CollectionElement, CollectionElement> | T.Set<CollectionElement> | T.Array<CollectionElement>;
+    type Base = CollectionElement | CollectionType;
 
     // ************************************
     // Model Type Declaration Utility Types
@@ -44,9 +45,10 @@ declare module "@dev.hiconic/hc-js-base" {
 
     /** Ensures properties are nullable by default, but can be made non-nullable with P<type, { nullable: false }> */
     type Entity<T extends Record<string, PropertyDeclarationType>> = {
-        [K in keyof T]: T[K] extends P<infer U, { nullable: false }>
-        ? U
-        : ActualPropertyType<T[K]> | null
+        [K in keyof T]:
+        T[K] extends P<infer U, { nullable: false }> ? U :
+        ActualPropertyType<T[K]> extends CollectionType ? ActualPropertyType<T[K]> :
+        ActualPropertyType<T[K]> | null
     };
 
     type Evaluable<RESULT extends Base> = {
