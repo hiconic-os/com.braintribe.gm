@@ -213,8 +213,11 @@ declare module "@dev.hiconic/hc-js-base" {
 
     namespace hc.reflection {
         interface EntityBase {
-            readonly Properties: readonly hc.reflection.Property[]
-            readonly PropertyNames: readonly string[]
+            Properties(): readonly hc.reflection.Property[]
+            // This is very tricky and really needs to be a generic function
+            // If return type was simply string[], then accessing entity[propertyName] would be an error due to imlicity any
+            // If return type was (keyof this)[], then sub-types would not be assinable to their supertypes due to incompatible PropertyNames()
+            PropertyNames<T extends this>(): readonly (keyof T)[]
         }
     }
 
