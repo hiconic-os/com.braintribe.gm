@@ -211,13 +211,15 @@ declare module "@dev.hiconic/hc-js-base" {
         }
     }
 
+    type PropsOnly<T> = Pick<T, { [K in keyof T]: T[K] extends Function ? never : K }[keyof T]>
+
     namespace hc.reflection {
         interface EntityBase {
             Properties(): readonly hc.reflection.Property[]
             // This is very tricky and really needs to be a generic function
             // If return type was simply string[], then accessing entity[propertyName] would be an error due to imlicity any
             // If return type was (keyof this)[], then sub-types would not be assinable to their supertypes due to incompatible PropertyNames()
-            PropertyNames<T extends this>(): readonly (keyof T)[]
+            PropertyNames<T extends this>(): readonly (keyof PropsOnly<T>)[]
         }
     }
 
