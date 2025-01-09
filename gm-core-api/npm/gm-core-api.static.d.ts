@@ -140,10 +140,10 @@ declare module "@dev.hiconic/hc-js-base" {
             //    es2015.iterable
             // ###################
 
-            [Symbol.iterator](): IterableIterator<T, void>;
-            entries(): IterableIterator<[number, T], void>;
-            keys(): IterableIterator<number, void>;
-            values(): IterableIterator<T, void>;
+            [Symbol.iterator](): IterableIterator<T, undefined>;
+            entries(): IterableIterator<[number, T], undefined>;
+            keys(): IterableIterator<number, undefined>;
+            values(): IterableIterator<T, undefined>;
 
             // ###################
             //    es2016.array
@@ -174,10 +174,10 @@ declare module "@dev.hiconic/hc-js-base" {
             //   es2015.iterable
             // ###################
 
-            [Symbol.iterator](): IterableIterator<T, void>;
-            entries(): IterableIterator<[T, T], void>;
-            keys(): IterableIterator<T, void>;
-            values(): IterableIterator<T, void>;
+            [Symbol.iterator](): IterableIterator<T, undefined>;
+            entries(): IterableIterator<[T, T], undefined>;
+            keys(): IterableIterator<T, undefined>;
+            values(): IterableIterator<T, undefined>;
         }
 
         interface Map<K, V> {
@@ -197,10 +197,10 @@ declare module "@dev.hiconic/hc-js-base" {
             //   es2015.iterable
             // ###################
 
-            [Symbol.iterator](): IterableIterator<[K, V], void>;
-            entries(): IterableIterator<[K, V], void>;
-            keys(): IterableIterator<K, void>;
-            values(): IterableIterator<V, void>;
+            [Symbol.iterator](): IterableIterator<[K, V], undefined>;
+            entries(): IterableIterator<[K, V], undefined>;
+            keys(): IterableIterator<K, undefined>;
+            values(): IterableIterator<V, undefined>;
         }
 
     }
