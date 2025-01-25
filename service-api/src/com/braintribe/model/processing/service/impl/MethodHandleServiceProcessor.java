@@ -15,7 +15,6 @@ package com.braintribe.model.processing.service.impl;
 
 import java.lang.invoke.MethodHandle;
 
-import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.processing.service.api.ServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceRequestContext;
 import com.braintribe.model.service.api.ServiceRequest;
@@ -23,7 +22,7 @@ import com.braintribe.model.service.api.ServiceRequest;
 public class MethodHandleServiceProcessor<P extends ServiceRequest, R> implements ServiceProcessor<P, R> {
 
 	private final MethodHandle methodHandle;
-	private SignatureType signatureType;
+	private final SignatureType signatureType;
 
 	public MethodHandleServiceProcessor(MethodHandle methodHandle, SignatureType signatureType) {
 		this.methodHandle = methodHandle;

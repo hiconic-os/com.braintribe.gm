@@ -17,7 +17,6 @@ package com.braintribe.model.processing.service.common.eval;
 
 import java.util.function.Supplier;
 
-import com.braintribe.cfg.Configurable;
 import com.braintribe.cfg.Required;
 import com.braintribe.model.generic.eval.EvalContext;
 import com.braintribe.model.generic.eval.Evaluator;

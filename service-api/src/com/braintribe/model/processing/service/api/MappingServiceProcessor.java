@@ -55,6 +55,7 @@ import com.braintribe.model.service.api.ServiceRequest;
  * @param <R>
  *            response type
  */
+@SuppressWarnings("unused")
 public interface MappingServiceProcessor<P extends ServiceRequest, R> {
 	// empty
 }

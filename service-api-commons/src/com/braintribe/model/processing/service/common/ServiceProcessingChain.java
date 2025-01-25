@@ -112,9 +112,6 @@ public class ServiceProcessingChain implements ServiceProcessor<ServiceRequest, 
 			chain.processor = (ServiceProcessor<ServiceRequest, ?>) processor;
 		}
 
-		public InterceptingServiceProcessorBuilderImpl() {
-		}
-
 		@Override
 		public ServiceProcessor<ServiceRequest, Object> build() {
 			return chain;
@@ -216,8 +213,8 @@ public class ServiceProcessingChain implements ServiceProcessor<ServiceRequest, 
 	}
 
 	private class ImmutableProceedContext implements ProceedContext, ServiceProcessor<ServiceRequest, Object> {
-		private int index;
-		private ServiceRequestContext requestContext;
+		private final int index;
+		private final ServiceRequestContext requestContext;
 
 		public ImmutableProceedContext(ServiceRequestContext requestContext, int index) {
 			super();
