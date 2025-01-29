@@ -44,7 +44,7 @@ public class ReasonExceptionLab {
 			fax();
 		}
 		catch (Exception e){
-			throw new NoSuchElementException("Not found", e);
+			throw new IllegalArgumentException("Not found", e);
 		}
 	}
 	
