@@ -47,4 +47,9 @@ public interface InternalError extends Reason {
 		error.setText(text);
 		return error;
 	}
+	
+	@Override
+	default Throwable linkedThrowable() {
+		return getJavaException();
+	}
 }

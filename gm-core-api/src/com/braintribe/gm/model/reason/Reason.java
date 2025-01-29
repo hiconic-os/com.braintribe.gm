@@ -80,6 +80,10 @@ public interface Reason extends GenericEntity {
 	default String stringify() {
 		return Reasons.format(this);
 	}
+	
+	default String stringify(boolean includeExceptions) {
+		return Reasons.format(this, includeExceptions);
+	}
 
 	@Override
 	default String asString() {
@@ -151,6 +155,10 @@ public interface Reason extends GenericEntity {
 				return (R) this;
 		}
 
+		return null;
+	}
+	
+	default Throwable linkedThrowable() {
 		return null;
 	}
 

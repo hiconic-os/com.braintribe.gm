@@ -17,11 +17,13 @@ package com.braintribe.gm.model.reason;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.braintribe.exception.Exceptions;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
@@ -34,6 +36,32 @@ import com.braintribe.model.generic.template.TemplateFragment;
 public class ReasonFormatter {
 
 	public static void format(Appendable builder, Reason reason, int depth) {
+		format(builder, reason, depth, false);
+	}
+	
+	public static void format(Appendable builder, Reason reason, int depth, boolean includeExceptions) {
+		List<Throwable> exceptions = includeExceptions? new ArrayList<>(): null;
+		
+		format(builder, reason, depth, exceptions);
+		
+		try {
+			if (exceptions != null && !exceptions.isEmpty()) {
+				int num = 1;
+				builder.append("\n");
+				for (Throwable exception: exceptions) {
+					builder.append("\n------------------------------------");
+					builder.append("\nException #");
+					builder.append(String.valueOf(num++));
+					builder.append(":\n\n");
+					builder.append(Exceptions.stringify(exception));
+				}
+			}
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+	
+	private static void format(Appendable builder, Reason reason, int depth, List<Throwable> exceptions) {
 		try {
 			writeIndentBulleted(builder, depth);
 			
@@ -50,12 +78,21 @@ public class ReasonFormatter {
 				builder.append(": ");
 				writeTextIndented(builder, text, depth + 1);
 			}
+			
+			if (exceptions != null) {
+				Throwable throwable = reason.linkedThrowable();
+				
+				if (throwable != null) {
+					exceptions.add(throwable);
+					writeTextIndented(builder, "\n-> see Exception #" + exceptions.size(), depth + 1);
+				}
+			}
 
 			List<Reason> attachedReasons = reason.getReasons();
 			
 			for (Reason cause: attachedReasons) {
 				builder.append("\n");
-				format(builder, cause, depth + 1);
+				format(builder, cause, depth + 1, exceptions);
 			}
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);

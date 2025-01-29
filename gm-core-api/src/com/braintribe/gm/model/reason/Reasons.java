@@ -36,8 +36,12 @@ public interface Reasons {
 	}
 	
 	static String format(Reason reason) {
+		return format(reason, false);
+	}
+	
+	static String format(Reason reason, boolean includeExceptions) {
 		StringBuilder builder = new StringBuilder();
-		ReasonFormatter.format(builder, reason, 0);
+		ReasonFormatter.format(builder, reason, 0, includeExceptions);
 		
 		return builder.toString();
 	}
