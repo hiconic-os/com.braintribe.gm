@@ -73,6 +73,8 @@ public class StandardExceptionHandler implements ExceptionHandler, Initializatio
 
 	private RemoteClientAddressResolver remoteAddressResolver;
 
+	private boolean tracebackIdExposure = true;
+
 	@Override
 	public Boolean apply(ExceptionHandlingContext context) {
 
@@ -241,7 +243,10 @@ public class StandardExceptionHandler implements ExceptionHandler, Initializatio
 			}
 
 			Failure failure = FailureCodec.INSTANCE.encode(context.getThrowable());
-			failure.setTracebackId(context.getTracebackId());
+			
+			if (tracebackIdExposure)
+				failure.setTracebackId(context.getTracebackId());
+			
 			if (!exposeMessage) {
 				failure.setMessage(null);
 			} else {
@@ -453,6 +458,7 @@ public class StandardExceptionHandler implements ExceptionHandler, Initializatio
 	public void setExceptionExposure(Exposure exceptionExposure) {
 		this.exceptionExposure = exceptionExposure;
 	}
+	
 	@Configurable
 	public void setMarshallerRegistry(MarshallerRegistry marshallerRegistry) {
 		this.marshallerRegistry = marshallerRegistry;
@@ -480,6 +486,11 @@ public class StandardExceptionHandler implements ExceptionHandler, Initializatio
 			statusCodeMap.put(AuthorizationException.class, HttpServletResponse.SC_FORBIDDEN);
 			statusCodeMap.put(SecurityServiceException.class, HttpServletResponse.SC_FORBIDDEN);
 		}
+	}
+
+	@Configurable
+	public void setTracebackIdExposure(boolean expose) {
+		this.tracebackIdExposure = expose;
 	}
 
 }
