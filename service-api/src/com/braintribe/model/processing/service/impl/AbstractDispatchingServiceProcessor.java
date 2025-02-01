@@ -15,6 +15,9 @@
 // ============================================================================
 package com.braintribe.model.processing.service.impl;
 
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
+
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.processing.core.expert.impl.PolymorphicDenotationMap;
 import com.braintribe.model.processing.service.api.ServiceProcessor;
@@ -42,6 +45,19 @@ public abstract class AbstractDispatchingServiceProcessor<P extends ServiceReque
 
 	private static class DispatchMap<P1 extends ServiceRequest, R1> //
 			extends PolymorphicDenotationMap<P1, ServiceProcessor<? extends P1, ?>> implements DispatchConfiguration<P1, R1> {
+
+		@Override
+		public <T extends ServiceProcessor<? extends P1, ?>> T get(EntityType<? extends P1> denotationType) {
+			T result = find(denotationType);
+			if (result == null)
+				throw new NoSuchElementException("No processor found for request type: " + denotationType.getTypeSignature() + ". Supported types: " + //
+						entryStream() //
+								.map(e -> e.getKey().getShortName()) //
+								.collect(Collectors.joining(", "))//
+				);
+
+			return result;
+		}
 
 		@Override
 		public <T extends P1> void register(EntityType<T> denotationType, ServiceProcessor<T, ? extends R1> processor) {
