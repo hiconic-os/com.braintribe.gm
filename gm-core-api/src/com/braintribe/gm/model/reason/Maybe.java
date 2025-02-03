@@ -176,9 +176,35 @@ public class Maybe<T> implements Supplier<T> {
 		return (R) whyUnsatisfied;
 	}
 
+	/**
+	 * Returns a Maybe holding this instance's reason, but no value (so that it is compatible even with a different value type).
+	 * <p>
+	 * Example:
+	 *
+	 * <pre>{@code
+	 * public Maybe<HugType> computeHugeThing() {
+	 *     Maybe<PartType> partMaybe = getPart();
+	 *     if (partMaybe.isUnsatisfied())
+	 *         return partMaybe.propagateReason();
+	 *
+	 *     PartType part = partMaybe.get();
+	 *     ... // continue computing with a value
+	 * }
+	 * }</pre>
+	 *
+	 * @throws IllegalStateException
+	 *             if this Maybe is satisfied (has not reason)
+	 */
+	public <X> Maybe<X> propagateReason() {
+		if (whyUnsatisfied == null)
+			throw new IllegalStateException("Cannot propagate reason, Maybe is satisfied with value: " + value);
+
+		return hasValue ? whyUnsatisfied.asMaybe() : emptyCast();
+	}
+
 	public <X> Maybe<X> emptyCast() {
 		if (!isEmpty())
-			throw new IllegalStateException();
+			throw new IllegalStateException("Maybe is not empty.");
 
 		return (Maybe<X>) this;
 	}
@@ -186,25 +212,25 @@ public class Maybe<T> implements Supplier<T> {
 	public <X> Maybe<X> cast() {
 		return (Maybe<X>) this;
 	}
-	
+
 	public Maybe<T> ifSatisfied(Consumer<? super T> consumer) {
 		if (isSatisfied())
 			consumer.accept(value);
 		return this;
 	}
-	
+
 	public Maybe<T> ifValue(Consumer<? super T> consumer) {
 		if (hasValue())
 			consumer.accept(value);
 		return this;
 	}
-	
+
 	public Maybe<T> ifUnsatisfied(Consumer<? super Reason> consumer) {
 		if (isUnsatisfied())
 			consumer.accept(whyUnsatisfied);
 		return this;
 	}
-	
+
 	public <R> Maybe<R> map(Function<? super T, ? extends R> mapper) {
 		requireNonNull(mapper);
 		return flatMap(value -> Maybe.complete(mapper.apply(value)));

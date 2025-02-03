@@ -15,6 +15,7 @@
 // ============================================================================
 package com.braintribe.testing.junit.assertions.gm.assertj.core.api;
 
+import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.testing.junit.assertions.assertj.core.api.Assertions;
 
@@ -34,6 +35,14 @@ public abstract class GmAssertions extends Assertions {
 
 	public static GenericEntityAssert assertEntity(GenericEntity actual) {
 		return new GenericEntityAssert(actual);
+	}
+
+	public static MaybeAssert assertThat(Maybe<?> actual) {
+		return assertMaybe(actual);
+	}
+
+	public static MaybeAssert assertMaybe(Maybe<?> actual) {
+		return new MaybeAssert(actual);
 	}
 
 }

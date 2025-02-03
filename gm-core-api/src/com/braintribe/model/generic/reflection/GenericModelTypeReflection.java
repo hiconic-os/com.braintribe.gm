@@ -113,7 +113,7 @@ public interface GenericModelTypeReflection extends DeprecatedReflectionApi, Ess
 	 * @return Model for given name if found on the classpath or <tt>null</tt> otherwise.
 	 */
 	default Model findModel(String modelName) {
-		throw new UnsupportedOperationException();
+		throw new UnsupportedOperationException(modelName);
 	}
 
 	/**
