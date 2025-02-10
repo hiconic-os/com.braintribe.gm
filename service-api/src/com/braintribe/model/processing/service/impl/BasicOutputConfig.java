@@ -20,14 +20,25 @@ import com.braintribe.model.processing.service.api.OutputConfig;
 public class BasicOutputConfig implements OutputConfig {
 
 	private boolean verbose;
+	private boolean dynamic;
 	
 	public BasicOutputConfig(boolean verbose) {
+		this(verbose, true);
+	}
+	
+	public BasicOutputConfig(boolean verbose, boolean dynamic) {
 		this.verbose = verbose;
+		this.dynamic = dynamic;
 	}
 	
 	@Override
 	public boolean verbose() {
-		return this.verbose;
+		return verbose;
+	}
+	
+	@Override
+	public boolean dynamic() {
+		return dynamic;
 	}
 	
 }

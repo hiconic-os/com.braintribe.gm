@@ -30,6 +30,10 @@ import com.braintribe.model.processing.service.impl.BasicOutputConfig;
 public interface OutputConfig {
 
 	boolean verbose();
+	
+	default boolean dynamic() {
+		return true;
+	}
 
 	OutputConfig empty = new BasicOutputConfig(false);
 
