@@ -19,11 +19,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.http.HttpHeaders;
-import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.client.methods.HttpRequestWrapper;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.config.ConnectionConfig;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.config.SocketConfig;
@@ -35,6 +35,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.impl.conn.SystemDefaultRoutePlanner;
 
 import com.braintribe.cfg.Configurable;
 import com.braintribe.common.lcd.Numbers;
@@ -106,20 +107,26 @@ public class DefaultHttpClientProvider implements HttpClientProvider {
 
 			HttpClientBuilder builder = HttpClients.custom().setConnectionManager(cxMgr);
 
-			String httpProxyHost = getProperty("http.proxyHost");
-			String httpProxyPort = getProperty("http.proxyPort");
-			if (httpProxyHost != null && httpProxyPort != null) {
-				HttpHost proxy = new HttpHost(httpProxyHost, Integer.parseInt(httpProxyPort), "http");
-				builder.setProxy(proxy);
-			} else {
-				String httpsProxyHost = getProperty("https.proxyHost");
-				String httpsProxyPort = getProperty("https.proxyPort");
-				if (httpsProxyHost != null && httpsProxyPort != null) {
-					HttpHost proxy = new HttpHost(httpsProxyHost, Integer.parseInt(httpsProxyPort), "https");
-					builder.setProxy(proxy);
-				}
-			}
+			// Commented out on 13.2.2025 - this ignores the property http.nonProxyHosts and generally 
+			// ignores everything besides the explicitly passes system properties
+			// The default 
+			//
+			// String httpProxyHost = getProperty("http.proxyHost");
+			// String httpProxyPort = getProperty("http.proxyPort");
+			// if (httpProxyHost != null && httpProxyPort != null) {
+			// HttpHost proxy = new HttpHost(httpProxyHost, Integer.parseInt(httpProxyPort), "http");
+			// builder.setProxy(proxy);
+			// } else {
+			// String httpsProxyHost = getProperty("https.proxyHost");
+			// String httpsProxyPort = getProperty("https.proxyPort");
+			// if (httpsProxyHost != null && httpsProxyPort != null) {
+			// HttpHost proxy = new HttpHost(httpsProxyHost, Integer.parseInt(httpsProxyPort), "https");
+			// builder.setProxy(proxy);
+			// }
+			// }
 
+			builder.setRoutePlanner(new SystemDefaultRoutePlanner(null));
+			
 			Integer timeout = getValue(clientParameters.getSocketTimeout(), this.socketTimeout);
 			if (timeout > 0) {
 				SocketConfig socketConfig = SocketConfig.custom().setSoTimeout(timeout).build();
