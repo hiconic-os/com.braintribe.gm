@@ -15,6 +15,8 @@
 // ============================================================================
 package com.braintribe.model.processing.service.common;
 
+import static com.braintribe.utils.lcd.CollectionTools2.isEmpty;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
@@ -153,9 +155,9 @@ public class ConfigurableDispatchingServiceProcessor implements ServiceProcessor
 
 	@Override
 	public Object process(ServiceRequestContext requestContext, ServiceRequest request) {
-		final ServiceProcessor<ServiceRequest, Object> processor;
+		ServiceProcessor<ServiceRequest, Object> processor;
 
-		if (interceptors == null || interceptors.isEmpty()) {
+		if (isEmpty(interceptors)) {
 			processor = getProcessor(request);
 		} else {
 			processor = getInterceptingProcessor(request);

@@ -15,6 +15,8 @@
 // ============================================================================
 package com.braintribe.model.processing.service.common;
 
+import static com.braintribe.utils.lcd.CollectionTools2.isEmpty;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -173,35 +175,34 @@ public class ServiceProcessingChain implements ServiceProcessor<ServiceRequest, 
 	}
 
 	private ServiceRequest preProcess(ServiceRequestContext requestContext, ServiceRequest request) {
-		if (preProcessors != null && !preProcessors.isEmpty()) {
-			for (ServicePreProcessor<ServiceRequest> preProcessor : preProcessors) {
+		if (!isEmpty(preProcessors))
+			for (ServicePreProcessor<ServiceRequest> preProcessor : preProcessors) 
 				request = preProcessor.process(requestContext, request);
-			}
-		}
+
 		return request;
 	}
 
 	private Object aroundProcess(ServiceRequestContext requestContext, ServiceRequest request) {
-		if (aroundProcessors != null && !aroundProcessors.isEmpty()) {
-			Object response = new ImmutableProceedContext(requestContext, 0).proceed(request);
-			return response;
-		} else {
+		if (isEmpty(aroundProcessors))
 			return processor.process(requestContext, request);
-		}
+
+		ImmutableProceedContext proceedContext = new ImmutableProceedContext(requestContext, 0);
+		return proceedContext.proceed(request);
 	}
 
 	@SuppressWarnings("deprecation")
 	private Object postProcess(ServiceRequestContext requestContext, Object response) {
-		if (postProcessors != null && !postProcessors.isEmpty()) {
-			for (ServicePostProcessor<Object> postProcessor : postProcessors) {
-				Object postProcessorResponse = postProcessor.process(requestContext, response);
+		if (isEmpty(postProcessors))
+			return response;
 
-				if (response != postProcessorResponse) {
-					if (postProcessorResponse instanceof OverridingPostProcessResponse) {
-						response = ((OverridingPostProcessResponse) postProcessorResponse).getResponse();
-					}
-					response = postProcessorResponse;
+		for (ServicePostProcessor<Object> postProcessor : postProcessors) {
+			Object postProcessorResponse = postProcessor.process(requestContext, response);
+
+			if (response != postProcessorResponse) {
+				if (postProcessorResponse instanceof OverridingPostProcessResponse) {
+					response = ((OverridingPostProcessResponse) postProcessorResponse).getResponse();
 				}
+				response = postProcessorResponse;
 			}
 		}
 
@@ -224,21 +225,28 @@ public class ServiceProcessingChain implements ServiceProcessor<ServiceRequest, 
 
 		@Override
 		public Object process(ServiceRequestContext requestContext, ServiceRequest request) {
-			if (index < aroundProcessors.size()) {
-				return aroundProcessors.get(index).process(requestContext, request, new ImmutableProceedContext(requestContext, index + 1));
-			} else {
+			// no around processors left -> call the actual processor 
+			if (index >= aroundProcessors.size())
 				return processor.process(requestContext, request);
-			}
+
+			// call the next around processor with the next proceed context   
+			ServiceAroundProcessor<ServiceRequest, ?> nextAroundProcessor = aroundProcessors.get(index);
+			ImmutableProceedContext nextProceedCtx = new ImmutableProceedContext(requestContext, index + 1);
+
+			return nextAroundProcessor.process(requestContext, request, nextProceedCtx);
 		}
 
 		@Override
 		public <T> T proceed(ServiceRequest serviceRequest) {
-			if (index < aroundProcessors.size()) {
-				return (T) aroundProcessors.get(index).process(requestContext, serviceRequest,
-						new ImmutableProceedContext(requestContext, index + 1));
-			} else {
+			// no around processors left -> call the actual processor 
+			if (index >= aroundProcessors.size())
 				return (T) processor.process(requestContext, serviceRequest);
-			}
+
+			// call the next around processor with the next proceed context   
+			ServiceAroundProcessor<ServiceRequest, ?> nextAroundProcessor = aroundProcessors.get(index);
+			ImmutableProceedContext nextProceedCtx = new ImmutableProceedContext(requestContext, index + 1);
+
+			return (T) nextAroundProcessor.process(requestContext, serviceRequest, nextProceedCtx);
 		}
 
 		@Override
@@ -247,11 +255,16 @@ public class ServiceProcessingChain implements ServiceProcessor<ServiceRequest, 
 				AttributeContexts.push(context);
 
 			try {
-				if (index < aroundProcessors.size()) {
-					return (T) aroundProcessors.get(index).process(context, serviceRequest, new ImmutableProceedContext(context, index + 1));
-				} else {
+				// no around processors left -> call the actual processor
+				if (index >= aroundProcessors.size())
 					return (T) processor.process(context, serviceRequest);
-				}
+
+				// call the next around processor with the next proceed context
+				ServiceAroundProcessor<ServiceRequest, ?> nextAroundProcessor = aroundProcessors.get(index);
+				ImmutableProceedContext nextProceedCtx = new ImmutableProceedContext(context, index + 1);
+
+				return (T) nextAroundProcessor.process(context, serviceRequest, nextProceedCtx);
+
 			} finally {
 				if (context != requestContext)
 					AttributeContexts.pop();
