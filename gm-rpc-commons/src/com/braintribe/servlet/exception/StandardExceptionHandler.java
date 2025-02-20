@@ -31,10 +31,14 @@ import javax.servlet.http.HttpServletResponse;
 
 import com.braintribe.cfg.Configurable;
 import com.braintribe.cfg.InitializationAware;
+import com.braintribe.codec.marshaller.api.EntityRecurrenceDepth;
 import com.braintribe.codec.marshaller.api.GmSerializationOptions;
 import com.braintribe.codec.marshaller.api.Marshaller;
 import com.braintribe.codec.marshaller.api.MarshallerRegistry;
 import com.braintribe.codec.marshaller.api.OutputPrettiness;
+import com.braintribe.codec.marshaller.api.TypeExplicitness;
+import com.braintribe.codec.marshaller.api.TypeExplicitnessOption;
+import com.braintribe.codec.marshaller.api.options.GmSerializationContextBuilder;
 import com.braintribe.exception.AuthorizationException;
 import com.braintribe.exception.Exceptions;
 import com.braintribe.exception.HasLogPreferences;
@@ -219,10 +223,6 @@ public class StandardExceptionHandler implements ExceptionHandler, Initializatio
 		boolean exposeException = exposeException(statusCode);
 
 		if (marshaller != null && !textPreferred) {
-			GmSerializationOptions highPrettynessOptions = GmSerializationOptions.deriveDefaults() //
-					.setOutputPrettiness(OutputPrettiness.high) //
-					.build();
-
 			Throwable throwable = context.getThrowable();
 			if (throwable instanceof HttpException) {
 
@@ -233,20 +233,18 @@ public class StandardExceptionHandler implements ExceptionHandler, Initializatio
 					// Use the transfered payload as body instead of creating a Failure object.
 
 					ByteArrayOutputStream baos = new ByteArrayOutputStream();
-					marshaller.marshall(baos, payload, highPrettynessOptions);
+					marshaller.marshall(baos, payload, GmSerializationOptions.deriveDefaults().setOutputPrettiness(OutputPrettiness.high).build());
 
 					Body marshalledBody = new Body(baos.toByteArray(), actualMimeType.concat("; charset=UTF-8"));
 					return marshalledBody;
-
 				}
-
 			}
 
 			Failure failure = FailureCodec.INSTANCE.encode(context.getThrowable());
-			
+
 			if (tracebackIdExposure)
 				failure.setTracebackId(context.getTracebackId());
-			
+
 			if (!exposeMessage) {
 				failure.setMessage(null);
 			} else {
@@ -257,10 +255,21 @@ public class StandardExceptionHandler implements ExceptionHandler, Initializatio
 				failure.setDetails(null);
 				failure.setCause(null);
 				failure.getSuppressed().clear();
+				failure.setType(null);
 			}
 
+			GmSerializationContextBuilder optsBuilder = GmSerializationOptions.deriveDefaults() //
+					.setOutputPrettiness(OutputPrettiness.high) //
+					.set(EntityRecurrenceDepth.class, 1);
+
+			if (!exposeException)
+				optsBuilder.setInferredRootType(Failure.T) //
+						.set(TypeExplicitnessOption.class, TypeExplicitness.polymorphic);
+
+			GmSerializationOptions serializationOpts = optsBuilder.build();
+
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			marshaller.marshall(baos, failure, highPrettynessOptions);
+			marshaller.marshall(baos, failure, serializationOpts);
 
 			Body marshalledBody = new Body(baos.toByteArray(), actualMimeType.concat("; charset=UTF-8"));
 			return marshalledBody;

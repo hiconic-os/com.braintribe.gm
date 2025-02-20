@@ -196,6 +196,7 @@ public class StandardExceptionHandlerTest {
 		handler.apply(context);
 		String body = getBody(context.getResponse());
 		assertThat(body).isNotBlank();
+		assertThat(body).doesNotContain("_id");		
 		assertThat(body).contains("tbid1");
 		assertThat(body).contains("message1");
 		assertThat(body).contains(this.getClass().getName());
@@ -205,6 +206,10 @@ public class StandardExceptionHandlerTest {
 		handler.apply(context);
 		body = getBody(context.getResponse());
 		assertThat(body).isNotBlank();
+		assertThat(body).doesNotContain("_id");		
+		assertThat(body).doesNotContain("_type");
+		assertThat(body).doesNotContain("\"type\"");
+		assertThat(body).doesNotContain("Failure");
 		assertThat(body).contains("tbid2");
 		assertThat(body).contains("message2");
 		assertThat(body).doesNotContain(this.getClass().getName());
@@ -215,6 +220,10 @@ public class StandardExceptionHandlerTest {
 		body = getBody(context.getResponse());
 		assertThat(body).isNotBlank();
 		assertThat(body).contains("tbid3");
+		assertThat(body).doesNotContain("_id");		
+		assertThat(body).doesNotContain("_type");
+		assertThat(body).doesNotContain("\"type\"");
+		assertThat(body).doesNotContain("Failure");
 		assertThat(body).doesNotContain("message3");
 		assertThat(body).doesNotContain(this.getClass().getName());
 
