@@ -23,6 +23,7 @@ import com.braintribe.common.potential.Potential;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.annotation.ForwardDeclaration;
 import com.braintribe.model.generic.annotation.SelectiveInformation;
+import com.braintribe.model.generic.annotation.Transient;
 import com.braintribe.model.generic.annotation.meta.Description;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
@@ -61,6 +62,10 @@ public interface Reason extends GenericEntity {
 	@Description("Reasons related to this reason.")
 	List<Reason> getReasons();
 	void setReasons(List<Reason> reasons);
+
+	@Transient
+	RuntimeException getCreationStackTrace();
+	void setCreationStackTrace(RuntimeException creationStackTrace);
 
 	default void causedBy(Reason cause) {
 		Objects.requireNonNull(cause, () -> "cause must not be null");
@@ -159,7 +164,11 @@ public interface Reason extends GenericEntity {
 	}
 
 	default Throwable linkedThrowable() {
-		return null;
+		return getCreationStackTrace();
 	}
 
+	default void markStackTrace() {
+		setCreationStackTrace(new RuntimeException("<Marked Reason StackTtrace>"));
+	}
+	
 }

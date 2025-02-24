@@ -37,7 +37,7 @@ public class ReasonException extends RuntimeException {
 	 * @param reason The {@link Reason} to be transported
 	 */
 	public ReasonException(Reason reason) {
-		super(reason.stringify());
+		super(reason.stringify(), reason.linkedThrowable());
 		this.reason = reason;
 	}
 

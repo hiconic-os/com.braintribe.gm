@@ -50,6 +50,9 @@ public interface InternalError extends Reason {
 	
 	@Override
 	default Throwable linkedThrowable() {
-		return getJavaException();
+		Throwable javaException = getJavaException();
+		return javaException != null //
+				? javaException //
+				: getCreationStackTrace();
 	}
 }
