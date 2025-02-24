@@ -40,7 +40,7 @@ public class ReasonException extends RuntimeException {
 		super(reason.stringify());
 		this.reason = reason;
 	}
-	
+
 	public Reason getReason() {
 		return reason;
 	}

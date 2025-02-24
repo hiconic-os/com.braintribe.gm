@@ -57,14 +57,14 @@ public interface Reason extends GenericEntity {
 	@Description("Textual description of the reason.")
 	String getText();
 	void setText(String text);
-	
+
 	@Description("Reasons related to this reason.")
 	List<Reason> getReasons();
 	void setReasons(List<Reason> reasons);
-	
+
 	default void causedBy(Reason cause) {
 		Objects.requireNonNull(cause, () -> "cause must not be null");
-		
+
 		getReasons().add(cause);
 	}
 
@@ -75,12 +75,12 @@ public interface Reason extends GenericEntity {
 	default String asFormattedText() {
 		return stringify();
 	}
-	
+
 	@Override
 	default String stringify() {
 		return Reasons.format(this);
 	}
-	
+
 	default String stringify(boolean includeExceptions) {
 		return Reasons.format(this, includeExceptions);
 	}
@@ -109,7 +109,7 @@ public interface Reason extends GenericEntity {
 		reason.getReasons().add(previousReason);
 		return reason;
 	}
-	
+
 	/** Creates a new {@link Reason} with given text and a one other reasons which are all added to the result's {@link Reason#getReasons()}. */
 	static Reason create(String text, Collection<Reason> reasons) {
 		Reason reason = create(text);
@@ -157,7 +157,7 @@ public interface Reason extends GenericEntity {
 
 		return null;
 	}
-	
+
 	default Throwable linkedThrowable() {
 		return null;
 	}
