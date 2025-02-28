@@ -16,15 +16,20 @@
 package com.braintribe.gm.config.yaml;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import com.braintribe.gm.model.reason.Maybe;
+import com.braintribe.gm.model.reason.ReasonException;
 import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.essential.NotFound;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
+import com.braintribe.model.generic.session.InputStreamProvider;
 import com.braintribe.ve.api.VirtualEnvironment;
 import com.braintribe.ve.impl.StandardEnvironment;
 
@@ -41,6 +46,29 @@ public class ModeledYamlConfigurationLoader {
 	public ModeledYamlConfigurationLoader variableResolver(Function<String, String> variableResolver) {
 		this.variableResolver = variableResolver;
 		return this;
+	}
+	
+	public <C extends GenericEntity> Maybe<C> loadConfig(EntityType<C> configType, InputStreamProvider inputStreamProvider) {
+		ConfigVariableResolver variableResolver = new ConfigVariableResolver(virtualEnvironment, null);
+		variableResolver.setVariableResolver(this.variableResolver);
+		
+		try (InputStream in = inputStreamProvider.openInputStream()) {
+			Maybe<C> maybe = YamlConfigurations.<C>read(configType) //
+					.placeholders(variableResolver::resolve) //
+					.from(inputStreamProvider);
+			
+			if (variableResolver.getFailure() != null) {
+				return variableResolver.getFailure().asMaybe();
+			}
+			
+			return maybe;
+		}
+		catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+		catch (ReasonException e) {
+			return e.getReason().asMaybe();
+		}
 	}
 	
 	public <C extends GenericEntity> Maybe<C> loadConfig(EntityType<C> configType, File configFile, boolean fileMustExist) {

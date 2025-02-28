@@ -32,8 +32,8 @@ public class ConfigVariableResolver {
 
 	private static final String ENV_PREFIX = "env.";
 	private Reason failure;
-	private String dirProperty;
-	private String fileProperty;
+	private String dirProperty = ".";
+	private String fileProperty = "";
 	private File file;
 	private VirtualEnvironment virtualEnvironment;
 	private Function<String, String> variableResolver = n -> null;
@@ -42,9 +42,12 @@ public class ConfigVariableResolver {
 		super();
 		this.virtualEnvironment = virtualEnvironment;
 		this.file = file;
-		Path filePath = file.toPath().toAbsolutePath().normalize();
-		this.dirProperty = filePath.getParent().toString();
-		this.fileProperty = filePath.toString();
+		
+		if (file != null) {
+			Path filePath = file.toPath().toAbsolutePath().normalize();
+			this.dirProperty = filePath.getParent().toString();
+			this.fileProperty = filePath.toString();
+		}
 	}
 
 	@Configurable
