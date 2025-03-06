@@ -114,6 +114,10 @@ import com.braintribe.utils.stream.api.StreamPipeFactory;
 		if (dialect.hibernateDialect().contains(".Oracle"))
 			return new NvarcharClobColumn(name, dialect, 1000);
 
+		if (dialect.knownDbVariant() == DbVariant.H2)
+			// See 1,000,000,000 limit at https://www.h2database.com/html/datatypes.html#character_varying_type
+			return new NvarcharClobColumn(name, dialect, 1_000_000_000);
+
 		// TODO examine when even longer limit can be taken
 		return new NvarcharClobColumn(name, dialect, 4000);
 	}

@@ -13,23 +13,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.util.jdbc.dialect;
+package com.braintribe.util.jdbc.pagination.dialect;
 
-/**
- * @author peter.gazdik
- */
-public enum DbVariant {
+import com.braintribe.util.jdbc.pagination.AbstractLimitHandler;
+import com.braintribe.util.jdbc.pagination.LimitHelper;
+import com.braintribe.util.jdbc.pagination.RowSelection;
 
-	DB2,
-	DB2v7_Host,
-	derby,
-	H2,
-	hsql,
-	mssql,
-	mysql,
-	oracle,
-	postgre,
+public class H2LimitHandler extends AbstractLimitHandler {
 
-	other;
+	public static final H2LimitHandler INSTANCE = new H2LimitHandler();
+
+	@Override
+	public String processSql(String sql, RowSelection selection) {
+		final boolean hasOffset = LimitHelper.hasFirstRow( selection );
+		return sql + (hasOffset ? " limit ? offset ?" : " limit ?");
+	}
+
+	@Override
+	public boolean supportsLimit() {
+		return true;
+	}
+
+	@Override
+	public boolean bindLimitParametersInReverseOrder() {
+		return true;
+	}
 
 }

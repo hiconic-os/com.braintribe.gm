@@ -19,6 +19,7 @@ import static com.braintribe.gm.jdbc.api.GmLobLoadingMode.NO_LOB;
 import static com.braintribe.gm.jdbc.api.GmLobLoadingMode.ONLY_LOB;
 import static com.braintribe.utils.lcd.CollectionTools2.asList;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringReader;
@@ -35,6 +36,7 @@ import com.braintribe.gm.jdbc.api.GmLobLoadingMode;
 import com.braintribe.gm.jdbc.api.GmSelectionContext;
 import com.braintribe.gm.jdbc.impl.column.AbstractGmColumn.MultiGmColumn;
 import com.braintribe.logging.Logger;
+import com.braintribe.model.generic.session.InputStreamProvider;
 import com.braintribe.model.resource.Resource;
 import com.braintribe.util.jdbc.dialect.JdbcDialect;
 import com.braintribe.utils.IOTools;
@@ -120,7 +122,22 @@ public class ResourceColumn extends MultiGmColumn<Resource> {
 			IOTools.pump(is, os);
 		}
 
-		return Resource.createTransient(pipe::openInputStream);
+		// NOTICE:
+		// We use a real class rather than lambda to make possible troubleshooting simpler.
+		return Resource.createTransient(new ResourceColumnInputStreamProvider(pipe));
+	}
+
+	private static class ResourceColumnInputStreamProvider implements InputStreamProvider {
+		private final StreamPipe pipe;
+
+		public ResourceColumnInputStreamProvider(StreamPipe pipe) {
+			this.pipe = pipe;
+		}
+
+		@Override
+		public InputStream openInputStream() throws IOException {
+			return pipe.openInputStream();
+		}
 	}
 
 	@Override

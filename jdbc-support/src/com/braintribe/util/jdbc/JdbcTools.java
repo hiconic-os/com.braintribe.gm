@@ -31,6 +31,7 @@ import com.braintribe.util.jdbc.dialect.JdbcDialect;
 import com.braintribe.util.jdbc.pagination.LimitHandler;
 import com.braintribe.util.jdbc.pagination.dialect.DB2LimitHandler;
 import com.braintribe.util.jdbc.pagination.dialect.DerbyLimitHandler;
+import com.braintribe.util.jdbc.pagination.dialect.H2LimitHandler;
 import com.braintribe.util.jdbc.pagination.dialect.MySqlLimitHandler;
 import com.braintribe.util.jdbc.pagination.dialect.Oracle9iLimitHandler;
 import com.braintribe.util.jdbc.pagination.dialect.PostgreSqlLimitHandler;
@@ -141,6 +142,9 @@ public class JdbcTools {
 			case DB2:
 			case DB2v7_Host:
 				return DB2LimitHandler.INSTANCE;
+
+			case H2:
+				return H2LimitHandler.INSTANCE;
 
 			case derby:
 				return DerbyLimitHandler.INSTANCE;

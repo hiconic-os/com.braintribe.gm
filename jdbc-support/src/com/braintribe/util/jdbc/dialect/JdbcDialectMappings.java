@@ -33,6 +33,7 @@ import java.util.regex.Pattern;
 		// @formatter:off
 		register("(?i).*db2/nt.*", DbVariant.DB2, "org.hibernate.dialect.DB2Dialect", "smallint", "integer", "bigint", "float", "double", "decimal($p,$s)", "timestamp", "varchar($l)", "varchar(255)", "clob", "blob($l)");
 		register("(?i).*db2.*", DbVariant.DB2v7_Host, "org.hibernate.dialect.DB2Dialect", "smallint", "integer", "bigint", "float", "double", "decimal($p,$s)", "timestamp", "varchar($l)", "varchar(255)", "clob", "blob($l)");
+		register("(?i)H2\\sVersion.*", DbVariant.H2, "org.hibernate.dialect.H2Dialect", "boolean", "integer", "bigint", "float", "double", "decimal($p,$s)", "timestamp", "nvarchar($l)", "nvarchar(255)", "clob", "blob");
 		register("(?i).*microsoft sql server.*Version\\:9\\..*", DbVariant.mssql, "org.hibernate.dialect.SQLServer2005Dialect", "bit", "int", "bigint", "float", "double precision", "numeric($p,$s)", "datetime", "nvarchar($l)", "nvarchar(255)", "varchar(MAX)", "varbinary(MAX)");
 		register("(?i).*microsoft sql server.*Version\\:10\\..*", DbVariant.mssql, "org.hibernate.dialect.sane.SaneSQLServer2008Dialect", "bit", "int", "bigint", "float", "double precision", "numeric($p,$s)", "datetime2", "nvarchar(MAX)", "nvarchar(255)", "varchar(MAX)", "varbinary(MAX)");
 		register("(?i).*microsoft sql server.*Version\\:11\\..*", DbVariant.mssql, "org.hibernate.dialect.sane.SaneSQLServer2012Dialect", "bit", "int", "bigint", "float", "double precision", "numeric($p,$s)", "datetime2", "nvarchar(MAX)", "nvarchar(255)", "varchar(MAX)", "varbinary(MAX)");
