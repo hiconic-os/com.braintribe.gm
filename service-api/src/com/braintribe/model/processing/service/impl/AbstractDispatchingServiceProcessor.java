@@ -18,14 +18,16 @@ package com.braintribe.model.processing.service.impl;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
+import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.processing.core.expert.impl.PolymorphicDenotationMap;
+import com.braintribe.model.processing.service.api.ReasonedServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceRequestContext;
 import com.braintribe.model.service.api.ServiceRequest;
 import com.braintribe.utils.lcd.LazyInitialized;
 
-public abstract class AbstractDispatchingServiceProcessor<P extends ServiceRequest, R> implements ServiceProcessor<P, R> {
+public abstract class AbstractDispatchingServiceProcessor<P extends ServiceRequest, R> implements ReasonedServiceProcessor<P, R> {
 
 	private final LazyInitialized<DispatchMap<P, R>> lazyDispatchMap = new LazyInitialized<DispatchMap<P, R>>(this::createDispatchMap);
 
@@ -43,6 +45,16 @@ public abstract class AbstractDispatchingServiceProcessor<P extends ServiceReque
 		return processor.process(context, request);
 	}
 
+	@Override
+	public Maybe<? extends R> processReasoned(ServiceRequestContext context, P request) {
+		ServiceProcessor<P, R> processor = (ServiceProcessor<P, R>) lazyDispatchMap.get().get(request);
+		if (processor instanceof ReasonedServiceProcessor<?, ?>)
+			return ((ReasonedServiceProcessor<P, R>) processor).processReasoned(context, request);
+		
+		R response = processor.process(context, request);
+		return Maybe.complete(response);
+	}
+	
 	private static class DispatchMap<P1 extends ServiceRequest, R1> //
 			extends PolymorphicDenotationMap<P1, ServiceProcessor<? extends P1, ?>> implements DispatchConfiguration<P1, R1> {
 
