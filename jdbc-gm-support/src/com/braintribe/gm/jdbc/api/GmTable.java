@@ -80,4 +80,6 @@ public interface GmTable {
 
 	GmUpdateBuilder update(Map<GmColumn<?>, Object> columnsToValues);
 
+	GmUpdateBuilder delete();
+
 }

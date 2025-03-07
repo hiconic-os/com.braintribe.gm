@@ -24,5 +24,9 @@ public interface GmUpdateBuilder {
 		return where(column.getSingleSqlColumn() + " = ?", value);
 	}
 
+	/**
+	 * @return number of updated/deleted rows
+	 */
 	int where(String condition, Object... parameters);
+
 }

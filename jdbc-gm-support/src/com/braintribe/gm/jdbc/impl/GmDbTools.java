@@ -61,6 +61,7 @@ public class GmDbTools {
 				updateTask.accept(ps, boundColumns);
 
 			} finally {
+				// This really just closes possibly open streams for LOBs
 				for (GmColumn<?> column : boundColumns)
 					column.afterStatementExecuted(ps);
 			}

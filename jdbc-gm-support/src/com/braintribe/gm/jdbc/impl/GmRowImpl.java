@@ -32,6 +32,7 @@ public class GmRowImpl implements GmRow {
 		this.values = values;
 	}
 
+	/** {@inheritDoc} */
 	@Override
 	public <T> T getValue(GmColumn<T> column) {
 		return (T) values.get(column);

@@ -337,6 +337,29 @@ public class GmDb_BasicCrud_Tests extends AbstractGmDbTestBase {
 		assertSameResource(row.getValue(colTextResource), _textResource2);
 	}
 
+	@Test
+	public void testDeletes() {
+		final String TABLE_NAME = "deletes" + tmSfx;
+		GmTable table = ensureTableAndInsertOneRow(TABLE_NAME);
+
+		// change id of the single row
+		int updated = table.update( //
+				colIdStr, "_" + _id //
+		).whereColumn(colIdStr, _id);
+
+		assertThat(updated).isEqualTo(1);
+
+		// insert standard row again - no conflict, id was already changed
+		doStandardInsert(table);
+
+		collectResult(table.select().rows());
+		assertResultSize(2);
+
+		// now deleted the modified fow
+		int deleted = table.delete().whereColumn(colIdStr, "_" + _id);
+		assertThat(deleted).isEqualTo(1);
+	}
+
 	private GmTable ensureTableAndInsertOneRow(final String TABLE_NAME) {
 		GmTable table = newGmTable(TABLE_NAME);
 		table.ensure();

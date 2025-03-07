@@ -67,24 +67,29 @@ import com.braintribe.utils.stream.api.StreamPipeFactory;
  * <ul>
  * <li>Simple types
  * <li>Enums
- * <li>Entities (encoded as Strings, stored as Strings or clobs)
- * <li>Resources (stored as Strings when mimeType is plain/text and length is small enough, otherwise blob)
+ * <li>Entities (encoded as Strings, stored as Strings or clobs.
+ * <li>Resources (stored as Strings when mimeType is plain/text and length ({@link Resource#getFileSize()}) is small enough, otherwise blob)
  * </ul>
  * 
  * <h2>Supported DBs</h2>
  * <ul>
- * <li>PostgreSQL
- * <li>MySQL
- * <li>MS SQL Server
- * <li>Oracle
  * <li>Derby
+ * <li>H2
+ * <li>MS SQL Server
+ * <li>MySQL
+ * <li>Oracle
+ * <li>PostgreSQL
  * </ul>
  * 
  * <h2>Managing tables</h2>
  * <ul>
  * <li>Table is created and updated automatically, update is capable of adding missing columns and indices.
- * <li>Automatically picks the right column or even columns for given constrains. Longer strings are stored as two columns for some DBs, one for short
- * enough to fit as text, another for longer stored as CLOBs.
+ * </ul>
+ * 
+ * <h2>Columns</h2>
+ * <ul>
+ * <li>Automatically picks the right column or even multiple columns for given type and constraints (e.g. string). Longer strings are stored as two
+ * columns for some DBs, one for short enough to fit as text, another for longer stored as CLOBs.
  * <li>Entities are stored encoded as Strings. See {@link GmDbBuilder#withDefaultCodec(GmCodec)} and
  * {@link GmDb#entityAsString(String, EntityType, GmCodec)}.
  * </ul>
@@ -287,11 +292,11 @@ public class GmDb implements DestructionAware {
 
 	private GmCodec<Object, String> defaultCodec(String type) {
 		return requireNonNull(defaultCodec,
-				() -> "Cannot create column for '" + type + "' without specifying a GmCodec as no default codec was configured.");
+				() -> "Cannot create column for '" + type + "' without specifying a GmCodec as no default GmCodec was configured.");
 	}
 
 	private StreamPipeFactory pripeFactory(String type) {
-		return requireNonNull(pipeFactory, () -> "Cannot create column for '" + type + "' as no StreamPipeFactorys was configured.");
+		return requireNonNull(pipeFactory, () -> "Cannot create column for '" + type + "' as no StreamPipeFactory was configured.");
 	}
 
 	public ExecutorService getExecutor() {

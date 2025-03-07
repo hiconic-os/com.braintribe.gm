@@ -40,7 +40,6 @@ import com.braintribe.gm.jdbc.api.GmColumn;
 import com.braintribe.gm.jdbc.api.GmDb;
 import com.braintribe.gm.jdbc.api.GmRow;
 import com.braintribe.model.resource.Resource;
-import com.braintribe.util.jdbc.dialect.JdbcDialectAutoSense;
 import com.braintribe.utils.IOTools;
 import com.braintribe.utils.RandomTools;
 import com.braintribe.utils.stream.ReaderInputStream;

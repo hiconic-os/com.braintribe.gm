@@ -295,6 +295,11 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 		return new GmUpdateBuilderImpl(this, columnsToValues);
 	}
 
+	@Override
+	public GmUpdateBuilder delete() {
+		return new GmDeleteBuilderImpl(this);
+	}
+
 	public List<GmColumn<?>> notNullColumns() {
 		return notNullColumns;
 	}

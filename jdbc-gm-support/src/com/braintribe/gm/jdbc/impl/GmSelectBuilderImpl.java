@@ -48,6 +48,8 @@ import com.braintribe.utils.lcd.CollectionTools;
 import com.braintribe.utils.lcd.NullSafe;
 
 /**
+ * Standard implementation of {@link GmSelectBuilder}
+ * 
  * @author peter.gazdik
  */
 public class GmSelectBuilderImpl implements GmSelectBuilder {
@@ -61,6 +63,7 @@ public class GmSelectBuilderImpl implements GmSelectBuilder {
 		this.dbQuery.selectedColumns = selectedColumns;
 	}
 
+	/** {@inheritDoc} */
 	@Override
 	public GmSelectBuilder when(boolean necessity) {
 		return necessity ? this : new IgnoringNextConditionBuilder();
@@ -82,6 +85,7 @@ public class GmSelectBuilderImpl implements GmSelectBuilder {
 		// @formatter:on
 	}
 
+	/** {@inheritDoc} */
 	@Override
 	public GmSelectBuilder whereValues(String whereCondition, List<?> whereParams) {
 		if (dbQuery.conditions == 0)
@@ -99,12 +103,14 @@ public class GmSelectBuilderImpl implements GmSelectBuilder {
 		return this;
 	}
 
+	/** {@inheritDoc} */
 	@Override
 	public GmSelectBuilder orderBy(String orderByClause) {
 		dbQuery.orderByClause = orderByClause;
 		return this;
 	}
 
+	/** {@inheritDoc} */
 	@Override
 	public GmSelectBuilder limitAndOffset(int limit, int offset) {
 		dbQuery.limit = limit;
@@ -112,6 +118,7 @@ public class GmSelectBuilderImpl implements GmSelectBuilder {
 		return this;
 	}
 
+	/** {@inheritDoc} */
 	@Override
 	public GmSelectBuilder lobLoading(GmColumn<?> column, GmLobLoadingMode mode) {
 		dbQuery.loadingModes.put(column, mode);
@@ -122,6 +129,7 @@ public class GmSelectBuilderImpl implements GmSelectBuilder {
 	// ## . . . . Multi-Threaded Querying . . . . . ##
 	// ###############################################
 
+	/** {@inheritDoc} */
 	@Override
 	public Map<Object, GmRow> rowsInBatchesOf(int batchSize) {
 		List<Object> ids = selectIds();
@@ -129,6 +137,7 @@ public class GmSelectBuilderImpl implements GmSelectBuilder {
 		return rowsInBatchesOf(ids, batchSize);
 	}
 
+	/** {@inheritDoc} */
 	@Override
 	public Map<Object, GmRow> rowsInBatchesOf(List<Object> ids, int batchSize) {
 		if (ids.isEmpty())
@@ -242,6 +251,7 @@ public class GmSelectBuilderImpl implements GmSelectBuilder {
 	// ## . . . . Single Threaded Querying . . . . .##
 	// ###############################################
 
+	/** {@inheritDoc} */
 	@Override
 	public List<GmRow> rows() {
 		initPagination();

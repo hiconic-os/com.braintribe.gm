@@ -17,8 +17,9 @@ package com.braintribe.gm.jdbc.api;
 
 /**
  * For {@link GmColumn}s backed by 2 actual DB columns with one of them being BLOB or CLOB we specify
- * ({@link GmSelectBuilder#lobLoading(GmColumn, GmLobLoadingMode) per query}) which underlying columns we want to load. This can be used to
- * optimize querying to, for example, only load the non-LOB query and let the LOB one be loaded on demand only.
+ * ({@link GmSelectBuilder#lobLoading(GmColumn, GmLobLoadingMode) per query}) which underlying columns we want to load.
+ * <p>
+ * This can be used to optimize querying to, for example, only load the non-LOB column and let the LOB one be loaded on demand only.
  * 
  * @author peter.gazdik
  */
