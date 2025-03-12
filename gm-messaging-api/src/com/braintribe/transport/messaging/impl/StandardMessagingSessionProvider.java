@@ -78,7 +78,6 @@ public class StandardMessagingSessionProvider implements MessagingSessionProvide
 	@Override
 	public void close() {
 		closeConnection();
-		closeConnectionProvider();
 	}
 
 	private void closeConnection() {
@@ -97,18 +96,9 @@ public class StandardMessagingSessionProvider implements MessagingSessionProvide
 		}
 	}
 
-	private void closeConnectionProvider() {
-		MessagingConnectionProvider<?> connectionProvider = messagingConnectionProvider;
-		if (connectionProvider == null)
-			return;
-
-		try {
-			connectionProvider.close();
-
-			log.debug(() -> "Closed messaging connection provider: " + connectionProvider);
-
-		} catch (Exception e) {
-			log.error("Failed to close messaging connection provider", e);
+	private void ensureConnection(boolean startup) {
+		if (messagingConnection == null && startup ^ lazyInitialization) {
+			initializeConnection();
 		}
 	}
 
@@ -122,12 +112,6 @@ public class StandardMessagingSessionProvider implements MessagingSessionProvide
 
 				log.debug(() -> "Initialized messaging connection: " + messagingConnection);
 			}
-		}
-	}
-
-	private void ensureConnection(boolean startup) {
-		if (messagingConnection == null && startup ^ lazyInitialization) {
-			initializeConnection();
 		}
 	}
 
