@@ -19,6 +19,7 @@ import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.GmCoreApiInteropNamespaces;
 import com.braintribe.model.generic.base.CollectionBase;
 
+import jsinterop.annotations.JsIgnore;
 import jsinterop.annotations.JsType;
 
 @JsType(namespace = GmCoreApiInteropNamespaces.reflection)
@@ -46,6 +47,7 @@ public interface CollectionType extends EnhancableCustomType {
 	 * @see CollectionBase
 	 */
 	@Override
+	@JsIgnore
 	boolean isInstance(Object value);
 
 	/**

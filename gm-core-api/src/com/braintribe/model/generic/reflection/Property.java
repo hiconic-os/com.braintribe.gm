@@ -22,7 +22,9 @@ import com.braintribe.model.generic.pr.AbsenceInformation;
 import com.braintribe.model.generic.value.EnumReference;
 import com.braintribe.model.generic.value.ValueDescriptor;
 
+import jsinterop.annotations.JsIgnore;
 import jsinterop.annotations.JsType;
+import jsinterop.annotations.custom.TsUnignoreMethod;
 
 /**
  * 
@@ -42,6 +44,8 @@ public interface Property extends Attribute {
 	 * <li>The property is not nullable and the value is equal to the default value of the property (see {@link #getDefaultRawValue()})</li>
 	 * </ol>
 	 */
+	@JsIgnore // See PropertyJs in gwt-gm-core
+	@TsUnignoreMethod
 	boolean isEmptyValue(Object value);
 
 	/** @return <tt>true</tt> iff this property is {@link GenericEntity#id} */

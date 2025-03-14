@@ -96,6 +96,8 @@ public interface GenericModelType extends Comparable<GenericModelType> {
 	String getSelectiveInformation(Object instance);
 
 	/** Returns the {@link GenericModelType type} of given GM value. */
+	@JsIgnore // See GenericModelTypeJs in gwt-gm-core
+	@TsUnignoreMethod
 	GenericModelType getActualType(Object value);
 
 	/**
@@ -104,6 +106,7 @@ public interface GenericModelType extends Comparable<GenericModelType> {
 	 * collections (including maps), we have to create a copy (because if we used the original collection and changed it
 	 * later, we would also change the manipulation).
 	 */
+	@JsIgnore
 	Object getValueSnapshot(Object value);
 
 	/**
@@ -117,6 +120,8 @@ public interface GenericModelType extends Comparable<GenericModelType> {
 	 * 
 	 * @see #isInstance(Object)
 	 */
+	@JsIgnore // See GenericModelTypeJs in gwt-gm-core
+	@TsUnignoreMethod
 	default boolean isValueAssignable(Object value) {
 		return value == null || isInstance(value);
 	}
@@ -126,6 +131,8 @@ public interface GenericModelType extends Comparable<GenericModelType> {
 	 * 
 	 * @see CollectionType#isInstance(Object)
 	 */
+	@JsIgnore // See GenericModelTypeJs in gwt-gm-core
+	@TsUnignoreMethod
 	boolean isInstance(Object value);
 
 	/** @return <code>true</code> iff the parameter <tt>type</tt> represents a sub-type of <tt>this</tt>. */
@@ -145,7 +152,6 @@ public interface GenericModelType extends Comparable<GenericModelType> {
 
 	/**
 	 * @return true iff this is an instance of {@link EntityType} and instances would be of type {@link ValueDescriptor}
-	 *         .
 	 */
 	boolean isVd();
 
@@ -170,6 +176,8 @@ public interface GenericModelType extends Comparable<GenericModelType> {
 	/** @return true if this is an instance of {@link SimpleType} or {@link EnumType}. */
 	boolean isScalar();
 
+	@JsIgnore // See GenericModelTypeJs in gwt-gm-core
+	@TsUnignoreMethod
 	boolean isEmpty(Object value);
 
 	@Override

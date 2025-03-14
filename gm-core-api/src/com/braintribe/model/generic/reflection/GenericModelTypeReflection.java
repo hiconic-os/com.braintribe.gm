@@ -27,6 +27,7 @@ import com.braintribe.processing.async.api.AsyncCallback;
 import jsinterop.annotations.JsIgnore;
 import jsinterop.annotations.JsMethod;
 import jsinterop.annotations.JsType;
+import jsinterop.annotations.custom.TsUnignoreMethod;
 
 @JsType(namespace = GmCoreApiInteropNamespaces.reflection)
 @SuppressWarnings("unusable-by-js")
@@ -92,7 +93,8 @@ public interface GenericModelTypeReflection extends DeprecatedReflectionApi, Ess
 	EnumType<?> findEnumType(String typeSignature);
 
 	/** Returns the {@link GenericModelType} of given value. If the value is null, {@link BaseType} is returned. */
-	@JsMethod(name = "getTypeOf")
+	@JsIgnore // See GenericModelTypeReflectionJs in gwt-gm-core
+	@TsUnignoreMethod
 	<T extends GenericModelType> T getType(Object value);
 
 	/**
