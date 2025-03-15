@@ -22,28 +22,26 @@ import com.braintribe.model.service.api.ServiceRequest;
 public class MethodHandleServiceProcessor<P extends ServiceRequest, R> implements ServiceProcessor<P, R> {
 
 	private final MethodHandle methodHandle;
-	private final SignatureType signatureType;
+	private final boolean passContext;
 
-	public MethodHandleServiceProcessor(MethodHandle methodHandle, SignatureType signatureType) {
+	public MethodHandleServiceProcessor(MethodHandle methodHandle, boolean passContext) {
 		this.methodHandle = methodHandle;
-		this.signatureType = signatureType;
+		this.passContext = passContext;
 	}
 
 	@Override
-	public R process(ServiceRequestContext context, P request) {
+	public R process(ServiceRequestContext requestContext, P request) {
 		try {
-			switch (signatureType) {
-			case REQUEST: return (R)methodHandle.invoke(request);
-			case CONTEXT_REQUEST: return (R) methodHandle.invoke(context, request);
-			case REQUEST_CONTEXT: return (R) methodHandle.invoke(request, context);
-			default:
-				throw new UnsupportedOperationException("Unsupported signature type: " + signatureType);
-			}
+			if (passContext)
+				return (R) methodHandle.invoke(request, requestContext);
+			else
+				return (R) methodHandle.invoke(request);
+
 		} catch (RuntimeException | Error e) {
 			throw e;
-
 		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
 	}
+
 }
