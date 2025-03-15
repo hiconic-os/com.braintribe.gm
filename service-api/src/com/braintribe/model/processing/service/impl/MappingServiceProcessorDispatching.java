@@ -18,7 +18,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Method;
 
-import com.braintribe.common.lcd.Pair;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
@@ -29,37 +28,60 @@ import com.braintribe.model.service.api.ServiceRequest;
 
 public class MappingServiceProcessorDispatching<P extends ServiceRequest, R> implements DispatchConfigurator<P, R> {
 
-	private final MappingServiceProcessor<P, R> annotatedServiceProcessor;
+	private final Object annotatedProcessor;
 
-	static <P extends ServiceRequest, R> MappingServiceProcessorDispatching<P, R> create(MappingServiceProcessor<P, R> persistenceProcessor) {
-		return new MappingServiceProcessorDispatching<>(persistenceProcessor);
+	static <P extends ServiceRequest, R> MappingServiceProcessorDispatching<P, R> create(MappingServiceProcessor<P, R> annotatedProcessor) {
+		return new MappingServiceProcessorDispatching<>(annotatedProcessor);
 	}
 
-	public MappingServiceProcessorDispatching(MappingServiceProcessor<P, R> persistenceProcessor) {
-		this.annotatedServiceProcessor = persistenceProcessor;
+	public MappingServiceProcessorDispatching(Object annotatedProcessor) {
+		this.annotatedProcessor = annotatedProcessor;
 	}
 
 	@Override
 	public void configureDispatching(DispatchConfiguration<P, R> dispatching) {
 		Lookup lookup = MethodHandles.lookup();
-		for (Method method : annotatedServiceProcessor.getClass().getMethods()) {
-			Service serviceAnnotation = method.getAnnotation(Service.class);
 
+		for (Method m : annotatedProcessor.getClass().getMethods()) {
+			Class<?> reqParamType;
+
+			Service serviceAnnotation = m.getAnnotation(Service.class);
 			if (serviceAnnotation == null)
 				continue;
 
-			Pair<EntityType<P>, SignatureType> signature = checkSignature(method);
-			EntityType<P> requestType = signature.first();
-			SignatureType signatureType = signature.second();
+			Class<?>[] paramTypes = m.getParameterTypes();
+
+			switch (paramTypes.length) {
+				case 0:
+					throw new UnsupportedOperationException("Service method " + m + " must have at least one parameter - (ServiceRequest)");
+				case 2:
+					if (paramTypes[1] != ServiceRequestContext.class)
+						throw new UnsupportedOperationException(
+								"Service method " + m + " with 2 parameters doesn't have ServiceRequestContext as its second parameter.");
+					//$FALL-THROUGH$
+				case 1:
+					reqParamType = paramTypes[0];
+					if (!ServiceRequest.class.isAssignableFrom(reqParamType))
+						throw new UnsupportedOperationException("Service method " + m + " doesn't have ServiceRequest as its first parameter.");
+					break;
+
+				default:
+					throw new UnsupportedOperationException(
+							"Service method " + m + " cannot have more than 2 parameters - (ServiceRequest, ServiceRequestContext)");
+			}
 
 			try {
-				MethodHandle methodHandle = lookup.unreflect(method);
-				MethodHandle boundHandle = methodHandle.bindTo(annotatedServiceProcessor);
+				EntityType<P> requestType = EntityTypes.T((Class<P>) reqParamType);
 
-				if (method.getReturnType() == Maybe.class)
-					dispatching.registerReasoned(requestType, new ReasonedMethodHandleServiceProcessor<>(boundHandle, signatureType));
+				boolean passContext = paramTypes.length == 2;
+
+				MethodHandle methodHandle = lookup.unreflect(m);
+				MethodHandle boundHandle = methodHandle.bindTo(annotatedProcessor);
+
+				if (m.getReturnType() == Maybe.class)
+					dispatching.registerReasoned(requestType, new ReasonedMethodHandleServiceProcessor<>(boundHandle, passContext));
 				else
-					dispatching.register(requestType, new MethodHandleServiceProcessor<>(boundHandle, signatureType));
+					dispatching.register(requestType, new MethodHandleServiceProcessor<>(boundHandle, passContext));
 
 			} catch (Error e) {
 				throw e;
@@ -70,48 +92,4 @@ public class MappingServiceProcessorDispatching<P extends ServiceRequest, R> imp
 		}
 	}
 
-	private Pair<EntityType<P>, SignatureType> checkSignature(Method method) {
-		Class<?>[] parameterTypes = method.getParameterTypes();
-
-		final Class<?> requestParameterType;
-		final SignatureType signatureType;
-
-		switch (parameterTypes.length) {
-			case 1:
-				requestParameterType = parameterTypes[0];
-				signatureType = SignatureType.REQUEST;
-				break;
-
-			case 2: {
-				Class<?> arg1Type = parameterTypes[0];
-				Class<?> arg2Type = parameterTypes[1];
-
-				if (arg1Type == ServiceRequestContext.class) {
-					requestParameterType = arg2Type;
-					signatureType = SignatureType.CONTEXT_REQUEST;
-
-				} else if (arg2Type == ServiceRequestContext.class) {
-					requestParameterType = arg1Type;
-					signatureType = SignatureType.REQUEST_CONTEXT;
-
-				} else {
-					throw new UnsupportedOperationException(
-							"method " + method + " is annotated with @Service but does not comply with any of the supported parameter signatures");
-				}
-
-				break;
-			}
-			default:
-				throw new UnsupportedOperationException(
-						"method " + method + " is annotated with @Service but does not comply with any of the supported parameter signatures");
-		}
-
-		if (!ServiceRequest.class.isAssignableFrom(requestParameterType))
-			throw new UnsupportedOperationException(
-					"method " + method + " is annotated with @Service but does not comply with any of the supported parameter signatures");
-
-		EntityType<P> requestType = EntityTypes.T((Class<P>) requestParameterType);
-
-		return Pair.of(requestType, signatureType);
-	}
 }
