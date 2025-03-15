@@ -23,23 +23,21 @@ import com.braintribe.model.service.api.ServiceRequest;
 public class ReasonedMethodHandleServiceProcessor<P extends ServiceRequest, R> implements ReasonedServiceProcessor<P, R> {
 
 	private final MethodHandle methodHandle;
-	private SignatureType signatureType;
+	private final boolean passContext;
 
-	public ReasonedMethodHandleServiceProcessor(MethodHandle methodHandle, SignatureType signatureType) {
+	public ReasonedMethodHandleServiceProcessor(MethodHandle methodHandle, boolean passContext) {
 		this.methodHandle = methodHandle;
-		this.signatureType = signatureType;
+		this.passContext = passContext;
 	}
 
 	@Override
 	public Maybe<? extends R> processReasoned(ServiceRequestContext context, P request) {
 		try {
-			switch (signatureType) {
-			case REQUEST: return (Maybe<R>) methodHandle.invoke(request);
-			case CONTEXT_REQUEST: return (Maybe<R>) methodHandle.invoke(context, request);
-			case REQUEST_CONTEXT: return (Maybe<R>) methodHandle.invoke(request, context);
-			default:
-				throw new UnsupportedOperationException("Unsupported signature type: " + signatureType);
-			}
+			if (passContext)
+				return (Maybe<R>) methodHandle.invoke(request, context);
+			else
+				return (Maybe<R>) methodHandle.invoke(request);
+
 		} catch (RuntimeException | Error e) {
 			throw e;
 

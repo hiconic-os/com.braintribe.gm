@@ -15,7 +15,6 @@
 // ============================================================================
 package com.braintribe.model.processing.service.common.eval;
 
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Function;
