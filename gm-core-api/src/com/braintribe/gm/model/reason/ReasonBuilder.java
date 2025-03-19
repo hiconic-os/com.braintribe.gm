@@ -26,8 +26,8 @@ import jsinterop.annotations.JsMethod;
 import jsinterop.annotations.JsType;
 
 /**
- * ReasonBuilder is a fluent API that allows to build a reason with its text, causes, native exception and custom values. It allows to return the
- * constructed {@link Reason} directly or in form of a {@link Maybe} or to throw a {@link ReasonException} that carries the {@link Reason}
+ * Fluent API that allows to build a reason with its text, causes and custom values. It allows to return the constructed
+ * {@link Reason} directly or in form of a {@link Maybe}.
  * 
  * @author Dirk Scheffler
  */
@@ -37,7 +37,17 @@ public interface ReasonBuilder<R extends Reason> {
 	/** Assigns a text to the property {@link Reason#getText()} */
 	ReasonBuilder<R> text(String text);
 
-	/** Typesafely assigns a value to the {@link Reason} via an {@link BiConsumer assigner} */
+	/**
+	 * Assigns a value to the {@link Reason} that's being built.
+	 * <p>
+	 * <b>Example:</b>
+	 * 
+	 * <pre>
+	 * Reasons.build(HttpError.T) //
+	 * 		.assign(HttpError::setStatusCode, 404) //
+	 * 		.toReason();
+	 * </pre>
+	 */
 	<T> ReasonBuilder<R> assign(BiConsumer<R, T> assigner, T value);
 
 	/** Adds a {@link Reason} as cause to the property {@link Reason#getReasons()} */

@@ -36,19 +36,20 @@ public class ReasonBuilderImpl<R extends Reason> implements ReasonBuilder<R> {
 	}
 
 	@Override
-	public ReasonBuilder<R> cause(Reason reason) {
-		this.reason.causedBy(reason);
+	public ReasonBuilder<R> cause(Reason causeReason) {
+		reason.causedBy(causeReason);
 		return this;
 	}
 
 	@Override
-	public ReasonBuilder<R> causes(Reason... reasons) {
-		return causes(Arrays.asList(reasons));
+	public ReasonBuilder<R> causes(Reason... causeReasons) {
+		return causes(Arrays.asList(causeReasons));
 	}
 
 	@Override
-	public ReasonBuilder<R> causes(Collection<Reason> reasons) {
-		reasons.forEach(this::cause);
+	public ReasonBuilder<R> causes(Collection<Reason> causeReasons) {
+		for (Reason causeReason : causeReasons)
+			cause(causeReason);
 		return this;
 	}
 

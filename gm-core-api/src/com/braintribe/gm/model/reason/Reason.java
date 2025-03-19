@@ -68,7 +68,7 @@ public interface Reason extends GenericEntity {
 	void setCreationStackTrace(RuntimeException creationStackTrace);
 
 	default void causedBy(Reason cause) {
-		Objects.requireNonNull(cause, () -> "cause must not be null");
+		Objects.requireNonNull(cause, "cause must not be null");
 
 		getReasons().add(cause);
 	}
