@@ -102,7 +102,7 @@ public class StatefulYamlMarshaller extends AbstractStatefulYamlMarshaller {
 
 		boolean propertiesWritten = false;
 
-		for (Property property : entityType.getProperties()) {
+		for (Property property : properties(entityType)) {
 
 			boolean startWithNewline = isComplexPropertyValue || propertiesWritten || entityIntroductionWritten;
 

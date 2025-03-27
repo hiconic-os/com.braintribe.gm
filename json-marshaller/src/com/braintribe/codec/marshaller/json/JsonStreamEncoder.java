@@ -31,6 +31,7 @@ import com.braintribe.codec.marshaller.api.GmSerializationOptions;
 import com.braintribe.codec.marshaller.api.MarshallException;
 import com.braintribe.codec.marshaller.api.OutputPrettiness;
 import com.braintribe.codec.marshaller.api.PropertySerializationTranslation;
+import com.braintribe.codec.marshaller.api.ScalarsFirst;
 import com.braintribe.codec.marshaller.api.StringifyNumbersOption;
 import com.braintribe.codec.marshaller.api.TypeExplicitness;
 import com.braintribe.codec.marshaller.api.TypeExplicitnessOption;
@@ -104,7 +105,7 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 		this.entityVisitor = options.findOrDefault(EntityVisitorOption.class, null);
 		this.propertyNameSupplier = options.findOrDefault(PropertySerializationTranslation.class, null);
 		this.typeExplicitness = options.findOrDefault(TypeExplicitnessOption.class, TypeExplicitness.auto);
-		this.scalarsFirst = scalarsFirst;
+		this.scalarsFirst = options.findOrDefault(ScalarsFirst.class, scalarsFirst);
 
 		initTypeExplicitness();
 	}

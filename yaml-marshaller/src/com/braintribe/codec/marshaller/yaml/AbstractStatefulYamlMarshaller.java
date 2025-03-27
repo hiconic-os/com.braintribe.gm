@@ -20,10 +20,14 @@ import java.io.Writer;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.util.IdentityHashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
@@ -33,14 +37,17 @@ import com.braintribe.codec.marshaller.api.EntityVisitorOption;
 import com.braintribe.codec.marshaller.api.GmSerializationOptions;
 import com.braintribe.codec.marshaller.api.IdentityManagementMode;
 import com.braintribe.codec.marshaller.api.IdentityManagementModeOption;
+import com.braintribe.codec.marshaller.api.ScalarsFirst;
 import com.braintribe.codec.marshaller.api.TypeExplicitness;
 import com.braintribe.codec.marshaller.api.TypeExplicitnessOption;
 import com.braintribe.codec.marshaller.api.options.attributes.StabilizeOrderOption;
 import com.braintribe.model.generic.GenericEntity;
+import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.LinearCollectionType;
 import com.braintribe.model.generic.reflection.ListType;
 import com.braintribe.model.generic.reflection.MapType;
+import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.SetType;
 
 public abstract class AbstractStatefulYamlMarshaller {
@@ -53,6 +60,8 @@ public abstract class AbstractStatefulYamlMarshaller {
 	protected final Consumer<? super GenericEntity> entityVisitor;
 	protected final IdentityManagementMode identityManagementMode;
 	protected boolean stabilize;
+	private boolean scalarsFirst;
+	private Map<EntityType<?>, Iterable<Property>> orderedProperties;
 
 	public AbstractStatefulYamlMarshaller(GmSerializationOptions options, Writer writer, Object rootValue) {
 		super();
@@ -66,6 +75,35 @@ public abstract class AbstractStatefulYamlMarshaller {
 		}
 		this.entityVisitor = options.findOrNull(EntityVisitorOption.class);
 		this.identityManagementMode = options.findAttribute(IdentityManagementModeOption.class).orElse(IdentityManagementMode.auto);
+		this.scalarsFirst = options.findOrDefault(ScalarsFirst.class, false);
+		
+		if (this.scalarsFirst)
+			this.orderedProperties = new IdentityHashMap<>();
+			
+	}
+	
+	protected Iterable<Property> properties(EntityType<?> type) {
+		if (scalarsFirst)
+			return orderedProperties.computeIfAbsent(type, k -> {
+				List<Property> originalProperties = k.getProperties();
+				List<Property> properties = new ArrayList<>(originalProperties.size());
+
+				for (Property property : originalProperties) {
+				    if (property.getType().isScalar()) {
+				        properties.add(property);
+				    }
+				}
+
+				for (Property property : originalProperties) {
+				    if (!property.getType().isScalar()) {
+				        properties.add(property);
+				    }
+				}
+				
+				return properties;
+			});
+		else
+			return type.getProperties();
 	}
 
 	protected void write(GenericModelType inferredType, GenericModelType type, Object value) throws IOException {
