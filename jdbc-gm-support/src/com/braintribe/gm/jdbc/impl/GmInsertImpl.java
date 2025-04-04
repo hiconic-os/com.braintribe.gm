@@ -42,7 +42,7 @@ public class GmInsertImpl {
 	private final Map<GmColumn<?>, Object> values;
 	private final Connection connection;
 
-	private final Map<GmColumn<?>, Integer> columnToSelectionPosition = newIdentityMap();
+	private final Map<GmColumn<?>, Integer> columnToBindingPosition = newIdentityMap();
 
 	private String sql;
 
@@ -62,7 +62,7 @@ public class GmInsertImpl {
 	}
 
 	private void verifyNonNullColumnsHaveValue() {
-		for (GmColumn<?> gmColumn : table.notNullColumns())
+		for (GmColumn<?> gmColumn : table.mandatoryColumns())
 			if (!values.containsKey(gmColumn))
 				throw new IllegalArgumentException("Column '" + gmColumn.getGmName() + "' cannot have null value in table '" + table.tableName);
 	}
@@ -81,9 +81,13 @@ public class GmInsertImpl {
 
 		int counter = 1;
 		for (GmColumn<?> column : table.getColumns()) {
+			// Do not insert auto-increment columns
+			if (column.isAutoIncrement())
+				continue;
+
 			List<String> sqlColumns = column.getSqlColumns();
 
-			columnToSelectionPosition.put(column, counter);
+			columnToBindingPosition.put(column, counter);
 			counter += sqlColumns.size();
 
 			for (String sqlColumn : sqlColumns) {
@@ -105,7 +109,11 @@ public class GmInsertImpl {
 
 	private void bindAndExecute(PreparedStatement ps, List<GmColumn<?>> boundColumns) throws SQLException {
 		for (GmColumn<?> column : table.getColumns()) {
-			Integer position = columnToSelectionPosition.get(column);
+			// Do not insert auto-increment columns
+			if (column.isAutoIncrement())
+				continue;
+
+			Integer position = columnToBindingPosition.get(column);
 			Object value = values.get(column);
 
 			((GmColumn<Object>) column).bindParameter(ps, position, value);

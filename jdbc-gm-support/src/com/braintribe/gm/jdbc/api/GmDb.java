@@ -15,6 +15,7 @@
 // ============================================================================
 package com.braintribe.gm.jdbc.api;
 
+import static com.braintribe.gm.jdbc.api.GmDbHelper.autoIncrementPrimaryKeyColumn;
 import static com.braintribe.gm.jdbc.api.GmDbHelper.bigDecimalColumn;
 import static com.braintribe.gm.jdbc.api.GmDbHelper.booleanColumn;
 import static com.braintribe.gm.jdbc.api.GmDbHelper.columnBuilder;
@@ -196,6 +197,10 @@ public class GmDb implements DestructionAware {
 
 	public GmTableBuilder newTable(String name) {
 		return new GmTableImpl(name, this);
+	}
+
+	public GmColumn<Long> autoIncrementPrimaryKeyCol(String name) {
+		return autoIncrementPrimaryKeyColumn(name, dialect);
 	}
 
 	/** NOTE: Always backed by a single column. */

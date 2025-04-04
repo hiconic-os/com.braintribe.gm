@@ -56,7 +56,7 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 	protected GmColumn<?> primaryKeyColumn;
 
 	private final List<GmColumn<?>> columns = newList();
-	private final List<GmColumn<?>> notNullColumns = newList();
+	private final List<GmColumn<?>> mandatoryColumns = newList();
 	private final List<GmIndex> indices = newList();
 
 	private Set<GmColumn<?>> readOnlyColumns;
@@ -84,7 +84,7 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 		adopt(newColumns);
 
 		columns.addAll(newColumns);
-		notNullColumns.addAll(findNotNullColumns(newColumns));
+		mandatoryColumns.addAll(findMandatoryColumns(newColumns));
 
 		return this;
 	}
@@ -94,9 +94,10 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 			((AbstractGmColumn<?>) gmColumn).setTable(this);
 	}
 
-	private List<GmColumn<?>> findNotNullColumns(Collection<GmColumn<?>> newColumns) {
+	private List<GmColumn<?>> findMandatoryColumns(Collection<GmColumn<?>> newColumns) {
 		return newColumns.stream() //
 				.filter(GmColumn::isNotNull) //
+				.filter(c -> !c.isAutoIncrement()) //
 				.collect(Collectors.toList());
 	}
 
@@ -300,8 +301,8 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 		return new GmDeleteBuilderImpl(this);
 	}
 
-	public List<GmColumn<?>> notNullColumns() {
-		return notNullColumns;
+	public List<GmColumn<?>> mandatoryColumns() {
+		return mandatoryColumns;
 	}
 
 }

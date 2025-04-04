@@ -17,6 +17,7 @@ package com.braintribe.gm.jdbc.api;
 
 import com.braintribe.codec.marshaller.api.GmCodec;
 import com.braintribe.gm.jdbc.impl.column.AbstractGmColumn;
+import com.braintribe.gm.jdbc.impl.column.AutoIncrementPrimaryKeyColumn;
 import com.braintribe.gm.jdbc.impl.column.DateColumn;
 import com.braintribe.gm.jdbc.impl.column.EntityAsStringColumn;
 import com.braintribe.gm.jdbc.impl.column.EnumColumn;
@@ -46,6 +47,10 @@ import com.braintribe.utils.stream.api.StreamPipeFactory;
 
 	public static <T> GmColumnBuilder<T> columnBuilder(AbstractGmColumn<T> column) {
 		return new GmColumnBuilderImpl<T>(column);
+	}
+
+	public static AutoIncrementPrimaryKeyColumn autoIncrementPrimaryKeyColumn(String name, JdbcDialect dialect) {
+		return new AutoIncrementPrimaryKeyColumn(name, dialect);
 	}
 
 	public static BooleanColumn booleanColumn(String name, JdbcDialect dialect) {

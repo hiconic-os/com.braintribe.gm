@@ -39,7 +39,7 @@ public class GmUpdateBuilderImpl implements GmUpdateBuilder {
 	private final GmTableImpl table;
 	private final Map<GmColumn<?>, Object> values;
 
-	private final Map<GmColumn<?>, Integer> columnToSelectionPosition = newIdentityMap();
+	private final Map<GmColumn<?>, Integer> columnToBindingPosition = newIdentityMap();
 
 	private final SqlStatement st = new SqlStatement();
 
@@ -67,7 +67,7 @@ public class GmUpdateBuilderImpl implements GmUpdateBuilder {
 		for (GmColumn<?> column : values.keySet()) {
 			List<String> sqlColumns = column.getSqlColumns();
 
-			columnToSelectionPosition.put(column, index);
+			columnToBindingPosition.put(column, index);
 			index += sqlColumns.size();
 
 			for (String sqlColumn : sqlColumns)
@@ -94,7 +94,7 @@ public class GmUpdateBuilderImpl implements GmUpdateBuilder {
 		for (Entry<GmColumn<?>, Object> entry : values.entrySet()) {
 			GmColumn<?> column = entry.getKey();
 			Object value = entry.getValue();
-			int index = columnToSelectionPosition.get(column);
+			int index = columnToBindingPosition.get(column);
 
 			((GmColumn<Object>) column).bindParameter(ps, index, value);
 			boundColumns.add(column);

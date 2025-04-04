@@ -51,6 +51,11 @@ public abstract class AbstractGmColumn<T> implements GmColumn<T> {
 	protected abstract void setNotNull(boolean notNull);
 
 	@Override
+	public boolean isAutoIncrement() {
+		return false;
+	}
+
+	@Override
 	public String getSingleSqlColumn() {
 		throw new UnsupportedOperationException("Cannot retrieve single column for GmColumn type: " + getClass().getName());
 	}

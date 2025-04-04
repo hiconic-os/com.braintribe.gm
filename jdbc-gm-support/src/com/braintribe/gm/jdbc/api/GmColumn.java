@@ -36,6 +36,8 @@ public interface GmColumn<T> {
 
 	boolean isNotNull();
 
+	boolean isAutoIncrement();
+
 	/**
 	 * Returns the SQL names of all columns that back this GM column.
 	 * <p>
