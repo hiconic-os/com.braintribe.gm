@@ -31,6 +31,7 @@ import com.braintribe.model.generic.reflection.BaseType;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.Property;
+import com.braintribe.model.generic.reflection.VdHolder;
 import com.braintribe.model.processing.traverse.ConfigurableEntityVisiting;
 
 public class StatefulYamlMarshaller extends AbstractStatefulYamlMarshaller {
@@ -105,28 +106,43 @@ public class StatefulYamlMarshaller extends AbstractStatefulYamlMarshaller {
 		for (Property property : properties(entityType)) {
 
 			boolean startWithNewline = isComplexPropertyValue || propertiesWritten || entityIntroductionWritten;
+			
+			Object value = property.get(entity);
 
-			if (property.isAbsent(entity)) {
-				if (options.writeAbsenceInformation()) {
-					AbsenceInformation absenceInformation = property.getAbsenceInformation(entity);
-
+			if (VdHolder.isVdHolder(value)) {
+				VdHolder vdHolder = (VdHolder)value;
+				if (vdHolder.isAbsenceInformation) {
+					if (options.writeAbsenceInformation()) {
+						AbsenceInformation absenceInformation = (AbsenceInformation)value;
+	
+						if (startWithNewline) {
+							writer.write('\n');
+							indent.write(writer);
+						}
+	
+						if (absenceInformation == GMF.absenceInformation()) {
+							writer.write(property.getName());
+							writer.write("?: absent");
+						} else {
+							writer.write(property.getName());
+							writer.write(": ");
+							write(AbsenceInformation.T, AbsenceInformation.T, absenceInformation, true);
+						}
+						propertiesWritten = true;
+					}
+				}
+				else if (placeholderSupport) {
 					if (startWithNewline) {
 						writer.write('\n');
 						indent.write(writer);
 					}
 
-					if (absenceInformation == GMF.absenceInformation()) {
-						writer.write(property.getName());
-						writer.write("?: absent");
-					} else {
-						writer.write(property.getName());
-						writer.write(":");
-						write(AbsenceInformation.T, AbsenceInformation.T, absenceInformation, true);
-					}
+					writer.write(property.getName());
+					writer.write(": ");
+					writePlaceholder(vdHolder.vd);
 					propertiesWritten = true;
 				}
 			} else {
-				Object value = property.get(entity);
 				if (property.isEmptyValue(value) && !options.writeEmptyProperties())
 					continue;
 

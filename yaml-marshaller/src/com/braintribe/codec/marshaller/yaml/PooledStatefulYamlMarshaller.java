@@ -31,6 +31,7 @@ import com.braintribe.model.generic.reflection.BaseType;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.Property;
+import com.braintribe.model.generic.reflection.VdHolder;
 
 public class PooledStatefulYamlMarshaller extends AbstractStatefulYamlMarshaller {
 	private final Map<GenericEntity, String> anchors = new IdentityHashMap<>();
@@ -111,26 +112,38 @@ public class PooledStatefulYamlMarshaller extends AbstractStatefulYamlMarshaller
 
 		for (Property property : properties(entityType)) {
 
-			
-			if (property.isAbsent(entity)) {
-				if (options.writeAbsenceInformation()) {
-					AbsenceInformation absenceInformation = property.getAbsenceInformation(entity);
+			Object value = property.get(entity);
 
-					writer.write("\n ");
-					indent.write(writer);
+			if (VdHolder.isVdHolder(value)) {
+				VdHolder vdHolder = (VdHolder)value;
+				if (vdHolder.isAbsenceInformation) {
+					if (options.writeAbsenceInformation()) {
+						AbsenceInformation absenceInformation = (AbsenceInformation)value;
 
-					if (absenceInformation == GMF.absenceInformation()) {
-						writer.write(property.getName());
-						writer.write("?: absent");
-					} else {
-						writer.write(property.getName());
-						writer.write(":");
-						write(AbsenceInformation.T, AbsenceInformation.T, absenceInformation, true);
+						writer.write("\n ");
+						indent.write(writer);
+
+						if (absenceInformation == GMF.absenceInformation()) {
+							writer.write(property.getName());
+							writer.write("?: absent");
+						} else {
+							writer.write(property.getName());
+							writer.write(": ");
+							write(AbsenceInformation.T, AbsenceInformation.T, absenceInformation, true);
+						}
+						propertiesWritten = true;
 					}
+				}
+				else if (placeholderSupport) {
+					writer.write('\n');
+					indent.write(writer);
+					writer.write(property.getName());
+					writer.write(": ");
+					writePlaceholder(vdHolder.vd);
 					propertiesWritten = true;
 				}
-			} else {
-				Object value = property.get(entity);
+			}
+			else {
 				if (property.isEmptyValue(value) && !options.writeEmptyProperties())
 					continue;
 
