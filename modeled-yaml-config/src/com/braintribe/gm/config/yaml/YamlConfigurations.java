@@ -36,6 +36,7 @@ import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.config.ConfigurationError;
+import com.braintribe.gm.model.reason.essential.InternalError;
 import com.braintribe.gm.model.reason.essential.NotFound;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.pr.AbsenceInformation;
@@ -169,24 +170,7 @@ public abstract class YamlConfigurations {
 
 		private Maybe<E> postProcessConfig(E config) {
 			if (resolver != null) {
-				VdeRegistry vdeRegistry = VDE.registryBuilder()
-						.loadDefaultSetup()
-						.withConcreteExpert(AbsenceInformation.class, new AiEvaluator())
-						.done();
-				
-				VdeContextBuilder builder = VDE.evaluate()
-						.withRegistry(vdeRegistry)
-						.with(VariableProviderAspect.class, resolver);
-				
-				Holder<E> resultHolder = new Holder<>();
-				
-				new AsyncCloningImpl((vd,c) -> c.onSuccess(builder.forValue(vd)), Runnable::run, e -> false)
-				.cloneValue(config, AsyncCallback.of(
-						resultHolder, 
-						t -> t.printStackTrace()
-						));
-				
-				config = resultHolder.get();
+				return resolvePlaceholders(config, resolver);
 			}
 			
 			return Maybe.complete(config);
@@ -232,5 +216,34 @@ public abstract class YamlConfigurations {
 		public VdeResult evaluate(VdeContext context, AbsenceInformation valueDescriptor) throws VdeRuntimeException {
 			return new VdeResultImpl(valueDescriptor, false);
 		}
+	}
+	
+	public static <E> Maybe<E> resolvePlaceholders(E config, Function<Variable, Object> resolver) {
+		VdeRegistry vdeRegistry = VDE.registryBuilder()
+				.loadDefaultSetup()
+				.withConcreteExpert(AbsenceInformation.class, new AiEvaluator())
+				.done();
+		
+		VdeContextBuilder builder = VDE.evaluate()
+				.withRegistry(vdeRegistry)
+				.with(VariableProviderAspect.class, resolver);
+		
+		Holder<E> resultHolder = new Holder<>();
+		Holder<Throwable> errorHolder = new Holder<>();
+		
+		new AsyncCloningImpl((vd,c) -> c.onSuccess(builder.forValue(vd)), Runnable::run, e -> false)
+		.cloneValue(config, AsyncCallback.of(
+				resultHolder, 
+				errorHolder
+				));
+		
+		config = resultHolder.get();
+		Throwable throwable = errorHolder.get();
+		
+		if (throwable != null) {
+			return Maybe.incomplete(config, InternalError.from(throwable));
+		}
+		
+		return Maybe.complete(config);
 	}
 }

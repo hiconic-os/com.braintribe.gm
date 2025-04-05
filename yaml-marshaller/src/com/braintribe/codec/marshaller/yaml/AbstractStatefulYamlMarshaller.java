@@ -20,9 +20,11 @@ import java.io.Writer;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,17 +35,28 @@ import com.braintribe.codec.marshaller.api.EntityVisitorOption;
 import com.braintribe.codec.marshaller.api.GmSerializationOptions;
 import com.braintribe.codec.marshaller.api.IdentityManagementMode;
 import com.braintribe.codec.marshaller.api.IdentityManagementModeOption;
+import com.braintribe.codec.marshaller.api.PlaceholderSupport;
+import com.braintribe.codec.marshaller.api.ScalarsFirst;
 import com.braintribe.codec.marshaller.api.TypeExplicitness;
 import com.braintribe.codec.marshaller.api.TypeExplicitnessOption;
 import com.braintribe.codec.marshaller.api.options.attributes.StabilizeOrderOption;
+import com.braintribe.model.bvd.convert.Convert;
+import com.braintribe.model.bvd.string.Concatenation;
 import com.braintribe.model.generic.GenericEntity;
+import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.LinearCollectionType;
 import com.braintribe.model.generic.reflection.ListType;
 import com.braintribe.model.generic.reflection.MapType;
+import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.SetType;
+import com.braintribe.model.generic.value.ValueDescriptor;
+import com.braintribe.model.generic.value.Variable;
 
 public abstract class AbstractStatefulYamlMarshaller {
+	private final static char[] HEX_CHARS = "0123456789ABCDEF".toCharArray();
+	private static final char[][] ESCAPES_NORMAL = generateEscapes(false);
+	private static final char[][] ESCAPES_WITH_PLACEHOLDERS = generateEscapes(true);
 	protected final GmSerializationOptions options;
 	protected final Writer writer;
 	protected final Object rootValue;
@@ -53,6 +66,10 @@ public abstract class AbstractStatefulYamlMarshaller {
 	protected final Consumer<? super GenericEntity> entityVisitor;
 	protected final IdentityManagementMode identityManagementMode;
 	protected boolean stabilize;
+	private boolean scalarsFirst;
+	private Map<EntityType<?>, Iterable<Property>> orderedProperties;
+	protected boolean placeholderSupport;
+	protected final char[][] ESCAPES;
 
 	public AbstractStatefulYamlMarshaller(GmSerializationOptions options, Writer writer, Object rootValue) {
 		super();
@@ -66,6 +83,38 @@ public abstract class AbstractStatefulYamlMarshaller {
 		}
 		this.entityVisitor = options.findOrNull(EntityVisitorOption.class);
 		this.identityManagementMode = options.findAttribute(IdentityManagementModeOption.class).orElse(IdentityManagementMode.auto);
+		this.scalarsFirst = options.findOrDefault(ScalarsFirst.class, false);
+		
+		if (this.scalarsFirst)
+			this.orderedProperties = new IdentityHashMap<>();
+
+		this.placeholderSupport = options.findOrDefault(PlaceholderSupport.class, false);
+		
+		this.ESCAPES = placeholderSupport? ESCAPES_WITH_PLACEHOLDERS: ESCAPES_NORMAL;
+	}
+	
+	protected Iterable<Property> properties(EntityType<?> type) {
+		if (scalarsFirst)
+			return orderedProperties.computeIfAbsent(type, k -> {
+				List<Property> originalProperties = k.getProperties();
+				List<Property> properties = new ArrayList<>(originalProperties.size());
+
+				for (Property property : originalProperties) {
+				    if (property.getType().isScalar()) {
+				        properties.add(property);
+				    }
+				}
+
+				for (Property property : originalProperties) {
+				    if (!property.getType().isScalar()) {
+				        properties.add(property);
+				    }
+				}
+				
+				return properties;
+			});
+		else
+			return type.getProperties();
 	}
 
 	protected void write(GenericModelType inferredType, GenericModelType type, Object value) throws IOException {
@@ -325,6 +374,43 @@ public abstract class AbstractStatefulYamlMarshaller {
 		}
 	}
 
+	protected void writePlaceholder(ValueDescriptor vd) throws IOException {
+		writer.write('"');
+		writePlaceholderDirect(vd);
+		writer.write('"');
+	}
+	
+	protected void writePlaceholderDirect(ValueDescriptor vd) throws IOException {
+		EntityType<? extends ValueDescriptor> type = vd.entityType();
+		
+		if (vd instanceof Convert) {
+			Convert convert = (Convert)vd;
+			writeOperand(convert.getOperand());
+		}
+		else if (type == Concatenation.T) {
+			Concatenation concatenation = (Concatenation)vd;
+			
+			for (Object op: concatenation.getOperands()) {
+				writeOperand(op);
+			}
+		}
+		else if (type == Variable.T) {
+			Variable var = (Variable)vd;
+			writer.write("${");
+			writer.write(var.getName());
+			writer.write('}');
+		}
+	}
+	
+	protected void writeOperand(Object op) throws IOException {
+		if (op instanceof String) {
+			writeEscaped(writer, (String)op);
+		}
+		else if (op instanceof ValueDescriptor) {
+			writePlaceholderDirect((ValueDescriptor)op);
+		}
+	}
+	
 	protected void writeString(Object s) throws IOException {
 		writer.write('"');
 		writeEscaped(writer, s.toString());
@@ -348,24 +434,27 @@ public abstract class AbstractStatefulYamlMarshaller {
 
 	protected abstract void writeEntity(GenericModelType inferredType, GenericEntity entity, boolean isComplexPropertyValue) throws IOException;
 
-	private final static char[] HEX_CHARS = "0123456789ABCDEF".toCharArray();
-	private static final char[][] ESCAPES = new char[128][];
-
-	static {
+	private static char[][] generateEscapes(boolean placeholderSupport) {
+		char[][] ESCAPES = new char[128][];
+		
 		ESCAPES['"'] = "\\\"".toCharArray();
 		ESCAPES['\\'] = "\\\\".toCharArray();
 		ESCAPES['\t'] = "\\t".toCharArray();
 		ESCAPES['\f'] = "\\f".toCharArray();
 		ESCAPES['\n'] = "\\n".toCharArray();
 		ESCAPES['\r'] = "\\r".toCharArray();
+		if (placeholderSupport)
+			ESCAPES['$'] = "$$".toCharArray();
 
 		for (int i = 0; i < 32; i++) {
 			if (ESCAPES[i] == null)
 				ESCAPES[i] = ("\\u00" + HEX_CHARS[i >> 4] + HEX_CHARS[i & 0xF]).toCharArray();
 		}
+		
+		return ESCAPES;
 	}
 
-	public static void writeEscaped(Writer writer, String string) throws IOException {
+	protected void writeEscaped(Writer writer, String string) throws IOException {
 		int len = string.length();
 		int s = 0;
 		int i = 0;
