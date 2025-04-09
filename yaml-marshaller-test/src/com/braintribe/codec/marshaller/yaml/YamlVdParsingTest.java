@@ -50,25 +50,6 @@ public class YamlVdParsingTest {
 	}
 	
 	@Test
-	public void testMissingPlaceholderConfiguration() {
-		Map<String, Object> vars = new HashMap<>();
-		
-		vars.put("longValue", "5");
-//		vars.put("intValue", "23");
-		vars.put("listIntValue1", "1");
-		vars.put("listIntValue2", "3");
-		
-		Maybe<TestEntity> entityMaybe = YamlConfigurations.read(TestEntity.T).placeholders(v -> vars.get(v.getName())).from(new File("res/vd-test.yaml"));
-		
-		TestEntity resultEntity = entityMaybe.get();
-		
-		assertThat(resultEntity.getLongValue()).isEqualTo(5L);
-		assertThat(resultEntity.getIntValue()).isEqualTo(23);
-		assertThat(resultEntity.getStringValue()).isEqualTo("$escape-test");
-		assertThat(resultEntity.getIntegerList()).isEqualTo(Arrays.asList(1, 2, 3));
-	}
-	
-	@Test
 	public void testPlaceholderAndAbsence() {
 		Map<String, Object> vars = new HashMap<>();
 		

@@ -107,13 +107,13 @@ public class StatefulYamlMarshaller extends AbstractStatefulYamlMarshaller {
 
 			boolean startWithNewline = isComplexPropertyValue || propertiesWritten || entityIntroductionWritten;
 			
-			Object value = property.get(entity);
-
-			if (VdHolder.isVdHolder(value)) {
-				VdHolder vdHolder = (VdHolder)value;
+			Object directValue = property.getDirectUnsafe(entity);
+			
+			if (VdHolder.isVdHolder(directValue)) {
+				VdHolder vdHolder = (VdHolder)directValue;
 				if (vdHolder.isAbsenceInformation) {
 					if (options.writeAbsenceInformation()) {
-						AbsenceInformation absenceInformation = (AbsenceInformation)value;
+						AbsenceInformation absenceInformation = (AbsenceInformation)vdHolder.vd;
 	
 						if (startWithNewline) {
 							writer.write('\n');
@@ -143,6 +143,8 @@ public class StatefulYamlMarshaller extends AbstractStatefulYamlMarshaller {
 					propertiesWritten = true;
 				}
 			} else {
+				Object value = property.get(entity);
+				
 				if (property.isEmptyValue(value) && !options.writeEmptyProperties())
 					continue;
 
