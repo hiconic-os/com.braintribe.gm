@@ -24,19 +24,23 @@ public class AutoIncrementPrimaryKeyColumn extends AbstractGmColumn<Long> {
 
 	@Override
 	public Stream<String> streamSqlColumnDeclarations() {
+		return Stream.of(name + " " + x() + " PRIMARY KEY");
+	}
+
+	private String x() {
 		switch (dialect.knownDbVariant()) {
 			case H2:
-				return Stream.of(name + " IDENTITY PRIMARY KEY");
+				return "IDENTITY";
 			case derby:
-				return Stream.of(name + " INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY");
+				return "INT GENERATED ALWAYS AS IDENTITY";
 			case mssql:
-				return Stream.of(name + " INT IDENTITY(1,1) PRIMARY KEY");
+				return "INT IDENTITY(1,1)";
 			case mysql:
-				return Stream.of(name + " INT AUTO_INCREMENT PRIMARY KEY");
+				return "INT AUTO_INCREMENT";
 			case oracle:
-				return Stream.of(name + " NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY");
+				return "NUMBER GENERATED ALWAYS AS IDENTITY";
 			case postgre:
-				return Stream.of(name + " SERIAL PRIMARY KEY");
+				return "SERIAL";
 			default:
 				throw new UnsupportedOperationException("Auto-increment primary key is not supported for dialect: " + dialect.knownDbVariant());
 		}
