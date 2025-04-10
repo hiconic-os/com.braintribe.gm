@@ -34,7 +34,7 @@ import org.junit.runners.Parameterized.Parameters;
 import com.braintribe.codec.marshaller.api.GmCodec;
 import com.braintribe.codec.marshaller.json.JsonStreamMarshaller;
 import com.braintribe.common.db.DbVendor;
-import com.braintribe.common.db.SimpleDbTestSession;
+import com.braintribe.common.db.DerbySupportingDbTestSession;
 import com.braintribe.exception.Exceptions;
 import com.braintribe.gm.jdbc.api.GmColumn;
 import com.braintribe.gm.jdbc.api.GmDb;
@@ -55,14 +55,14 @@ public abstract class AbstractGmDbTestBase {
 	// ## . . . . . . . . Static . . . . . . . . . .##
 	// ###############################################
 
-	private static SimpleDbTestSession dbTestSession;
+	private static DerbySupportingDbTestSession dbTestSession;
 
 	// We user timestamp suffix for table/index names so we can run tests multiple times without re-deploying docker containers
 	protected static final String tmSfx = "_" + RandomTools.timeStamp();
 
 	@BeforeClass
 	public static void beforeClass() throws Exception {
-		dbTestSession = SimpleDbTestSession.startDbTest();
+		dbTestSession = DerbySupportingDbTestSession.startDbTest();
 	}
 
 	@AfterClass

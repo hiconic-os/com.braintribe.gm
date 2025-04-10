@@ -15,6 +15,7 @@
 // ============================================================================
 package com.braintribe.gm.jdbc.impl;
 
+import static com.braintribe.utils.lcd.CollectionTools2.first;
 import static com.braintribe.utils.lcd.CollectionTools2.newLinkedSet;
 import static com.braintribe.utils.lcd.CollectionTools2.newList;
 import static com.braintribe.utils.lcd.CollectionTools2.newMap;
@@ -29,7 +30,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import com.braintribe.exception.Exceptions;
@@ -62,7 +62,7 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 	private Set<GmColumn<?>> readOnlyColumns;
 	private Set<GmIndex> readOnlyIndices;
 
-	private final Map<String, GmColumn<?>> columnsByName = newMap();
+	private final Map<String, GmColumn<?>> columnsByGmName = newMap();
 	private final Map<String, GmIndex> indicesByName = newMap();
 
 	public GmTableImpl(String tableName, GmDb db) {
@@ -123,7 +123,7 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 
 	private void index() {
 		for (GmColumn<?> column : columns) {
-			GmColumn<?> otherColumn = columnsByName.put(column.getGmName(), column);
+			GmColumn<?> otherColumn = columnsByGmName.put(column.getGmName(), column);
 			if (otherColumn != null)
 				throw new IllegalStateException("Multiple columns registered with the same gm name: " + column.getGmName() + ". FIRST: " + column
 						+ ", SECOND: " + otherColumn);
@@ -197,20 +197,55 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 	private void addMissingColumns(Connection c, String sqlTableName) {
 		Set<String> existingColumns = JdbcTools.columnsExist(c, sqlTableName, columnNames());
 
-		List<String> columnDeclarations = columnNames().stream() //
+		List<GmColumn<?>> missingColumns = columnNames().stream() //
 				.filter(column -> !existingColumns.contains(column)) //
 				.map(this::getColumn) //
-				.flatMap(GmColumn::streamSqlColumnDeclarations) //
 				.collect(Collectors.toList());
 
-		JdbcTools.withStatement(c, () -> "Adding missing columns for table: " + tableName, s -> {
-			for (String declaration : columnDeclarations) {
-				String st = "alter table " + sqlTableName + " add " + declaration;
-				log.debug("Executing update statement: " + st);
-				executeUpdate(s, st);
-				log.debug("Successfully updated " + tableName + ".");
+		addColumns(c, sqlTableName, missingColumns);
+	}
+
+	/**
+	 * @return set of added columns
+	 */
+	/* package */ Set<GmColumn<?>> addColumns(Connection c, String sqlTableName, List<GmColumn<?>> columns) {
+		Set<GmColumn<?>> result = newLinkedSet();
+		Map<String, Exception> columnNameToException = newMap();
+
+		JdbcTools.withStatement(c, () -> "Adding missing columns for table: " + sqlTableName, s -> {
+			for (GmColumn<?> column : columns) {
+				List<String> columnDeclarations = column.streamSqlColumnDeclarations().collect(Collectors.toList());
+
+				for (String declaration : columnDeclarations) {
+					String st = "alter table " + sqlTableName + " add " + declaration;
+
+					try {
+						log.debug("Executing update statement: " + st);
+						executeUpdate(s, st);
+						log.debug("Successfully updated " + sqlTableName + ".");
+
+						result.add(column);
+
+					} catch (Exception e) {
+						columnNameToException.put(column.getGmName(), e);
+					}
+				}
 			}
 		});
+
+		if (columnNameToException.isEmpty())
+			return result;
+
+		// Here we check if columns already exist.
+		// If they were created by another process,e.g. a different node in the cluster, we'd get an exception but there is no issue
+
+		Set<String> existingColumns = JdbcTools.columnsExist(c, sqlTableName, columnNames());
+		columnNameToException.keySet().removeAll(existingColumns);
+
+		if (!columnNameToException.isEmpty())
+			throw Exceptions.unchecked(first(columnNameToException.values()), "Error while adding columns to table: " + sqlTableName);
+
+		return result;
 	}
 
 	private void addMissingIndices(Connection c, String sqlTableName) {
@@ -221,11 +256,17 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 				.map(this::getIndex) //
 				.collect(Collectors.toList());
 
-		createIndices(c, missingIndices, () -> "Adding missing indices to table: " + tableName);
+		addIndices(c, sqlTableName, missingIndices);
 	}
 
-	private void createIndices(Connection c, List<GmIndex> indices, Supplier<String> detailsSupplier) {
-		JdbcTools.withStatement(c, detailsSupplier, s -> {
+	/**
+	 * @return set of added indices
+	 */
+	/* package */ Set<GmIndex> addIndices(Connection c, String sqlTableName, List<GmIndex> indices) {
+		Set<GmIndex> result = newLinkedSet();
+		Map<String, Exception> indexNameToException = newMap();
+
+		JdbcTools.withStatement(c, () -> "Adding missing indices to table: " + tableName, s -> {
 			for (GmIndex index : indices) {
 				String indexStatement = createIndexStatement(index);
 
@@ -234,12 +275,27 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 					executeUpdate(s, indexStatement);
 					log.debug("Successfully added index:" + index.getName());
 
+					result.add(index);
+
 				} catch (Exception e) {
-					throw Exceptions.contextualize(e, "Creating index for table [" + tableName + "] failed. "
-							+ "If the error says this index already exists, maybe it exists on a different table, as we already checked indices on thsi table.");
+					indexNameToException.put(index.getName(), e);
 				}
 			}
 		});
+
+		if (indexNameToException.isEmpty())
+			return result;
+
+		// Here we check if indices already exist.
+		// If they were created by another process,e.g. a different node in the cluster, we'd get an exception but there is no issue
+
+		Set<String> existingIndices = JdbcTools.indicesExist(c, sqlTableName, indexNames());
+		indexNameToException.keySet().removeAll(existingIndices);
+
+		if (!indexNameToException.isEmpty())
+			throw Exceptions.unchecked(first(indexNameToException.values()), "Error while adding indices to table: " + sqlTableName);
+
+		return result;
 	}
 
 	private String createIndexStatement(GmIndex index) {
@@ -253,7 +309,7 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 	}
 
 	/* Some RDBSes like Oracle don't even tell you which column/index was the problem. */
-	private void executeUpdate(Statement s, String sql) throws Exception {
+	private static void executeUpdate(Statement s, String sql) throws Exception {
 		try {
 			s.executeUpdate(sql);
 		} catch (Exception e) {
@@ -262,11 +318,11 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 	}
 
 	private Set<String> columnNames() {
-		return columnsByName.keySet();
+		return columnsByGmName.keySet();
 	}
 
 	private GmColumn<?> getColumn(String gmName) {
-		return columnsByName.computeIfAbsent(gmName, n -> {
+		return columnsByGmName.computeIfAbsent(gmName, n -> {
 			throw new NoSuchElementException("No column found for name: " + gmName);
 		});
 	}

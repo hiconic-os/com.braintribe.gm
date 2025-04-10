@@ -27,22 +27,26 @@ import com.braintribe.common.db.DbVendor;
 import com.braintribe.gm.jdbc.api.GmColumn;
 import com.braintribe.gm.jdbc.api.GmIndex;
 import com.braintribe.gm.jdbc.api.GmTable;
+import com.braintribe.gm.jdbc.impl.GmDb_Ddl_Concurrent_Tests;
 import com.braintribe.util.jdbc.JdbcTools;
 
 /**
+ * Testing table is being created with all the columns and indices.
+ * <p>
+ * The method being tested is {@link GmTable#ensure()}
+ * <p>
+ * For testing of a more complex scenario where ensuring happens from multiple sources in parallel see {@link GmDb_Ddl_Concurrent_Tests}.
+ * 
  * @author peter.gazdik
  */
 public class GmDb_Ddl_Tests extends AbstractGmDbTestBase {
 
-	private final GmColumn<String> colIdStr;
-	private final GmColumn<String> colVarchar255;
-
 	public GmDb_Ddl_Tests(DbVendor vendor) {
 		super(vendor);
-
-		colIdStr = gmDb.shortString255("id").primaryKey().notNull().done();
-		colVarchar255 = gmDb.shortString255("varchar255").done();
 	}
+
+	private final GmColumn<String> colIdStr = gmDb.shortString255("id").primaryKey().notNull().done();
+	private final GmColumn<String> colVarchar255 = gmDb.shortString255("varchar255").done();
 
 	private String tableName;
 	private Set<String> columnNames;
