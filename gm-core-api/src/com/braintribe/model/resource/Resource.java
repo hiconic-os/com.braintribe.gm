@@ -40,21 +40,28 @@ import com.braintribe.model.resource.source.TransientSource;
 import com.braintribe.model.resource.specification.ResourceSpecification;
 
 /**
- * A representation of streamed data.
- * <ul>
- * <li>mimeType: the MIME type of the actual representation</li>
- * <li>md5: the md5 value of the actual representation</li>
- * <li>file size: the file size of the actual representation (which is NOT the size of what the enriching process delivers)</li>
- * <li>tags: a classification tag to be used for easy grouping</li>
- * <li>resourceSource: access to the contained data stream</li>
- * <li>name: a name given to this Resource</li>
- * <li>created: when</li>
- * <li>creator: who</li>
- * <li>specification: {@link ResourceSpecification}</li>
- * </ul>
+ * Resource represents binary data.
+ * <p>
+ * It is one of the most fundamental entities of our modeling framework (GM).
  * 
- * @author pit
- *
+ * <h2>Payload</h2>
+ * 
+ * The actual payload (i.e. binary data) is referenced by an indirection via the property {@link #resourceSource}, which can be backed e.g. by a file
+ * on the file system, by a blob in a DB, or say by a String in memory.
+ * <p>
+ * The data can be read directly via {@link #openStream()} or written to an output stream via {@link #writeToStream(OutputStream)}. Both these methods
+ * delegate to the referenced {@link ResourceSource}.
+ * 
+ * <h2>Meta data</h2>
+ * 
+ * Properties other than {@link #resourceSource} describe metadata about the actual content, e.g.: <code>mimeType</code>, <code>md5</code> and others.
+ * <p>
+ * Custom metadata for certain types of resources can be configured with a {@link #getSpecification() resource specification}.
+ * 
+ * <h2>Creating a resource</h2>
+ * 
+ * See {@link #createTransient(InputStreamProvider)}
+ * 
  */
 @ForwardDeclaration("com.braintribe.gm:resource-model")
 @SelectiveInformation("${name}")
@@ -72,13 +79,12 @@ public interface Resource extends StandardStringIdentifiable {
 	final String creator = "creator";
 	final String specification = "specification";
 
-	// @formatter:off
 	String getMimeType();
 	void setMimeType(String mimeType);
 
 	String getMd5();
 	void setMd5(String md5);
-	
+
 	Long getFileSize();
 	void setFileSize(Long fileSize);
 
@@ -93,51 +99,31 @@ public interface Resource extends StandardStringIdentifiable {
 
 	Date getCreated();
 	void setCreated(Date created);
-	
+
 	void setCreator(String creator);
 	String getCreator();
 
+	/**
+	 * Additional metadata specific for concrete type of resources.
+	 * <p>
+	 * This could be dimensions in case this resource denotes an image or number of pages if it is a PDF (there are
+	 * <code>RasterImageSpecification</code>, <code>VectorImageSpecification</code> and <code>PdfSpecification</code>).
+	 * <p>
+	 * 
+	 * 
+	 * It is intended for this be extended, i.e. anyone can derive their own {@link ResourceSpecification} for their
+	 */
 	ResourceSpecification getSpecification();
 	void setSpecification(ResourceSpecification specification);
-	
-	default boolean isTransient() { 
+
+	default boolean isTransient() {
 		return getResourceSource() instanceof TransientSource;
 	}
 
-	default boolean isStreamable() { 
+	default boolean isStreamable() {
 		return getResourceSource() instanceof StreamableSource;
 	}
 
-	/**
-	 * Creates a new {@link TransientSource} with given {@link InputStreamProvider} and assigns it to this instance.
-	 * 
-	 * @param inputStreamProvider {@link InputStreamProvider} to be used for the new {@link TransientSource}, which must be restreameble: 
-	 * Any time the {@link InputStreamProvider#openInputStream()} method is called, a new {@link InputStream} for the exact same binary data must be returned
-	 */
-	default void assignTransientSource(InputStreamProvider inputStreamProvider) {
-		requireNonNull(inputStreamProvider, "Cannot create transient resource with null inputStreamProvider.");
-
-		TransientSource transientSource = TransientSource.T.create();
-		transientSource.setGlobalId(UUID.randomUUID().toString());
-		transientSource.setInputStreamProvider(inputStreamProvider);
-		transientSource.setOwner(this);
-		setResourceSource(transientSource);
-	}
-
-
-	/**
-	 * Creates a new {@link Resource} and a new {@link TransientSource} with given {@link InputStreamProvider} and assigns it to the new Resource.
-	 * 
-	 * @param inputStreamProvider {@link InputStreamProvider} to be used for the new {@link TransientSource}, which must be restreameble: 
-	 * Any time the {@link InputStreamProvider#openInputStream()} method is called, a new {@link InputStream} for the exact same binary data must be returned
-	 */
-	static Resource createTransient(InputStreamProvider inputStreamProvider) {
-		Resource resource = Resource.T.create();
-		resource.assignTransientSource(inputStreamProvider);
-		return resource;
-	}
-	
-	// @formatter:on
 	default InputStream openStream() {
 		ResourceSource resSrc = getResourceSource();
 
@@ -147,10 +133,8 @@ public interface Resource extends StandardStringIdentifiable {
 		}
 
 		GmSession session = session();
-
-		if (!(session instanceof HasResourceReadAccess)) {
+		if (!(session instanceof HasResourceReadAccess))
 			throw new GmSessionRuntimeException("Cannot open resource stream as entity is not attached to a session which supports streaming.");
-		}
 
 		ResourceReadAccess resources = ((HasResourceReadAccess) session).resources();
 
@@ -166,6 +150,7 @@ public interface Resource extends StandardStringIdentifiable {
 		if (resSrc instanceof StreamableSource) {
 			StreamableSource transientSource = (StreamableSource) getResourceSource();
 			transientSource.writeToStream(outputStream);
+
 		} else {
 			GmSession session = session();
 
@@ -182,4 +167,42 @@ public interface Resource extends StandardStringIdentifiable {
 			}
 		}
 	}
+
+	// ###############################################
+	// #. . . . Creating Transient Resource . . . . ##
+	// ###############################################
+
+	/**
+	 * Creates a new {@link Resource} backed by a new {@link TransientSource} for given {@link InputStreamProvider}.
+	 * 
+	 * @param inputStreamProvider
+	 *            {@link InputStreamProvider} to be used for the new {@link TransientSource}, which must be restreameble: Any time the
+	 *            {@link InputStreamProvider#openInputStream()} method is called, a new {@link InputStream} for the exact same binary data must be
+	 *            returned
+	 */
+	static Resource createTransient(InputStreamProvider inputStreamProvider) {
+		Resource resource = Resource.T.create();
+		resource.assignTransientSource(inputStreamProvider);
+		return resource;
+	}
+
+	/**
+	 * Creates a new {@link TransientSource} with given {@link InputStreamProvider} and assigns it to this instance as its {@link #getResourceSource()
+	 * resource source}.
+	 * 
+	 * @param inputStreamProvider
+	 *            {@link InputStreamProvider} to be used for the new {@link TransientSource}, which must be re-streameble, i.e. any time the
+	 *            {@link InputStreamProvider#openInputStream()} method is called, a new {@link InputStream} for the exact same binary data must be
+	 *            returned
+	 */
+	default void assignTransientSource(InputStreamProvider inputStreamProvider) {
+		requireNonNull(inputStreamProvider, "Cannot create transient resource with null inputStreamProvider.");
+
+		TransientSource transientSource = TransientSource.T.create();
+		transientSource.setGlobalId(UUID.randomUUID().toString());
+		transientSource.setInputStreamProvider(inputStreamProvider);
+		transientSource.setOwner(this);
+		setResourceSource(transientSource);
+	}
+
 }
