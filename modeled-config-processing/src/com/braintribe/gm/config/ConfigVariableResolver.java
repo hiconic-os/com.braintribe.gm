@@ -118,8 +118,12 @@ public class ConfigVariableResolver {
 		
 		private Reason acquireFailure() {
 			if (failure == null) {
+				String msg = file != null?
+						"Configuration evaluation failed for " + file.getAbsolutePath():
+						"Configuration evaluation failed";
+				
 				failure = Reasons.build(ConfigurationEvaluationError.T)
-						.text("Configuration evaluation failed for " + file.getAbsolutePath()).toReason();
+						.text(msg).toReason();
 			}
 
 			return failure;
