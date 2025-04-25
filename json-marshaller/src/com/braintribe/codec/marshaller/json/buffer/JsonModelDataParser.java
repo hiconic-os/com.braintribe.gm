@@ -19,6 +19,7 @@ import com.braintribe.codec.marshaller.api.GmDeserializationOptions;
 import com.braintribe.codec.marshaller.api.IdTypeSupplier;
 import com.braintribe.codec.marshaller.api.IdentityManagementMode;
 import com.braintribe.codec.marshaller.api.IdentityManagementModeOption;
+import com.braintribe.codec.marshaller.api.PlaceholderSupport;
 import com.braintribe.codec.marshaller.api.PropertyDeserializationTranslation;
 import com.braintribe.codec.marshaller.api.PropertyTypeInferenceOverride;
 import com.braintribe.codec.marshaller.api.options.attributes.InferredRootTypeOption;
@@ -67,6 +68,7 @@ public class JsonModelDataParser implements ConversionContext {
 	private CmdResolver cmdResolver;
 	private Map<Pair<EntityType<?>, Object>, GenericEntity> entitiesById = new HashMap<>();
 	private Map<String, GenericEntity> entitiesByGlobalId = new HashMap<>();
+	private boolean supportPlaceholders;
 	
 	public JsonModelDataParser(JsonParser parser, GmDeserializationOptions options, boolean enhanced, boolean snakeCaseProperties) {
 		this.parser = parser;
@@ -87,6 +89,7 @@ public class JsonModelDataParser implements ConversionContext {
 		this.propertySupplier = options.findAttribute(PropertyDeserializationTranslation.class).orElse(null);
 		this.isPropertyLenient = options.getDecodingLenience() != null && options.getDecodingLenience().isPropertyLenient();
 		this.cmdResolver = options.findOrNull(CmdResolverOption.class);
+		this.supportPlaceholders = options.findAttribute(PlaceholderSupport.class).orElse(false);
 	}
 	
 	private JsonSpan getTokenSpan() {
@@ -182,6 +185,11 @@ public class JsonModelDataParser implements ConversionContext {
 		JsonComplexValue peek = valueStack.peek();
 		if (peek != null)
 			peek.addValue(currentName, value);
+	}
+	
+	@Override
+	public boolean supportPlaceholders() {
+		return supportPlaceholders;
 	}
 
 	@Override

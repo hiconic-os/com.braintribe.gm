@@ -29,4 +29,5 @@ public interface ConversionContext {
 	GenericEntity resolveEntityById(EntityType<?> concreteType, Object entityId);
 	GenericEntity resolveEntityByGlobalId(String entityGlobalId);
 	SpecialField detectSpecialField(String n);
+	boolean supportPlaceholders();
 }

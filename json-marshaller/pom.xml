@@ -1,4 +1,4 @@
-<!--
+<?xml version="1.0" encoding="UTF-8"?><!--
 Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -48,7 +48,7 @@ limitations under the License.
             <artifactId>ioc-annotations</artifactId>
             <version>${V.com.braintribe.common}</version>
         </dependency>
-		<dependency>
+        <dependency>
             <groupId>commons-lang</groupId>
             <artifactId>commons-lang</artifactId>
             <version>${V.commons-lang}</version>
@@ -68,6 +68,17 @@ limitations under the License.
             <artifactId>essential-reason-model</artifactId>
             <version>${V.com.braintribe.gm}</version>
             <?tag asset ?>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>basic-value-descriptor-model</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+            <?tag asset ?>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>gm-core</artifactId>
+            <version>${V.com.braintribe.gm}</version>
         </dependency>
     </dependencies>
 </project>

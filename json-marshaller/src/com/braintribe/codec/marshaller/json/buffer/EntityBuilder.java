@@ -14,6 +14,7 @@ import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EssentialTypes;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.Property;
+import com.braintribe.model.generic.reflection.VdHolder;
 
 public class EntityBuilder {
 	private GenericEntity entity;
@@ -116,7 +117,14 @@ public class EntityBuilder {
 					}
 				}
 			
-				property.set(entity, jsonValue.as(propertyType));
+				Object castedValue = jsonValue.as(propertyType);
+				
+				if (VdHolder.isVdHolder(castedValue)) {
+					property.setDirectUnsafe(entity, castedValue);
+				}
+				else {
+					property.set(entity, castedValue);
+				}
 			}
 			catch (ConversionError e) {
 				throw propertyValueMismatch(name, e, field);

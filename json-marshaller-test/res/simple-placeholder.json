@@ -1,0 +1,7 @@
+{
+    "_type": "com.braintribe.codec.marshaller.json.model.TestEntity",
+    "decimalValue": "${DECIMAL_VALUE}",
+    "stringIntegerMap": {
+        "intValue": "${INTEGER_VALUE}"
+    }
+}
