@@ -18,6 +18,9 @@ package com.braintribe.model.messaging;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
+/**
+ * A type of #{link Destination} where every subscriber receives a message.
+ */
 public interface Topic extends Destination {
 
 	EntityType<Topic> T = EntityTypes.T(Topic.class);

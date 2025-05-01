@@ -18,6 +18,9 @@ package com.braintribe.model.messaging;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
+/**
+ * A type of #{link Destination} where exactly one subscriber (randomly selected) receives a message.
+ */
 public interface Queue extends Destination {
 
 	EntityType<Queue> T = EntityTypes.T(Queue.class);
