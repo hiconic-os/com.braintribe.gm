@@ -65,7 +65,7 @@ public abstract class GmMessagingHeavyDeliveryTest extends GmMessagingTest {
 	protected static Set<MessagesQuantitySetup> enabledDeliveryModes = asSet( MessagesQuantitySetup.SingleMessage, MessagesQuantitySetup.MultipleMessages, MessagesQuantitySetup.NoMessage );
 	protected static Set<SessionDistributionMode> enabledSessionDistributionModes = asSet( SessionDistributionMode.SingleSession, SessionDistributionMode.MultipleSessions, SessionDistributionMode.MultipleConnections );
 
-	private List<Class<? extends Destination>> destinationTypes = Arrays.asList(Topic.class, Queue.class);
+	private final List<Class<? extends Destination>> destinationTypes = Arrays.asList(Topic.class, Queue.class);
 	
 	public enum ConsumptionSetup {
 		Sync, Async;
@@ -260,16 +260,16 @@ public abstract class GmMessagingHeavyDeliveryTest extends GmMessagingTest {
 	
 	public class DeliveryTest implements Callable<Throwable> {
 		
-		private String testName;
+		private final String testName;
 		
-		private Class<? extends Destination> destinationType;
-		private ConsumptionSetup consumptionSetup;
-		private ConsumptionDistributionSetup consumptionDistributionSetup;
-		private SessionDistributionMode sessionDistributionMode;
-		private MessagesPersistenceSetup messagesPersistenceSetup;
-		private MessagesExpirationSetup messagesExpirationSetup;
-		private MessagesQuantitySetup messagesQuantitySetup;
-		private DeliverySetup deliverySetup;
+		private final Class<? extends Destination> destinationType;
+		private final ConsumptionSetup consumptionSetup;
+		private final ConsumptionDistributionSetup consumptionDistributionSetup;
+		private final SessionDistributionMode sessionDistributionMode;
+		private final MessagesPersistenceSetup messagesPersistenceSetup;
+		private final MessagesExpirationSetup messagesExpirationSetup;
+		private final MessagesQuantitySetup messagesQuantitySetup;
+		private final DeliverySetup deliverySetup;
 		
 		public DeliveryTest(Class<? extends Destination> destinationType,
 				ConsumptionSetup consumptionSetup,

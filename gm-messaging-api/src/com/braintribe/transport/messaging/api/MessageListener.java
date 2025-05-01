@@ -27,6 +27,7 @@ import com.braintribe.model.messaging.Message;
  * @see MessageConsumer
  * @see MessageConsumer#setMessageListener(MessageListener)
  */
+@FunctionalInterface
 public interface MessageListener {
 
 	/**
