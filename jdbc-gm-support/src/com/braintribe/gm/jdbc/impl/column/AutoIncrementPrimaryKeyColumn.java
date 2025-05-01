@@ -58,6 +58,7 @@ public class AutoIncrementPrimaryKeyColumn extends AbstractGmColumn<Long> {
 
 	// @formatter:off
 	@Override public List<String> getSqlColumns() { return singletonList(name); }
+	@Override public String getSingleSqlColumn() { return name; }
 	@Override protected Class<Long> type() { return Long.class; }
 
 	@Override public boolean isPrimaryKey() { return true;	}

@@ -46,12 +46,12 @@ public class GmDb_AutoIncrementId_Tests extends AbstractGmDbTestBase {
 	// ##################################################
 
 	@Test
-	public void testCreateAndRead() {
-		if (vendor ==DbVendor.oracle) {
+	public void testCreateReadDelete() {
+		if (vendor == DbVendor.oracle) {
 			spOut("Skipping test for Oracle. Auto-increment doesn't work for v11 and there is no ");
 			return;
 		}
-		
+
 		final String TABLE_NAME = "auto_incr_id" + tmSfx;
 		GmTable table = ensureTable(TABLE_NAME);
 
@@ -70,6 +70,8 @@ public class GmDb_AutoIncrementId_Tests extends AbstractGmDbTestBase {
 				.collect(Collectors.toSet());
 
 		assertThat(results).contains("1#V1", "2#V2", "3#V3");
+
+		assertDelete(table, 1L);
 	}
 
 	private GmTable ensureTable(final String TABLE_NAME) {
@@ -94,6 +96,11 @@ public class GmDb_AutoIncrementId_Tests extends AbstractGmDbTestBase {
 		table.insert( //
 				colString255, str //
 		);
+	}
+
+	private void assertDelete(GmTable table, long id) {
+		int deleted = table.delete().whereColumn(colIdLong, id);
+		assertThat(deleted).isEqualTo(1);
 	}
 
 }
