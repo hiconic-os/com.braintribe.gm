@@ -24,4 +24,12 @@ import com.braintribe.model.generic.reflection.EntityTypes;
 public interface Topic extends Destination {
 
 	EntityType<Topic> T = EntityTypes.T(Topic.class);
+
+	static Topic create(String name) {
+		Topic topic = Topic.T.create();
+		topic.setName(name);
+
+		return topic;
+	}
+
 }

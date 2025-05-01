@@ -25,4 +25,10 @@ public interface Queue extends Destination {
 
 	EntityType<Queue> T = EntityTypes.T(Queue.class);
 
+	static Queue create(String name) {
+		Queue topic = Queue.T.create();
+		topic.setName(name);
+
+		return topic;
+	}
 }

@@ -56,6 +56,7 @@ public interface MessagingSession {
 	 */
 	void close() throws MessagingException;
 
+	// Entirely pointless method, all implementations just create Queue instance normally
 	/**
 	 * <p>
 	 * Creates a {@link Queue} destination with the given {@code name}.
@@ -75,6 +76,7 @@ public interface MessagingSession {
 	 */
 	Queue createQueue(String name) throws MessagingException;
 
+	// Entirely pointless method, all implementations just create Topic instance normally
 	/**
 	 * <p>
 	 * Creates a {@link Topic} destination with the given {@code name}.

@@ -22,7 +22,10 @@ package com.braintribe.transport.messaging.api;
  * <p>
  * Providers of specific message brokers must implement this interface.
  * 
+ * @deprecated This is useless garbage, and it's not really used anywhere. This interface describes the same things as the deployment expert in the
+ *             module - it turns {@link com.braintribe.model.messaging.expert.Messaging} instance into a {@link MessagingConnectionProvider}
  */
+@Deprecated
 public interface Messaging<T extends com.braintribe.model.messaging.expert.Messaging> {
 
 	/**

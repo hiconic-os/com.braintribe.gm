@@ -42,7 +42,7 @@ public class StandardMessagingSessionProvider implements MessagingSessionProvide
 	private boolean lazyInitialization = true;
 
 	// cached
-	private MessagingConnection messagingConnection;
+	private volatile MessagingConnection messagingConnection;
 
 	public StandardMessagingSessionProvider() {
 	}
@@ -109,6 +109,7 @@ public class StandardMessagingSessionProvider implements MessagingSessionProvide
 		synchronized (this) {
 			if (messagingConnection == null) {
 				messagingConnection = messagingConnectionProvider.provideMessagingConnection();
+				// This is where messagingConnection.open() is NOT called and never was, making it pointless on the API level...
 
 				log.debug(() -> "Initialized messaging connection: " + messagingConnection);
 			}

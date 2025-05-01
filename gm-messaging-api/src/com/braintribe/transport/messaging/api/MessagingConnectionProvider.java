@@ -23,14 +23,13 @@ package com.braintribe.transport.messaging.api;
 public interface MessagingConnectionProvider<T extends MessagingConnection> {
 
 	/**
-	 * <p>
 	 * Provides a {@link MessagingConnection} to the message broker.
-	 * 
 	 * <p>
-	 * Once provided and opened, callers must ensure that connections are always closed (with
-	 * {@link MessagingConnection#close()}) when no longer used.
+	 * Once provided and opened, callers must ensure that connections are always closed (with {@link MessagingConnection#close()}) when no longer
+	 * used.
 	 * 
 	 * @return A {@link MessagingConnection} to the message broker.
+	 * 
 	 * @throws MessagingException
 	 *             In case a {@link MessagingConnection} fails to be provided.
 	 */
@@ -45,7 +44,6 @@ public interface MessagingConnectionProvider<T extends MessagingConnection> {
 	 */
 	void close() throws MessagingException;
 
-	
 	/**
 	 * Returns a description describing the messaging connection provider. This can be compared to a toString method
 	 * 
