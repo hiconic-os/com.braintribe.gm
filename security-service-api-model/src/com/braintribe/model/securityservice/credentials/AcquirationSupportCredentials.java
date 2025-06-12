@@ -19,6 +19,12 @@ import com.braintribe.model.generic.annotation.Abstract;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
+/**
+ * Base type for {@link Credentials} where "session acquiring" can optionally be turned on by setting {@link #getAcquire() acquire} property to
+ * <code>true</code>.
+ * 
+ * @see Credentials#acquirationSupportive()
+ */
 @Abstract
 public interface AcquirationSupportCredentials extends Credentials {
 
@@ -27,6 +33,7 @@ public interface AcquirationSupportCredentials extends Credentials {
 	Boolean getAcquire();
 	void setAcquire(Boolean acquire);
 
+	/** {@inheritDoc} */
 	@Override
 	default boolean acquirationSupportive() {
 		Boolean acquire = getAcquire();

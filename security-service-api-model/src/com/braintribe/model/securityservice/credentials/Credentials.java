@@ -19,12 +19,24 @@ import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.annotation.Abstract;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
+import com.braintribe.model.securityservice.OpenUserSession;
 
 @Abstract
 public interface Credentials extends GenericEntity {
 
 	EntityType<Credentials> T = EntityTypes.T(Credentials.class);
 
+	/**
+	 * Indicates that the credentials support acquiring of a session.
+	 * <p>
+	 * Acquiring a session means that {@link OpenUserSession} does not automatically create a new session, but it re-uses one that already exists for
+	 * given credentials.
+	 * <p>
+	 * This is e.g. relevant for clients that send a token with each request (rather than a session id). The server then creates a new session on the
+	 * first such request and re-uses it on next requests.
+	 * 
+	 * @see AcquirationSupportCredentials
+	 */
 	default boolean acquirationSupportive() {
 		return false;
 	}

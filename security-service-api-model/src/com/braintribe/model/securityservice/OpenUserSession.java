@@ -32,7 +32,7 @@ import com.braintribe.model.service.api.ServiceRequest;
  * This request is completely generic, and agnostic to the type of credential, see {@link SimplifiedOpenUserSession} for
  * simple requests.
  * 
- * @see Authenticate
+ * @see AuthenticateCredentials
  * @see SimplifiedOpenUserSession
  * @see OpenUserSessionWithUserAndPassword
  */
