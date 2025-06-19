@@ -476,6 +476,9 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			if (enumValue != null)
 				return enumValue;
 			
+			if (context.isEnumConstantLenient)
+				return null;
+			
 			String safeVal = StringTools.truncateIfRequired(constantString, 20, true);
 			
 			throw modelMappingError("Unknown enum constant [" + safeVal + "] in enum type " + enumType.getTypeSignature());
@@ -1706,6 +1709,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 		public final BiFunction<EntityType<?>, String, Property> propertySupplier;
 		public final Function<String, GenericModelType> idTypeSupplier;
 		public final boolean isPropertyLenient;
+		public boolean isEnumConstantLenient;
 
 		public DecodingContext(GmDeserializationOptions options, JsonParser parser, boolean enhanced, boolean snakeCaseProperties) {
 			this.dateCoding = dateTimeFormatterFromOptions(options);
@@ -1722,6 +1726,7 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			this.idTypeSupplier = options.findAttribute(IdTypeSupplier.class).orElse(null);
 			this.propertySupplier = options.findAttribute(PropertyDeserializationTranslation.class).orElse(null);
 			this.isPropertyLenient = options.getDecodingLenience() != null && options.getDecodingLenience().isPropertyLenient();
+			this.isEnumConstantLenient = options.getDecodingLenience() != null && options.getDecodingLenience().isEnumConstantLenient();
 		}
 
 		public GenericModelType getInferredPropertyType(EntityType<?> entityType, Property property) {
