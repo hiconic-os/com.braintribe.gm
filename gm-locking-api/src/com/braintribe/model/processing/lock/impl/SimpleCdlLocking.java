@@ -96,11 +96,10 @@ public class SimpleCdlLocking implements Locking {
 
 				try {
 					boolean isZero = _cdl.await(msLeft, TimeUnit.MILLISECONDS);
-					if (isZero)
-						continue;
 
-					// timeout
-					return false;
+					if (!isZero)
+						// timeout
+						return false;
 
 				} catch (InterruptedException e) {
 					if (canInterrupt)
@@ -111,7 +110,7 @@ public class SimpleCdlLocking implements Locking {
 
 		private synchronized boolean s_tryLockFor(ReentrableLock lock) {
 			if (lock.s_state == ReentrableLock.STATE_WRITE_LOCKED)
-				throw new IllegalStateException("Cannot lock a write-lock as it's already locked. " + lock.lockContext());
+				return false;
 
 			boolean locked = false;
 

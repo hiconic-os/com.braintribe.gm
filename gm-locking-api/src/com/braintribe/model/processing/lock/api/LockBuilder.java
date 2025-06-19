@@ -18,6 +18,7 @@ package com.braintribe.model.processing.lock.api;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 
+@Deprecated
 public interface LockBuilder {
 	Lock exclusive();
 	Lock shared();

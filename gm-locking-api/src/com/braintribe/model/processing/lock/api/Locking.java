@@ -27,7 +27,7 @@ import com.braintribe.model.processing.lock.impl.SimpleCdlLocking;
  * Locks with the same {@link ReentrableLocking #forIdentifier(String) identifiers} are one logical lock:<br>
  * <b>ReadLocks</b> can generally be locked concurrently in unlimited amounts<br>
  * <b>WriteLocks</b> can be locked concurrently only if they share the same {@link ReentrableReadWriteLock#reentranceId() reentranceId}. This means
- * that even a single writeLock is not re-entrant and attempt to lock it a second time results in an {@link IllegalStateException}.
+ * that even a single writeLock is not re-entrant and attempt to lock it a second time results in a timeout or a deadlock.
  * <p>
  * 
  * <h2>Implementations</h2>

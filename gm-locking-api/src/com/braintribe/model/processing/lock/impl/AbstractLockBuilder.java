@@ -22,6 +22,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 
 import com.braintribe.model.processing.lock.api.LockBuilder;
 
+@Deprecated
 public abstract class AbstractLockBuilder implements LockBuilder, ReadWriteLock {
 	protected String identifier;
 	protected String callerSignature;

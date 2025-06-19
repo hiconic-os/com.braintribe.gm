@@ -67,16 +67,9 @@ public class SimpleCdlLocking_SingleThread_Test extends AbstractSimpleCdlLocking
 	}
 
 	@Test(timeout = TIMEOUT_MS)
-	public void writeIsNotReentrant() {
+	public void writeIsNotReentrant() throws InterruptedException {
 		writeLock.lock();
-
-		try {
-			writeLock.tryLock();
-			fail("Trying to lock a locked Write-Lock should have thrown an exception");
-
-		} catch (IllegalStateException e) {
-			// ignored
-		}
+		assertThat(writeLock.tryLock(1, TimeUnit.SECONDS)).isFalse();
 		writeLock.unlock();
 
 		// can lock again
