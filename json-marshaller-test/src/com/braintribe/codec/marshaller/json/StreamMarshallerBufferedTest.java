@@ -13,6 +13,11 @@
 // ============================================================================
 package com.braintribe.codec.marshaller.json;
 
+import static com.braintribe.testing.junit.assertions.assertj.core.api.Assertions.assertThatExecuting;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,6 +25,7 @@ import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
 import com.braintribe.codec.marshaller.api.CmdResolverOption;
+import com.braintribe.codec.marshaller.api.DecodingLenience;
 import com.braintribe.codec.marshaller.api.EntityRecurrenceDepth;
 import com.braintribe.codec.marshaller.api.GmDeserializationOptions;
 import com.braintribe.codec.marshaller.api.GmSerializationOptions;
@@ -30,18 +36,21 @@ import com.braintribe.codec.marshaller.api.TypeExplicitnessOption;
 import com.braintribe.gm._TestModel_;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
-import com.braintribe.gm.model.reason.essential.InvalidArgument;
 import com.braintribe.gm.model.reason.essential.NotFound;
+import com.braintribe.gm.model.reason.essential.ParseError;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.reflection.ListType;
 import com.braintribe.model.meta.GmMetaModel;
 import com.braintribe.model.processing.meta.cmd.CmdResolver;
 import com.braintribe.model.processing.meta.cmd.CmdResolverImpl;
 import com.braintribe.model.processing.meta.oracle.BasicModelOracle;
+import com.braintribe.model.resource.Resource;
+import com.braintribe.testing.model.test.technical.features.EnumEntity;
 import com.braintribe.testing.model.test.technical.features.poly.PolyA;
 import com.braintribe.testing.model.test.technical.features.poly.PolyB;
 import com.braintribe.testing.model.test.technical.features.poly.PolyBase;
 import com.braintribe.testing.model.test.technical.features.poly.PolyC;
+import com.braintribe.utils.IOTools;
 
 public class StreamMarshallerBufferedTest extends StreamMarshallerTest {
 	@Override
@@ -147,4 +156,30 @@ public class StreamMarshallerBufferedTest extends StreamMarshallerTest {
 		Assertions.assertThat(reason.getText()).startsWith("Cannot resolve polymorphic ambiguity for abstract entity type [" + PolyBase.T.getTypeSignature() + "]");
 	}
 	
+	@Test
+	public void testEnumLenience() throws IOException {
+		String jsonInput = IOTools.slurp(new File("res/lenient-enum.json"), "UTF-8");
+		
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
+		
+		GmDeserializationOptions options = GmDeserializationOptions.deriveDefaults().setInferredRootType(EnumEntity.T).build();
+		
+		Maybe<?> maybeFailed = marshaller.decodeReasoned(jsonInput, options);
+		
+		Assertions.assertThat(maybeFailed.isUnsatisfiedBy(ParseError.T)).isTrue();
+		
+		DecodingLenience decodingLenience = new DecodingLenience();
+		decodingLenience.setEnumConstantLenient(true);
+		GmDeserializationOptions lenientOptions = GmDeserializationOptions.deriveDefaults() //
+				.setInferredRootType(EnumEntity.T)// 
+				.setDecodingLenience(decodingLenience).build();
+
+		Maybe<?> maybeSuccess = marshaller.decodeReasoned(jsonInput, lenientOptions);
+		
+		Assertions.assertThat(maybeSuccess.isSatisfied()).isTrue();
+
+		// with property lenience enabled decoding must work
+		EnumEntity entity = (EnumEntity)maybeSuccess.get();
+		assertThat(entity.getSimpleEnum()).isNull();
+	}
 }

@@ -19,6 +19,7 @@ public interface ConversionContext {
 	BiFunction<EntityType<?>, String, Property> getPropertySupplier();
 	BiFunction<EntityType<?>, Property, GenericModelType> getPropertyTypeInferenceOverride();
 	boolean isPropertyLenient();
+	boolean isEnumConstantLenient();
 	boolean snakeCaseProperties();
 	Function<String, GenericModelType> idTypeSupplier();
 	IdentityManagementMode identityManagedMode();
@@ -30,4 +31,5 @@ public interface ConversionContext {
 	GenericEntity resolveEntityByGlobalId(String entityGlobalId);
 	SpecialField detectSpecialField(String n);
 	boolean supportPlaceholders();
+	boolean isTypeLenient();
 }

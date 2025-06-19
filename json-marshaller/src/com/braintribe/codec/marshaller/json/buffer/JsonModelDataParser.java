@@ -63,12 +63,14 @@ public class JsonModelDataParser implements ConversionContext {
 	private Function<String, GenericModelType> idTypeSupplier;
 	private BiFunction<EntityType<?>, String, Property> propertySupplier;
 	private boolean isPropertyLenient;
+	private boolean isEnumConstantLenient;
 	private Map<String, GenericEntity> entitiesByRefId = new HashMap<>();
 	private Map<EntityType<?>, Map<String, EntityType<?>>> typeSpecificProperties = new HashMap<>();
 	private CmdResolver cmdResolver;
 	private Map<Pair<EntityType<?>, Object>, GenericEntity> entitiesById = new HashMap<>();
 	private Map<String, GenericEntity> entitiesByGlobalId = new HashMap<>();
 	private boolean supportPlaceholders;
+	private boolean isTypeLenient;
 	
 	public JsonModelDataParser(JsonParser parser, GmDeserializationOptions options, boolean enhanced, boolean snakeCaseProperties) {
 		this.parser = parser;
@@ -88,6 +90,8 @@ public class JsonModelDataParser implements ConversionContext {
 		this.idTypeSupplier = options.findAttribute(IdTypeSupplier.class).orElse(null);
 		this.propertySupplier = options.findAttribute(PropertyDeserializationTranslation.class).orElse(null);
 		this.isPropertyLenient = options.getDecodingLenience() != null && options.getDecodingLenience().isPropertyLenient();
+		this.isEnumConstantLenient = options.getDecodingLenience() != null && options.getDecodingLenience().isEnumConstantLenient();
+		this.isTypeLenient = options.getDecodingLenience() != null && options.getDecodingLenience().isTypeLenient();
 		this.cmdResolver = options.findOrNull(CmdResolverOption.class);
 		this.supportPlaceholders = options.findAttribute(PlaceholderSupport.class).orElse(false);
 	}
@@ -254,6 +258,16 @@ public class JsonModelDataParser implements ConversionContext {
 	@Override
 	public boolean isPropertyLenient() {
 		return isPropertyLenient;
+	}
+	
+	@Override
+	public boolean isEnumConstantLenient() {
+		return isEnumConstantLenient;
+	}
+	
+	@Override
+	public boolean isTypeLenient() {
+		return isTypeLenient;
 	}
 
 	@Override

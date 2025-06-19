@@ -250,6 +250,9 @@ public abstract class AbstractJsonScalarValue extends JsonValue {
 		
 		if (enumValue != null)
 			return enumValue;
+		
+		if (this.conversionContext.isEnumConstantLenient())
+			return null;
 
 		String msg = "Unknown enum constant [" + constantName + "] in enum type " + enumType.getTypeSignature() + " " + getSpan();
 		NotFound notFound = Reasons.build(NotFound.T).text(msg).toReason();
