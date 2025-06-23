@@ -25,6 +25,8 @@ public interface GmUpdateBuilder {
 	}
 
 	/**
+	 * Examples: <code>where(dateColumn.getSingleSqlColumn() + " > ?", yesterday())</code>
+	 * 
 	 * @return number of updated/deleted rows
 	 */
 	int where(String condition, Object... parameters);
