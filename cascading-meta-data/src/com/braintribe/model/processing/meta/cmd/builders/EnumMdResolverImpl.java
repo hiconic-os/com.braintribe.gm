@@ -51,7 +51,10 @@ public class EnumMdResolverImpl extends MdResolverImpl<EnumMdResolver> implement
 	@Override
 	public ConstantMdResolver constant(String constant) {
 		if (enumMdAggregator.getEnumOracle().findConstant(constant) == null) {
-			return lenientOrThrowException(() -> EmptyConstantMdResolver.INSTANCE, () -> "Constant not found: " + constant);
+			return lenientOrThrowException( //
+					() -> EmptyConstantMdResolver.INSTANCE, //
+					() -> "Constant not found: " + constant + ". Enum type: " + enumMdAggregator.getEnumOracle().asGmEnumType().getTypeSignature() //
+			);
 		}
 
 		ConstantMdAggregator constantMdAggregator = enumMdAggregator.acquireConstantMdAggregator(constant);

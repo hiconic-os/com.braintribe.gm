@@ -53,7 +53,11 @@ public class EntityMdResolverImpl extends EntityRelatedMdResolverImpl<EntityMdRe
 	@Override
 	public PropertyMdResolver property(String propertyName) {
 		if (entityMdAggregator.getEntityOracle().findProperty(propertyName) == null) {
-			return lenientOrThrowException(() -> EmptyPropertyMdResolver.INSTANCE, () -> "Property not found: " + propertyName);
+			return lenientOrThrowException( //
+					() -> EmptyPropertyMdResolver.INSTANCE, //
+					() -> "Property not found: " + propertyName + ". Entity type: "
+							+ entityMdAggregator.getEntityOracle().asGmEntityType().getTypeSignature() //
+			);
 		}
 
 		// I am not sure how else to check if our entity type is a dynamic one
