@@ -66,12 +66,17 @@ public class FailureCodec implements Codec<Throwable, Failure> {
 			return exception;
 		}
 
-		exception = ExceptionBuilder.createException(failure.getType(), failure.getMessage(), createThrowable(failure.getCause(), created));
+		String failureType = failure.getType();
+		if (failureType == null) {
+			exception = createRuntimeException(failure, created);
 
-		if (exception instanceof ServiceProcessorNotificationException) {
-			ServiceRequest notification = failure.getNotification();
-			if (notification!= null) {
-				((ServiceProcessorNotificationException)exception).setNotification(notification);
+		} else {
+			exception = ExceptionBuilder.createException(failureType, failure.getMessage(), createThrowable(failure.getCause(), created));
+
+			if (exception instanceof ServiceProcessorNotificationException) {
+				ServiceRequest notification = failure.getNotification();
+				if (notification != null)
+					((ServiceProcessorNotificationException) exception).setNotification(notification);
 			}
 		}
 
@@ -88,6 +93,16 @@ public class FailureCodec implements Codec<Throwable, Failure> {
 				exception.addSuppressed(suppressedThrowable);
 			}
 		}
+
+		return exception;
+	}
+
+	private Throwable createRuntimeException(Failure failure, Map<Failure, Throwable> created) {
+		Throwable exception = new RuntimeException(failure.getMessage());
+
+		Throwable cause = createThrowable(failure.getCause(), created);
+		if (cause != null)
+			exception.initCause(cause);
 
 		return exception;
 	}
