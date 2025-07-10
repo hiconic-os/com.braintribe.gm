@@ -35,6 +35,7 @@ import com.braintribe.model.meta.selector.EntitySignatureRegexSelector;
 import com.braintribe.model.meta.selector.EntityTypeSelector;
 import com.braintribe.model.meta.selector.GmEntityTypeSelector;
 import com.braintribe.model.meta.selector.IntegerPropertyDiscriminator;
+import com.braintribe.model.meta.selector.LastWaypointSelector;
 import com.braintribe.model.meta.selector.LongDiscriminatorValue;
 import com.braintribe.model.meta.selector.MetaDataSelector;
 import com.braintribe.model.meta.selector.NegationSelector;
@@ -65,6 +66,7 @@ import com.braintribe.model.processing.meta.cmd.context.experts.EntitySignatureR
 import com.braintribe.model.processing.meta.cmd.context.experts.EntityTypeSelectorExpert;
 import com.braintribe.model.processing.meta.cmd.context.experts.GmEntityTypeSelectorExpert;
 import com.braintribe.model.processing.meta.cmd.context.experts.IntegerPropertyDiscriminatorExpert;
+import com.braintribe.model.processing.meta.cmd.context.experts.LastWaypointSelectorExpert;
 import com.braintribe.model.processing.meta.cmd.context.experts.LongPropertyDiscriminatorExpert;
 import com.braintribe.model.processing.meta.cmd.context.experts.NegationSelectorExpert;
 import com.braintribe.model.processing.meta.cmd.context.experts.NullPropertyDiscriminatorExpert;
@@ -124,6 +126,7 @@ public class MdSelectorResolverImpl implements MdSelectorResolver {
 		registerExpert(EntitySignatureRegexSelector.T, new EntitySignatureRegexSelectorExpert());
 		registerExpert(EntityTypeSelector.T, new EntityTypeSelectorExpert());
 
+		registerExpert(LastWaypointSelector.T, new LastWaypointSelectorExpert());
 		registerExpert(RoleSelector.T, new RoleSelectorExpert());
 		registerExpert(AclSelector.T, new AclSelectorExpert());
 		registerExpert(UseCaseSelector.T, new UseCaseSelectorExpert());
