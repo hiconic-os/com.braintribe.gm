@@ -15,6 +15,8 @@
 // ============================================================================
 package com.braintribe.model.processing.service.impl;
 
+import static com.braintribe.gm.model.reason.UnsatisfiedMaybeTunneling.getOrTunnel;
+
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
@@ -40,9 +42,10 @@ public abstract class AbstractDispatchingServiceProcessor<P extends ServiceReque
 	protected abstract void configureDispatching(DispatchConfiguration<P, R> dispatching);
 
 	@Override
-	public R process(ServiceRequestContext context, P request) {
-		ServiceProcessor<P, R> processor = (ServiceProcessor<P, R>) lazyDispatchMap.get().get(request);
-		return processor.process(context, request);
+	public R process(ServiceRequestContext requestContext, P request) {
+		// DO NOT CHANGE THIS IMPLEMENTATION
+		// It is by design that processing always goes via processReasoned, so there is a single point for cross cutting.
+		return getOrTunnel(processReasoned(requestContext, request));
 	}
 
 	@Override
@@ -50,11 +53,11 @@ public abstract class AbstractDispatchingServiceProcessor<P extends ServiceReque
 		ServiceProcessor<P, R> processor = (ServiceProcessor<P, R>) lazyDispatchMap.get().get(request);
 		if (processor instanceof ReasonedServiceProcessor<?, ?>)
 			return ((ReasonedServiceProcessor<P, R>) processor).processReasoned(context, request);
-		
+
 		R response = processor.process(context, request);
 		return Maybe.complete(response);
 	}
-	
+
 	private static class DispatchMap<P1 extends ServiceRequest, R1> //
 			extends PolymorphicDenotationMap<P1, ServiceProcessor<? extends P1, ?>> implements DispatchConfiguration<P1, R1> {
 
