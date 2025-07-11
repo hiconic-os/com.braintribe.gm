@@ -26,6 +26,7 @@ import com.braintribe.model.generic.pr.criteria.RootCriterion;
 import com.braintribe.model.generic.reflection.CloningContext;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.Property;
+import com.braintribe.model.generic.reflection.PropertyTransferCompetence;
 import com.braintribe.model.processing.traversing.api.GmTraversingContext;
 import com.braintribe.model.processing.traversing.api.path.TraversingModelPathElement;
 import com.braintribe.model.processing.traversing.api.path.TraversingPropertyModelPathElement;
@@ -40,6 +41,7 @@ import com.braintribe.model.processing.traversing.engine.impl.clone.BasicPropert
 public class CloningContextBasedClonerCustomization implements ClonerCustomization {
 
 	private final CloningContext cc;
+	private final PropertyTransferCompetence ptc;
 	private final RootCriterion rootCriterion = RootCriterion.T.create();
 
 	/**
@@ -49,11 +51,15 @@ public class CloningContextBasedClonerCustomization implements ClonerCustomizati
 	 */
 	public CloningContextBasedClonerCustomization(CloningContext cc) {
 		this.cc = cc;
+		this.ptc = cc instanceof PropertyTransferCompetence ? (PropertyTransferCompetence) cc : null;
 	}
 
 	@Override
 	public void transferProperty(GenericEntity clonedEntity, Property property, Object clonedValue, PropertyTransferContext context) {
-		BasicPropertyTransferExpert.INSTANCE.transferProperty(clonedEntity, property, clonedValue, context);
+		if (ptc != null)
+			ptc.transferProperty(clonedEntity.entityType(), context.getInstanceToBeCloned(), clonedEntity, property, clonedValue);
+		else
+			BasicPropertyTransferExpert.INSTANCE.transferProperty(clonedEntity, property, clonedValue, context);
 	}
 
 	@Override
