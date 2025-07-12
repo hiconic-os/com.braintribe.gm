@@ -23,15 +23,11 @@ import java.util.Set;
 
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.pr.AbsenceInformation;
-import com.braintribe.model.generic.reflection.CollectionType;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.processing.traversing.test.model.NamableEntity;
 
-/**
- * 
- */
 public class EntityPrinter {
 
 	private final Set<NamableEntity> visited = new HashSet<NamableEntity>();
@@ -106,14 +102,13 @@ public class EntityPrinter {
 				printReferencedEntity((GenericEntity) value, (EntityType<?>) type);
 				return;
 			case listType:
-				printList((List<?>) value, ((CollectionType) type).getParameterization()[0]);
+				printList((List<?>) value, type.getParameterization()[0]);
 				return;
 			case mapType:
-				printMap((Map<?, ?>) value, ((CollectionType) type).getParameterization()[0],
-						((CollectionType) type).getParameterization()[1]);
+				printMap((Map<?, ?>) value, type.getParameterization()[0], type.getParameterization()[1]);
 				return;
 			case setType:
-				printSet((Set<?>) value, ((CollectionType) type).getParameterization()[0]);
+				printSet((Set<?>) value, type.getParameterization()[0]);
 				return;
 			
 			default:
