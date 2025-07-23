@@ -40,6 +40,7 @@ import com.braintribe.model.processing.bootstrapping.listener.RuntimePropertyCha
 import com.braintribe.util.network.NetworkTools;
 import com.braintribe.utils.StringTools;
 import com.braintribe.utils.encryption.Cryptor;
+import com.braintribe.utils.lcd.CollectionTools2;
 import com.braintribe.utils.template.Template;
 import com.braintribe.utils.template.TemplateException;
 import com.braintribe.utils.template.model.MergeContext;
@@ -661,7 +662,7 @@ public class TribefireRuntime extends TribefireRuntimeDeprecation {
 		String valueString = getProperty(ENVIRONMENT_COOKIE_HTTPONLY);
 		if (!StringTools.isBlank(valueString)) {
 			if (valueString.equalsIgnoreCase("true") || valueString.equalsIgnoreCase("false")) {
-				return Map.of("default", valueString.equalsIgnoreCase("true"));
+				return CollectionTools2.asMap("default", valueString.equalsIgnoreCase("true"));
 			}
 			String[] splits = StringTools.splitCommaSeparatedString(valueString, true);
 			Map<String, Boolean> cookieHttpOnlyMap = new HashMap<>();
@@ -680,7 +681,7 @@ public class TribefireRuntime extends TribefireRuntimeDeprecation {
 			}
 			return cookieHttpOnlyMap;
 		} else {
-			return Map.of("default", Boolean.FALSE);
+			return CollectionTools2.asMap("default", Boolean.FALSE);
 		}
 	}
 
