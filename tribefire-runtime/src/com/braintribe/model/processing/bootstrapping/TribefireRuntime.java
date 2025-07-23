@@ -657,13 +657,31 @@ public class TribefireRuntime extends TribefireRuntimeDeprecation {
 		return getProperty(ENVIRONMENT_COOKIE_DOMAIN);
 	}
 
-	public static boolean getCookieHttpOnly() {
+	public static Map<String, Boolean> getCookieHttpOnlyPerWaypoint() {
 		String valueString = getProperty(ENVIRONMENT_COOKIE_HTTPONLY);
-		boolean cookieHttpOnly = false;
 		if (!StringTools.isBlank(valueString)) {
-			cookieHttpOnly = valueString.equalsIgnoreCase("true");
+			if (valueString.equalsIgnoreCase("true") || valueString.equalsIgnoreCase("false")) {
+				return Map.of("default", valueString.equalsIgnoreCase("true"));
+			}
+			String[] splits = StringTools.splitCommaSeparatedString(valueString, true);
+			Map<String, Boolean> cookieHttpOnlyMap = new HashMap<>();
+			for (String split : splits) {
+				if (split.contains("=")) {
+					String[] keyValue = split.split("=");
+					if (keyValue.length == 2) {
+						boolean cookieHttpOnly = keyValue[1].trim().equalsIgnoreCase("true");
+						cookieHttpOnlyMap.put(keyValue[0].trim(), cookieHttpOnly);
+					} else {
+						logger.warn("Invalid format for cookie http only property: " + split);
+					}
+				} else {
+					logger.warn("Invalid format for cookie http only property: " + split);
+				}
+			}
+			return cookieHttpOnlyMap;
+		} else {
+			return Map.of("default", Boolean.FALSE);
 		}
-		return cookieHttpOnly;
 	}
 
 	public static boolean getCookieEnabled() {
@@ -971,7 +989,7 @@ public class TribefireRuntime extends TribefireRuntimeDeprecation {
 		setDefault(ENVIRONMENT_EXECUTION_MODE, "mixed");
 		setDefault(ENVIRONMENT_QUERYTRACING_EXECUTIONTHRESHOLD_INFO, "10000");
 		setDefault(ENVIRONMENT_QUERYTRACING_EXECUTIONTHRESHOLD_WARNING, "30000");
-		setDefault(ENVIRONMENT_COOKIE_HTTPONLY, "false");
+		setDefault(ENVIRONMENT_COOKIE_HTTPONLY, "default=false,platform-login=false");
 		setDefault(ENVIRONMENT_COOKIE_ENABLED, "true");
 		setDefault(ENVIRONMENT_PLATFORM_SETUP_SUPPORT, "true");
 		setDefault(ENVIRONMENT_KEEP_TRANSFERRED_ASSET_DATA, "false");
