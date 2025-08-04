@@ -1,4 +1,6 @@
 // ============================================================================
+// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,22 +13,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.security.service.config;
+package com.braintribe.model.securityservice.web;
 
-import java.util.List;
-
-import com.braintribe.model.generic.GenericEntity;
+import com.braintribe.model.generic.annotation.Abstract;
+import com.braintribe.model.generic.annotation.meta.Confidential;
 import com.braintribe.model.generic.annotation.meta.Description;
+import com.braintribe.model.generic.annotation.meta.Mandatory;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
-@Description("Configures the OpenUserSession request behaviour.")
-public interface OpenUserSessionConfiguration extends GenericEntity {
-	EntityType<OpenUserSessionConfiguration> T = EntityTypes.T(OpenUserSessionConfiguration.class);
+@Description("Derivates of this request are used to login in web environment resulting in a http only cookie.")
+public interface UserPassWebAuthenticate extends WebAuthenticate {
+
+	EntityType<UserPassWebAuthenticate> T = EntityTypes.T(UserPassWebAuthenticate.class);
 	
-	String entryPoints = "entryPoints";
-	
-	@Description("Defines entry points that apply authorization to OpenUserSession requests.")
-	List<OpenUserSessionEntryPoint> getEntryPoints();
-	void setEntryPoints(List<OpenUserSessionEntryPoint> entryPoints);
+	@Mandatory
+	String getUser();
+	void setUser(String user);
+
+	@Mandatory
+	@Confidential
+	String getPassword();
+	void setPassword(String password);
 }

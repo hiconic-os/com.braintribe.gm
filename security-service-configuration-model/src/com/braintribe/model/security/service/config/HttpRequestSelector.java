@@ -13,20 +13,29 @@
 // ============================================================================
 package com.braintribe.model.security.service.config;
 
-import java.util.List;
-
 import com.braintribe.model.generic.GenericEntity;
+import com.braintribe.model.generic.annotation.Initializer;
 import com.braintribe.model.generic.annotation.meta.Description;
+import com.braintribe.model.generic.annotation.meta.Mandatory;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
-@Description("Configures the OpenUserSession request behaviour.")
-public interface OpenUserSessionConfiguration extends GenericEntity {
-	EntityType<OpenUserSessionConfiguration> T = EntityTypes.T(OpenUserSessionConfiguration.class);
-	
-	String entryPoints = "entryPoints";
-	
-	@Description("Defines entry points that apply authorization to OpenUserSession requests.")
-	List<OpenUserSessionEntryPoint> getEntryPoints();
-	void setEntryPoints(List<OpenUserSessionEntryPoint> entryPoints);
-}
+public interface HttpRequestSelector extends GenericEntity {
+
+    EntityType<HttpRequestSelector> T = EntityTypes.T(HttpRequestSelector.class);
+
+    String origin = "origin";
+    String host = "host";
+
+    @Description("HTTP origin correlated with the HTTP header Origin.")
+    @Initializer("'*'")
+    @Mandatory
+    String getOrigin();
+    void setOrigin(String origin);
+    
+    @Description("HTTP host correlated with the HTTP header Host/X-Forwarded-Host.")
+    @Initializer("'*'")
+    @Mandatory
+    String getHost();
+    void setHost(String host);
+} 

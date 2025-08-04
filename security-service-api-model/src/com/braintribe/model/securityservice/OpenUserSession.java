@@ -18,6 +18,7 @@ package com.braintribe.model.securityservice;
 import java.util.Date;
 import java.util.Map;
 
+import com.braintribe.model.generic.annotation.meta.Description;
 import com.braintribe.model.generic.eval.EvalContext;
 import com.braintribe.model.generic.eval.Evaluator;
 import com.braintribe.model.generic.reflection.EntityType;
@@ -51,6 +52,14 @@ public interface OpenUserSession extends SecurityRequest {
 
 	Date getExpiryDate();
 	void setExpiryDate(Date expiryDate);
+	
+	@Description("Addresses and entry point by name to activate a specific authorization. Requires internal priviledge")
+	String getEntryPoint();
+	void setEntryPoint(String entryPoint);
+	
+	@Description("Skips any authorization for the session creation (e.g HTTP origin driven entry point rules). Requires internal priviledge")
+	boolean getSkipAuthorization();
+	void setSkipAuthorization(boolean skipAuthorization);
 
 	@Override
 	EvalContext<? extends OpenUserSessionResponse> eval(Evaluator<ServiceRequest> evaluator);

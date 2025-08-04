@@ -40,7 +40,6 @@ import com.braintribe.model.processing.bootstrapping.listener.RuntimePropertyCha
 import com.braintribe.util.network.NetworkTools;
 import com.braintribe.utils.StringTools;
 import com.braintribe.utils.encryption.Cryptor;
-import com.braintribe.utils.lcd.CollectionTools2;
 import com.braintribe.utils.template.Template;
 import com.braintribe.utils.template.TemplateException;
 import com.braintribe.utils.template.model.MergeContext;
@@ -656,33 +655,6 @@ public class TribefireRuntime extends TribefireRuntimeDeprecation {
 
 	public static String getCookieDomain() {
 		return getProperty(ENVIRONMENT_COOKIE_DOMAIN);
-	}
-
-	public static Map<String, Boolean> getCookieHttpOnlyPerWaypoint() {
-		String valueString = getProperty(ENVIRONMENT_COOKIE_HTTPONLY);
-		if (!StringTools.isBlank(valueString)) {
-			if (valueString.equalsIgnoreCase("true") || valueString.equalsIgnoreCase("false")) {
-				return CollectionTools2.asMap("default", valueString.equalsIgnoreCase("true"));
-			}
-			String[] splits = StringTools.splitCommaSeparatedString(valueString, true);
-			Map<String, Boolean> cookieHttpOnlyMap = new HashMap<>();
-			for (String split : splits) {
-				if (split.contains("=")) {
-					String[] keyValue = split.split("=");
-					if (keyValue.length == 2) {
-						boolean cookieHttpOnly = keyValue[1].trim().equalsIgnoreCase("true");
-						cookieHttpOnlyMap.put(keyValue[0].trim(), cookieHttpOnly);
-					} else {
-						logger.warn("Invalid format for cookie http only property: " + split);
-					}
-				} else {
-					logger.warn("Invalid format for cookie http only property: " + split);
-				}
-			}
-			return cookieHttpOnlyMap;
-		} else {
-			return CollectionTools2.asMap("default", Boolean.FALSE);
-		}
 	}
 
 	public static boolean getCookieEnabled() {

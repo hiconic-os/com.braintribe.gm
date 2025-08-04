@@ -193,11 +193,15 @@ public class GmWebRpcRemoteServiceProcessor extends AbstractRemoteServiceProcess
 		HttpPost post = new HttpPost(url);
 
 		post.setHeader(RpcHeaders.rpcVersion.getHeaderName(), version);
-
+		
 		AttributeContext attributeContext = requestContext.getAttributeContext();
 		String callId = attributeContext.findOrSupply(RequestEvaluationIdAspect.class, () -> UUID.randomUUID().toString());
 
 		post.setHeader("Call-Id", callId);
+		
+		String origin = attributeContext.findOrNull(HttpSendOrigin.class);
+		if (origin != null)
+			post.setHeader("Origin", origin);
 
 		RemoteCapture remoteCapture = attributeContext.findOrDefault(RemoteCaptureAspect.class, RemoteCapture.none);
 		switch (remoteCapture) {

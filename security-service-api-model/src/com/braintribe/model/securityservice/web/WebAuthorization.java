@@ -1,4 +1,6 @@
 // ============================================================================
+// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,22 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.security.service.config;
+package com.braintribe.model.securityservice.web;
 
-import java.util.List;
+import java.util.Set;
 
 import com.braintribe.model.generic.GenericEntity;
-import com.braintribe.model.generic.annotation.meta.Description;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
+import com.braintribe.model.user.User;
 
-@Description("Configures the OpenUserSession request behaviour.")
-public interface OpenUserSessionConfiguration extends GenericEntity {
-	EntityType<OpenUserSessionConfiguration> T = EntityTypes.T(OpenUserSessionConfiguration.class);
+public interface WebAuthorization extends GenericEntity {
+
+	EntityType<WebAuthorization> T = EntityTypes.T(WebAuthorization.class);
+
+	String user = "user";
+	String effectiveRoles = "effectiveRoles";
 	
-	String entryPoints = "entryPoints";
+	User getUser();
+	void setUser(User user);
 	
-	@Description("Defines entry points that apply authorization to OpenUserSession requests.")
-	List<OpenUserSessionEntryPoint> getEntryPoints();
-	void setEntryPoints(List<OpenUserSessionEntryPoint> entryPoints);
+	Set<String> getEffectiveRoles();
+	void setEffectiveRoles(Set<String> effectiveRoles);
 }

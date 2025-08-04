@@ -21,6 +21,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import com.braintribe.cfg.Configurable;
+import com.braintribe.common.attribute.AttributeContextBuilder;
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.ReasonException;
 import com.braintribe.model.generic.eval.EvalContext;
@@ -41,6 +42,16 @@ public abstract class AbstractServiceRequestEvaluator implements Evaluator<Servi
 	protected ExecutorService executorService;
 	protected Evaluator<ServiceRequest> contextEvaluator = this;
 	protected Function<Reason, RuntimeException> reasonExceptionFactory = ReasonException::new;
+	protected Consumer<AttributeContextBuilder> attributesConfigurer = null;
+	
+	@Configurable
+	public void setAttributesConfigurer(Consumer<AttributeContextBuilder> attributesConfigurer) {
+		this.attributesConfigurer = attributesConfigurer;
+	}
+	
+	public Consumer<AttributeContextBuilder> getAttributesConfigurer() {
+		return attributesConfigurer;
+	}
 	
 	@Configurable
 	public void setReasonExceptionFactory(Function<Reason, RuntimeException> reasonToExceptionTransformator) {

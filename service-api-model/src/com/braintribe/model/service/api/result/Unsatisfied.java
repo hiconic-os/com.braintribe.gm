@@ -61,10 +61,18 @@ public interface Unsatisfied extends ServiceResult {
 
 		return unsatisfied;
 	}
-	
+
+	@Deprecated
+	/**
+	 * @deprecated use {@link #toMaybe()} instead
+	 */
 	default <T> Maybe<T> toMaby() {
+		return toMaybe();
+	}
+	
+	default <T> Maybe<T> toMaybe() {
 		return getHasValue()? // 
 				Maybe.incomplete((T)getValue(), getWhy()): // 
-				Maybe.empty(getWhy());
+					Maybe.empty(getWhy());
 	}
 }

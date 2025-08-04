@@ -13,42 +13,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.securityservice;
+package com.braintribe.model.securityservice.web;
 
+import com.braintribe.gm.model.reason.essential.InvalidArgument;
+import com.braintribe.gm.model.reason.essential.UnsupportedOperation;
+import com.braintribe.gm.model.security.reason.AuthenticationFailure;
+import com.braintribe.gm.model.security.reason.Forbidden;
+import com.braintribe.model.generic.annotation.Abstract;
 import com.braintribe.model.generic.annotation.Initializer;
-import com.braintribe.model.generic.annotation.meta.Confidential;
 import com.braintribe.model.generic.annotation.meta.Description;
-import com.braintribe.model.generic.annotation.meta.Mandatory;
-import com.braintribe.model.generic.eval.EvalContext;
-import com.braintribe.model.generic.eval.Evaluator;
+import com.braintribe.model.generic.annotation.meta.UnsatisfiedBy;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
-import com.braintribe.model.service.api.ServiceRequest;
 
-/**
- * A simplified implementation of the {@link OpenUserSession} request which takes a user and password.
- */
-@Description("Simplified OpenUserSession request that takes user and password to build authentication credentials.")
-public interface OpenUserSessionWithUserAndPassword extends SimplifiedOpenUserSession {
+@Description("Derivates of this request are used to login in web environment resulting in a http only cookie.")
+@Abstract
+@UnsatisfiedBy(Forbidden.class)
+@UnsatisfiedBy(AuthenticationFailure.class)
+@UnsatisfiedBy(InvalidArgument.class)
+@UnsatisfiedBy(UnsupportedOperation.class)
+public interface WebAuthenticate extends WebAuthorizationRequest {
 
-	EntityType<OpenUserSessionWithUserAndPassword> T = EntityTypes.T(OpenUserSessionWithUserAndPassword.class);
-
-	@Mandatory
-	String getUser();
-	void setUser(String user);
-
-	@Mandatory
-	@Confidential
-	String getPassword();
-	void setPassword(String password);
-
+	EntityType<WebAuthenticate> T = EntityTypes.T(WebAuthenticate.class);
+	
 	String getLocale();
 	void setLocale(String locale);
-
+	
 	@Initializer("false")
 	boolean getStaySignedIn();
 	void setStaySignedIn(boolean staySignedIn);
-	
-	@Override
-	EvalContext<? extends OpenUserSessionResponse> eval(Evaluator<ServiceRequest> evaluator);
 }

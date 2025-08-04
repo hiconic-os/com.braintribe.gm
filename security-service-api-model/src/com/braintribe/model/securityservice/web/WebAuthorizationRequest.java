@@ -13,42 +13,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.securityservice;
+package com.braintribe.model.securityservice.web;
 
-import com.braintribe.model.generic.annotation.Initializer;
-import com.braintribe.model.generic.annotation.meta.Confidential;
+import com.braintribe.gm.model.reason.essential.InternalError;
+import com.braintribe.model.generic.annotation.Abstract;
 import com.braintribe.model.generic.annotation.meta.Description;
-import com.braintribe.model.generic.annotation.meta.Mandatory;
+import com.braintribe.model.generic.annotation.meta.UnsatisfiedBy;
 import com.braintribe.model.generic.eval.EvalContext;
 import com.braintribe.model.generic.eval.Evaluator;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 import com.braintribe.model.service.api.ServiceRequest;
 
-/**
- * A simplified implementation of the {@link OpenUserSession} request which takes a user and password.
- */
-@Description("Simplified OpenUserSession request that takes user and password to build authentication credentials.")
-public interface OpenUserSessionWithUserAndPassword extends SimplifiedOpenUserSession {
+@Description("Derivates of this request are used for web environment security based on http only cookies. "
+		+ "These requests explicitly avoid to communicate the sessionId to enforce the usage of the created cookie.")
+@Abstract
+@UnsatisfiedBy(InternalError.class)
+public interface WebAuthorizationRequest extends ServiceRequest {
 
-	EntityType<OpenUserSessionWithUserAndPassword> T = EntityTypes.T(OpenUserSessionWithUserAndPassword.class);
+	EntityType<WebAuthorizationRequest> T = EntityTypes.T(WebAuthorizationRequest.class);
 
-	@Mandatory
-	String getUser();
-	void setUser(String user);
-
-	@Mandatory
-	@Confidential
-	String getPassword();
-	void setPassword(String password);
-
-	String getLocale();
-	void setLocale(String locale);
-
-	@Initializer("false")
-	boolean getStaySignedIn();
-	void setStaySignedIn(boolean staySignedIn);
-	
 	@Override
-	EvalContext<? extends OpenUserSessionResponse> eval(Evaluator<ServiceRequest> evaluator);
+	default boolean system() {
+		return true;
+	}
+
+	@Override
+	EvalContext<? extends WebAuthorization> eval(Evaluator<ServiceRequest> evaluator);
 }

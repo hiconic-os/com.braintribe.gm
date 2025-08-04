@@ -182,6 +182,10 @@ public abstract class GmWebRpcClientBase extends GmRpcClientBase {
 			post.setHeader("Accept", "multipart/chunked,multipart/form-data," + contentType);
 		else
 			post.setHeader("Accept", contentType);
+		
+		String origin = requestContext.getAttributeContext().findOrNull(HttpSendOrigin.class);
+		if (origin != null)
+			post.setHeader("Origin", origin);
 
 		RpcRequestHttpEntity httpEntity = new RpcRequestHttpEntity(requestContext, version);
 		post.setEntity(httpEntity);

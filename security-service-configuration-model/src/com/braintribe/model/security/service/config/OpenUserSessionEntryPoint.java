@@ -13,10 +13,12 @@
 // ============================================================================
 package com.braintribe.model.security.service.config;
 
+import java.util.List;
 import java.util.Set;
 
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.annotation.meta.Description;
+import com.braintribe.model.generic.annotation.meta.Mandatory;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
@@ -27,18 +29,29 @@ public interface OpenUserSessionEntryPoint extends GenericEntity {
     EntityType<OpenUserSessionEntryPoint> T = EntityTypes.T(OpenUserSessionEntryPoint.class);
 
     String name = "name";
-    String activationWaypoints = "activationWaypoints";
     String allowedRoles = "allowedRoles";
     String forbiddenRoles = "forbiddenRoles";
+    String sessionCookieName = "sessionCookieName";
+    String sessionCookieHttpOnly = "sessionCookieHttpOnly";
+    String httpActivations = "httpActivations";
 
     @Description("The name of the entry point to be used in direct addressing.")
+    @Mandatory
     String getName();
     void setName(String name);
-
-    @Description("The names of all waypoints that will activate this entry point.")
-    Set<String> getActivationWaypoints();
-    void setActivationWaypoints(Set<String> activationWaypoints);
-
+    
+    @Description("Optional name of the session cookie. If not present it will be derived from the entry point name like: name-session-id.")
+    String getSessionCookieName();
+    void setSessionCookieName(String sessionCookieName);
+    
+    @Description("Enables http only cookies for that entry point")
+    boolean getSessionCookieHttpOnly();
+    void setSessionCookieHttpOnly(boolean sessionCookieHttpOnly);
+    
+    @Description("HTTP header selector that activate this entry point.")
+    List<HttpRequestSelector> getHttpActivations();
+    void setHttpActivations(List<HttpRequestSelector> httpActivations);
+    
     @Description("The roles that are explicitly allowed to access this entry point. "
             + "If this set is not empty, the user must have at least one of these roles. "
             + "Ignored if the user has any role listed in forbiddenRoles.")
@@ -49,4 +62,13 @@ public interface OpenUserSessionEntryPoint extends GenericEntity {
             + "If the user has any of these roles, access is denied, regardless of allowedRoles.")
     Set<String> getForbiddenRoles();
     void setForbiddenRoles(Set<String> forbiddenRoles);
+    
+    default String sessionCookieName() {
+    	String sessionCookieName = getSessionCookieName();
+    	
+    	if (sessionCookieName != null)
+    		return sessionCookieName;
+    	
+    	return getName() + "-session-id";
+    }
 } 

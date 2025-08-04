@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import com.braintribe.common.attribute.AttributeContext;
+import com.braintribe.common.attribute.AttributeContextBuilder;
 import com.braintribe.common.attribute.TypeSafeAttribute;
 import com.braintribe.common.attribute.TypeSafeAttributeEntry;
 import com.braintribe.gm.model.reason.Maybe;
@@ -138,6 +139,11 @@ import com.braintribe.utils.collection.impl.AttributeContexts;
 		final ServiceRequestContextBuilder invocationContextBuilder = ServiceRequestContexts.serviceRequestContext(getParentContext(),
 				effectiveEvaluator);
 
+		Consumer<AttributeContextBuilder> attributesConfigurer = parent.getAttributesConfigurer();
+		
+		if (attributesConfigurer != null)
+			attributesConfigurer.accept(invocationContextBuilder);
+		
 		//@formatter:off
 		streamAttributes()
 			.filter(this::filterAttribute)

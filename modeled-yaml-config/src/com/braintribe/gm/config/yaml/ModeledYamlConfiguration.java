@@ -19,7 +19,6 @@ import static com.braintribe.utils.lcd.StringTools.camelCaseToSocialDistancingCa
 
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -27,6 +26,7 @@ import java.io.UncheckedIOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import com.braintribe.cfg.Configurable;
 import com.braintribe.cfg.Required;
@@ -79,10 +79,16 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	private VirtualEnvironment virtualEnvironment = StandardEnvironment.INSTANCE;
 	private boolean writePooled;
 	private LazyInitialized<Map<String, String>> properties = new LazyInitialized<>(this::loadProperties);
+	private Function<String, String> externalPropertyLookup = n -> null;
 	
 	@Required
 	public void setConfigFolder(File configFolder) {
 		this.configFolder = configFolder;
+	}
+	
+	@Configurable
+	public void setExternalPropertyLookup(Function<String, String> externalPropertyLookup) {
+		this.externalPropertyLookup = externalPropertyLookup;
 	}
 	
 	@Configurable
@@ -128,6 +134,7 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	}
 	
 	public <C extends GenericEntity> Maybe<C> configReasoned(EntityType<C> configType) {
+		// using the lazy initialized here is to avoid to block the map access and to do the actual loading afterwards
 		return (Maybe<C>) configs.computeIfAbsent(configType, k -> new LazyInitialized<>(() -> this.loadConfig(k))).get();
 	}
 	
@@ -142,7 +149,12 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	}
 	
 	private String resolveProperty(String name) {
-		return properties.get().get(name);
+		String value = properties.get().get(name);
+		
+		if (value != null)
+			return value;
+				
+		return externalPropertyLookup.apply(name);
 	}
 	
 	private Map<String, String> loadProperties() {
