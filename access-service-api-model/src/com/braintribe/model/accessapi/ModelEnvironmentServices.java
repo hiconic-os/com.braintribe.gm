@@ -32,7 +32,10 @@ public interface ModelEnvironmentServices extends GenericEntity {
 	String getDataAccessDenotationType();
 	void setDataAccessDenotationType(String dataAccessDenotationType);
 
+	/** @deprecated not used for anything */
+	@Deprecated
 	String getMetaModelAccessId();
+	@Deprecated
 	void setMetaModelAccessId(String metaModelAccessId);
 
 	String getMetaModelName();
