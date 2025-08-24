@@ -112,7 +112,7 @@ public class CompositeServiceProcessor implements ServiceProcessor<CompositeRequ
 		}
 	}
 
-	protected void processParallelized(@SuppressWarnings("unused") ServiceRequestContext requestContext, CompositeRequest compositeRequest, List<ServiceRequest> requests,
+	protected void processParallelized(ServiceRequestContext requestContext, CompositeRequest compositeRequest, List<ServiceRequest> requests,
 			CompositeResponse compositeResult) {
 		
 		int totalRequests = requests.size();

@@ -40,7 +40,7 @@ public class ServiceResults {
 
 		switch (serviceResult.resultType()) {
 		case success: return Maybe.complete((T)serviceResult.asResponse().getResult());
-		case unsatisfied: return serviceResult.asUnsatisfied().toMaby();
+		case unsatisfied: return serviceResult.asUnsatisfied().toMaybe();
 		case failure: 
 			Throwable throwable = decodeFailure(serviceResult.asFailure());
 			if (throwable instanceof RuntimeException) {
