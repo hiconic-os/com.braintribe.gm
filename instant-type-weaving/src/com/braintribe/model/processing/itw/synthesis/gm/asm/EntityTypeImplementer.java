@@ -95,7 +95,7 @@ public class EntityTypeImplementer extends AbstractClassBuilder {
 		mv = b.visitMethod(ACC_PUBLIC, "createRaw", enhancedClass);
 		mv.visitCode();
 
-		// return new ${EnhancedClass}(pai);
+		// return new ${EnhancedClass}(false);
 		mv.visitTypeInsn(NEW, enhancedClass.getInternalName());
 		mv.visitInsn(DUP);
 		mv.visitInsn(ICONST_0);
@@ -113,7 +113,7 @@ public class EntityTypeImplementer extends AbstractClassBuilder {
 		mv = b.visitMethod(ACC_PUBLIC + ACC_BRIDGE + ACC_SYNTHETIC, "createRaw", gcp.genericEntityType);
 		mv.visitCode();
 
-		// return createRaw(pai);
+		// return createRaw();
 		mv.visitVarInsn(ALOAD, 0);
 		invokeMethod(createRawMethod);
 		mv.visitInsn(ARETURN);
