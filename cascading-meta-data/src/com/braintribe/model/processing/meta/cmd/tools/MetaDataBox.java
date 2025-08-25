@@ -22,12 +22,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.braintribe.model.meta.data.MetaData;
 import com.braintribe.model.processing.meta.oracle.QualifiedMetaData;
 import com.braintribe.utils.lcd.CollectionTools2;
 
-/**
- * 
- */
 public class MetaDataBox {
 	public static final MetaDataBox EMPTY_BOX = new MetaDataBox();
 
@@ -38,25 +36,23 @@ public class MetaDataBox {
 		this.normalMetaData = Collections.EMPTY_LIST;
 		this.importantMetaData = Collections.EMPTY_LIST;
 	}
-	
+
 	public MetaDataBox(List<QualifiedMetaData> normalMetaData, List<QualifiedMetaData> importantMetaData) {
-		if (normalMetaData.isEmpty()) {
+		if (normalMetaData.isEmpty())
 			this.normalMetaData = Collections.EMPTY_LIST;
-		} else {
+		else
 			this.normalMetaData = normalMetaData;
-		}
-		if (importantMetaData.isEmpty()) {
+
+		if (importantMetaData.isEmpty())
 			this.importantMetaData = Collections.EMPTY_LIST;
-		} else {
+		else
 			this.importantMetaData = importantMetaData;
-		}
 	}
 
 	public static MetaDataBox forNormalMdOnly(Stream<QualifiedMetaData> mds) {
 		List<QualifiedMetaData> mdList = (List<QualifiedMetaData>) (List<?>) mds.collect(Collectors.toList());
-		if (CollectionTools2.isEmpty(mdList)) {
+		if (CollectionTools2.isEmpty(mdList))
 			return EMPTY_BOX;
-		}
 
 		return new MetaDataBox(mdList, Collections.EMPTY_LIST);
 	}
@@ -64,19 +60,21 @@ public class MetaDataBox {
 	public static MetaDataBox forPrioritizable(Stream<QualifiedMetaData> mds) {
 		List<QualifiedMetaData> mdList = (List<QualifiedMetaData>) (List<?>) mds.collect(Collectors.toList());
 
-		if (CollectionTools2.isEmpty(mdList)) {
+		if (CollectionTools2.isEmpty(mdList))
 			return EMPTY_BOX;
-		}
 
 		List<QualifiedMetaData> normalMd = newList();
 		List<QualifiedMetaData> importantMd = newList();
 
-		for (QualifiedMetaData qmd: mdList) {
-			if (qmd.metaData().getImportant()) {
+		for (QualifiedMetaData qmd : mdList) {
+			MetaData md = qmd.metaData();
+			if (md == null)
+				continue;
+
+			if (md.getImportant())
 				importantMd.add(qmd);
-			} else {
+			else
 				normalMd.add(qmd);
-			}
 		}
 
 		return new MetaDataBox(normalMd, importantMd);

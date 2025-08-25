@@ -32,6 +32,7 @@ import com.braintribe.model.meta.data.ModelMetaData;
 import com.braintribe.model.meta.data.PropertyMetaData;
 import com.braintribe.model.meta.info.GmEntityTypeInfo;
 import com.braintribe.model.meta.info.GmEnumConstantInfo;
+import com.braintribe.model.meta.info.GmEnumTypeInfo;
 import com.braintribe.model.meta.info.GmPropertyInfo;
 import com.braintribe.model.processing.index.ConcurrentCachedIndex;
 import com.braintribe.model.processing.meta.cmd.CascadingMetaDataException;
@@ -47,30 +48,26 @@ import com.braintribe.model.processing.meta.oracle.QualifiedMetaData;
 import com.braintribe.model.processing.meta.oracle.TypeHierarchy.Order;
 
 /**
- * A structure containing model meta-data indexed according to it's type, ignoring any meta-data from super-types (see
- * not at the bottom of this javadoc).
+ * A structure containing model meta-data indexed according to it's type, ignoring any meta-data from super-types (see not at the bottom of this
+ * javadoc).
  * <p>
- * Naming convention: There are two types on indices, ones that map to GM objects like entities and properties, and ones
- * that map to {@link MetaData} of these objects. The letter always contain the "Md" as part of their name, e.g.
- * {@link EntityMdIndex}.
+ * Naming convention: There are two types on indices, ones that map to GM objects like entities and properties, and ones that map to {@link MetaData}
+ * of these objects. The letter always contain the "Md" as part of their name, e.g. {@link EntityMdIndex}.
  * <p>
- * Structure: Top class is {@link ModelMdIndex}, which not only maps to {@link ModelMetaData}, but also to entities and
- * enums of the model.
+ * Structure: Top class is {@link ModelMdIndex}, which not only maps to {@link ModelMetaData}, but also to entities and enums of the model.
  * <p>
- * {@link EntityIndex} is index of all entities of the model. For given type signature returns the {@link EntityMdIndex}
- * - an index for {@link EntityTypeMetaData} of given entity. This {@linkplain EntityMdIndex} also maps to
- * {@linkplain PropertyIndex}.
+ * {@link EntityIndex} is index of all entities of the model. For given type signature returns the {@link EntityMdIndex} - an index for
+ * {@link EntityTypeMetaData} of given entity. This {@linkplain EntityMdIndex} also maps to {@linkplain PropertyIndex}.
  * <p>
- * {@link EnumIndex} is index of all enums of the model. For given type signature returns the {@link EnumMdIndex} - an
- * index for {@link EnumTypeMetaData} of given enum.
+ * {@link EnumIndex} is index of all enums of the model. For given type signature returns the {@link EnumMdIndex} - an index for
+ * {@link EnumTypeMetaData} of given enum.
  * <p>
- * {@link PropertyIndex} is index of all properties of given entity. For given property name returns the
- * {@link PropertyMdIndex} - an index for {@link PropertyMetaData} corresponding to given property.
+ * {@link PropertyIndex} is index of all properties of given entity. For given property name returns the {@link PropertyMdIndex} - an index for
+ * {@link PropertyMetaData} corresponding to given property.
  * <p>
- * Note that all of the MD indices correspond 1:1 to what the {@linkplain MetaData} was defined in the model, i.e. there
- * is no merging with supertypes done here. This only serves as an access to the various {@linkplain MetaData} (although
- * some minor optimization is being done here - removing some obviously inactive {@linkplain MetaData}). To see the
- * "real" cache for meta data check {@link ModelMdAggregator} .
+ * Note that all of the MD indices correspond 1:1 to what the {@linkplain MetaData} was defined in the model, i.e. there is no merging with supertypes
+ * done here. This only serves as an access to the various {@linkplain MetaData} (although some minor optimization is being done here - removing some
+ * obviously inactive {@linkplain MetaData}). To see the "real" cache for meta data check {@link ModelMdAggregator} .
  */
 public class MetaDataIndexStructure {
 
@@ -80,6 +77,8 @@ public class MetaDataIndexStructure {
 
 	public static abstract class MdIndex extends ConcurrentCachedIndex<MetaDataIndexKey, MetaDataBox> {
 		protected ResolutionContext resolutionContext;
+
+		private volatile MetaDataBox allMd;
 
 		MdIndex(ResolutionContext resolutionContext) {
 			this.resolutionContext = resolutionContext;
@@ -91,21 +90,29 @@ public class MetaDataIndexStructure {
 
 		@Override
 		protected MetaDataBox provideValueFor(MetaDataIndexKey indexKey) {
-			MetaDataBox allMetaData = getAllMetaData();
+			loadAllMd();
 
-			if (allMetaData == null) {
-				return MetaDataBox.EMPTY_BOX;
-			}
+			if (allMd == MetaDataBox.EMPTY_BOX)
+				return allMd;
 
 			if (indexKey.inheritableOnly()) {
 				return filterInheritableOnly(acquireMetaData(indexKey.indexKeyForAll()));
 
 			} else {
-				List<QualifiedMetaData> normalMetaData = filterMdByTypeAndStaticSelector(allMetaData.normalMetaData, indexKey);
-				List<QualifiedMetaData> importantMetaData = filterMdByTypeAndStaticSelector(allMetaData.importantMetaData, indexKey);
+				List<QualifiedMetaData> normalMetaData = filterMdByTypeAndStaticSelector(allMd.normalMetaData, indexKey);
+				List<QualifiedMetaData> importantMetaData = filterMdByTypeAndStaticSelector(allMd.importantMetaData, indexKey);
 
 				return new MetaDataBox(normalMetaData, importantMetaData);
 			}
+		}
+
+		private void loadAllMd() {
+			if (allMd != null)
+				return;
+
+			allMd = getAllMetaData();
+			if (allMd == null)
+				allMd = MetaDataBox.EMPTY_BOX;
 		}
 
 		private List<QualifiedMetaData> filterMdByTypeAndStaticSelector(List<QualifiedMetaData> metaData, MetaDataIndexKey indexKey) {
@@ -123,13 +130,11 @@ public class MetaDataIndexStructure {
 			List<QualifiedMetaData> filteredMd = newList();
 			boolean areSame = true;
 
-			for (QualifiedMetaData qmd : allMd) {
-				if (qmd.metaData().getInherited()) {
+			for (QualifiedMetaData qmd : allMd)
+				if (qmd.metaData().getInherited())
 					filteredMd.add(qmd);
-				} else {
+				else
 					areSame = false;
-				}
-			}
 
 			return areSame ? allMd : filteredMd;
 		}
@@ -216,7 +221,7 @@ public class MetaDataIndexStructure {
 		}
 	}
 
-	/** Index: for {@link MetaData} of {@link GmEntityTypeInfo}. */
+	/** Index: for {@link MetaData} of {@link GmEnumTypeInfo}. */
 	public static class EnumMdIndex extends MdIndex {
 		public final ModelMdIndex modelMdIndex;
 		public final EnumTypeOracle enumOracle;
