@@ -42,25 +42,27 @@ limitations under the License.
             <groupId>com.braintribe.gm</groupId>
             <artifactId>root-model</artifactId>
             <version>${V.com.braintribe.gm}</version>
-            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>messaging-api</artifactId>
+            <version>${V.com.braintribe.gm}</version>
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
             <artifactId>messaging-model</artifactId>
             <version>${V.com.braintribe.gm}</version>
-            <scope>compile</scope>
         </dependency>
+        <!-- This is not needed, remove once Messaging interface is removed (it's deprecated now') -->
         <dependency>
             <groupId>com.braintribe.gm</groupId>
             <artifactId>messaging-expert-model</artifactId>
             <version>${V.com.braintribe.gm}</version>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
             <artifactId>marshaller-api</artifactId>
             <version>${V.com.braintribe.gm}</version>
-            <scope>compile</scope>
         </dependency>
     </dependencies>
 </project>

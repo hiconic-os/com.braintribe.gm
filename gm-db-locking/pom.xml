@@ -50,7 +50,7 @@ limitations under the License.
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
-            <artifactId>gm-messaging-api</artifactId>
+            <artifactId>messaging-api</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
         <dependency>
