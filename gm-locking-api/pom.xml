@@ -35,11 +35,6 @@ limitations under the License.
     <dependencies>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
-            <artifactId>time-model</artifactId>
-            <version>${V.com.braintribe.gm}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.braintribe.gm</groupId>
             <artifactId>gm-session-api</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
