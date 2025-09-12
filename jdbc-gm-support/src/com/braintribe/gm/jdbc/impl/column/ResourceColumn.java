@@ -27,6 +27,7 @@ import java.sql.Blob;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -57,7 +58,7 @@ public class ResourceColumn extends MultiGmColumn<Resource> {
 	private final int maxChars;
 	private final StreamPipeFactory streamPipeFactory;
 
-	private final Map<PreparedStatement, InputStream> openStreams = new WeakHashMap<>();
+	private final Map<PreparedStatement, InputStream> openStreams = Collections.synchronizedMap(new WeakHashMap<>());
 
 	public ResourceColumn(String name, JdbcDialect dialect, int maxChars, StreamPipeFactory streamPipeFactory) {
 		super(name);

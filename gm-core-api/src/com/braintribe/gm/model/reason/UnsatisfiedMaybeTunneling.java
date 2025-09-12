@@ -25,7 +25,7 @@ package com.braintribe.gm.model.reason;
 public class UnsatisfiedMaybeTunneling extends RuntimeException {
 
 	private static final long serialVersionUID = 1L;
-	private Maybe<?> maybe;
+	private final Maybe<?> maybe;
 
 	/**
 	 * Constructs a ReasonException with no stacktrace.
@@ -51,5 +51,9 @@ public class UnsatisfiedMaybeTunneling extends RuntimeException {
 		
 		return maybe.get();
 	}
-	
+
+	public static <T> T tunnel(Reason reason) {
+		throw new UnsatisfiedMaybeTunneling(reason.asMaybe());
+	}
+
 }

@@ -30,6 +30,14 @@ import java.util.stream.Stream;
  */
 public interface GmColumn<T> {
 
+	/**
+	 * The name given to this column when creating it via {@link GmDb} methods such as {@link GmDb#shortString255(String)}.
+	 * <p>
+	 * This is called "gmName" because the underlying name of the column in the SQL DB might be different, especially in cases where a single GmColumn
+	 * is backed by multiple DB columns.
+	 * 
+	 * @see #getSqlColumns()
+	 */
 	String getGmName();
 
 	boolean isPrimaryKey();
@@ -74,6 +82,7 @@ public interface GmColumn<T> {
 
 	void bindParameter(PreparedStatement statement, int index, T value);
 
+	/** Cleans up resources after a statement has been executed */
 	void afterStatementExecuted(PreparedStatement statement);
 
 	// Convenience
