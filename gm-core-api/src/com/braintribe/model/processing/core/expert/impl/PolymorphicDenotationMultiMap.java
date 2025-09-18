@@ -108,14 +108,14 @@ public class PolymorphicDenotationMultiMap<B extends GenericEntity, V> implement
 	}
 
 	// @formatter:off
-	@Override public <T extends V> T get(B denotation) { return get(denotation.entityType()); }
-	@Override public <T extends V> T find(B denotation) { return find(denotation.entityType()); }
+	@Override public <T extends V> T get(B denotation) { return this.<T> get(denotation.entityType()); }
+	@Override public <T extends V> T find(B denotation) { return this.<T> find(denotation.entityType()); }
 	@Override public <T extends V> List<T> findAll(B denotation) { return findAll(denotation.entityType()); }
 	// @formatter:on
 
 	@Override
 	public <T extends V> T get(EntityType<? extends B> denotationType) {
-		T result = find(denotationType);
+		T result = this.<T> find(denotationType);
 		if (result == null)
 			throw new NoSuchElementException("No value found for denotation type: " + denotationType.getTypeSignature());
 

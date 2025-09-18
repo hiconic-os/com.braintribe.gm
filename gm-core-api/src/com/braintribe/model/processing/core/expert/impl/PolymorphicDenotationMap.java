@@ -95,7 +95,7 @@ public class PolymorphicDenotationMap<B extends GenericEntity, V> implements Mut
 
 	@Override
 	public <T extends V> T get(EntityType<? extends B> denotationType) {
-		T result = find(denotationType);
+		T result = this.<T> find(denotationType);
 		if (result == null)
 			throw new NoSuchElementException("No value found for denotation type: " + denotationType.getTypeSignature());
 
@@ -132,12 +132,12 @@ public class PolymorphicDenotationMap<B extends GenericEntity, V> implements Mut
 
 	@Override
 	public <T extends V> T get(B denotation) {
-		return get(denotation.entityType());
+		return this.<T> get(denotation.entityType());
 	}
 
 	@Override
 	public <T extends V> T find(B denotation) {
-		return find(denotation.entityType());
+		return this.<T> find(denotation.entityType());
 	}
 
 	@Override
