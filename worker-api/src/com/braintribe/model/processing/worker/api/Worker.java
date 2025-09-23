@@ -15,20 +15,21 @@
 // ============================================================================
 package com.braintribe.model.processing.worker.api;
 
+import java.util.concurrent.Callable;
+
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.value.PreliminaryEntityReference;
 
+/**
+ * Worker represents a component than can submit tasks for execution.
+ * <p>
+ * Its activity is controlled by the framework via the {@link #start(WorkerContext)} and {@link #stop(WorkerContext)} methods, by which it also gets
+ * hold of a {@link WorkerContext}. While it is active, it can submit individual tasks via this context, by invoking
+ * {@link WorkerContext#submit(Callable)} (or {@link WorkerContext#submit(Runnable)}).
+ */
 public interface Worker {
 
-	/**
-	 * Start the work. This method must return immediately (hence, it must not block). This can be achieved by either forking a separate thread (via
-	 * the worker context) or start an asynchronous processing by other means.
-	 * 
-	 * @param workerContext
-	 *            The context that the worker is allowed to use to either access a session or start separate threads,
-	 * @throws WorkerException
-	 *             Thrown in the event of an error.
-	 */
+	/** Start the work. This method must return immediately (hence, it must not block).	 */
 	void start(WorkerContext workerContext) throws WorkerException;
 
 	/**
@@ -45,12 +46,13 @@ public interface Worker {
 	 */
 	default GenericEntity getWorkerIdentification() {
 		if (isSingleton())
-			throw new UnsupportedOperationException("'getWorkerIdentification()' must be implemented explicitly for singleton workers! Worker: " + this);
+			throw new UnsupportedOperationException(
+					"'getWorkerIdentification()' must be implemented explicitly for singleton workers! Worker: " + this);
 
 		// TODO this used to be HardwiredWorker, but that is no tf.cortex.
 		PreliminaryEntityReference ref = PreliminaryEntityReference.T.create();
 		ref.setId(getClass().getName() + "-defaultId");
-		
+
 		return ref;
 	}
 

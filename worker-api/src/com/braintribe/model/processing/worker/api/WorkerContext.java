@@ -24,6 +24,11 @@ import com.braintribe.model.usersession.UserSession;
 public interface WorkerContext {
 	Future<?> submit(Runnable runnable);
 	<T> Future<T> submit(Callable<T> callable);
+
+	/**@deprecated A worker should be wired with everything it needs, not get these two random dependencies via WorkerContext. */
+	@Deprecated
 	UserSession getSystemUserSession() throws WorkerException;
+	/**@deprecated A worker should be wired with everything it needs, not get these two random dependencies via WorkerContext. */
+	@Deprecated
 	UserSessionScoping getUserSessionScoping();
 }
