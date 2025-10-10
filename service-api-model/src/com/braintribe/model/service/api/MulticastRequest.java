@@ -32,33 +32,41 @@ public interface MulticastRequest extends AuthorizedRequest, NonInterceptableReq
 	EntityType<MulticastRequest> T = EntityTypes.T(MulticastRequest.class);
 
 	/**
-	 * This property allows to create a wildcarded filter to which node/application the request should be addressed.
+	 * Address of the nodes/applications the request should be addressed.
+	 * <p>
+	 * Both {@link InstanceId#getApplicationId() applicationId} and {@link InstanceId#getNodeId() nodeId} can be <code>null</code>, which is
+	 * interpreted as "any".
 	 */
 	InstanceId getAddressee();
 	void setAddressee(InstanceId addressee);
 
-	/**
-	 * This property holds the information who was sending the request. It will be automatically filled in by the evaluation framework
-	 */
+	/** {@link InstanceId} of the sender. It is automatically filled in by the evaluation framework */
 	InstanceId getSender();
 	void setSender(InstanceId sender);
 
 	/**
-	 * The amount of milliseconds to wait for the expected amount of answers
+	 * The amount of milliseconds to wait for the expected amount of answers.
+	 * <p>
+	 * Overrides the default timeout configured on the (multicast) processor.
+	 * <p>
+	 * A processor is expected to know the number of nodes in the cluster, and when it sends a request, it waits until all the responses are sent back
+	 * (see {@link MulticastResponse}) or until it times out, in which case it returns with the results it has gotten so far.
+	 * <p>
+	 * There is no indicator on {@link MulticastResponse} that this waiting timed out :(.
 	 */
 	Long getTimeout();
 	void setTimeout(Long timeout);
 
 	/**
-	 * This flag controls if the multicast is to be evaluated asynchronously which means that there is no waiting for the results.
-	 * 
-	 * @deprecated wrap your {@link MulticastRequest} in an {@link AsynchronousRequest} or use
-	 *             {@link EvalContext#get(com.braintribe.processing.async.api.AsyncCallback)} instead
+	 * If <tt>true</tt>, the nested {@link #getServiceRequest() request} will only be broadcasted and no response will be sent back, thus sparing
+	 * resources.
+	 * <p>
+	 * Typically, the (multicast) processor waits for the answers from all the known nodes (up to a set {@link #getTimeout() timeout}), and returns a
+	 * {@link MulticastResponse} with all the collected results.
+	 * <p>
+	 * For asynchronous multicast requests, it broadcasts the nested request and immediately returns <tt>null</tt>, without waiting for any response.
 	 */
-	@Deprecated
 	boolean getAsynchronous();
-	/** @deprecated see {@link #getAsynchronous()} */
-	@Deprecated
 	void setAsynchronous(boolean value);
 
 	@Override
