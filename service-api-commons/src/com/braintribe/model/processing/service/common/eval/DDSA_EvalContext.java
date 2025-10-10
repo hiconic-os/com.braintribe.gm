@@ -179,8 +179,8 @@ import com.braintribe.utils.collection.impl.AttributeContexts;
 			try {
 				T result = processNormalized(context);
 				targetCallback.onSuccess(result);
-			} catch (Exception e) {
-				targetCallback.onFailure(e);
+			} catch (Throwable t) {
+				targetCallback.onFailure(t);
 			} finally {
 				AttributeContexts.pop();
 			}
