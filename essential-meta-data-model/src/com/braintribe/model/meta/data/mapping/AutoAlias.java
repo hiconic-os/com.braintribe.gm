@@ -1,6 +1,4 @@
 // ============================================================================
-// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -16,33 +14,30 @@
 package com.braintribe.model.meta.data.mapping;
 
 import com.braintribe.model.descriptive.HasName;
-import com.braintribe.model.generic.annotation.Initializer;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 import com.braintribe.model.meta.data.ModelSkeletonCompatible;
 import com.braintribe.model.meta.data.UniversalMetaData;
-import com.braintribe.model.meta.data.prompt.Name;
 
 /**
- * This metadata allows to give entity types, property names, enum types and enum constants alternative names. This is to be distinguished to the
- * {@link Name} metadata which is an exclusive metadata while the Alias is a multi metadata.
- * 
- * @author Dirk Scheffler
+ * Similar to {@link Alias}, but the new name is derived based on {@link #getCasing() casing} and {@link #getSeparator() separator}.
  */
-public interface Alias extends UniversalMetaData, HasName, ModelSkeletonCompatible {
+public interface AutoAlias extends UniversalMetaData, HasName, ModelSkeletonCompatible {
 
-	EntityType<Alias> T = EntityTypes.T(Alias.class);
+	EntityType<AutoAlias> T = EntityTypes.T(AutoAlias.class);
 
-	@Override
-	@Initializer("true")
-	boolean getInherited();
+	WordCasing getCasing();
+	void setCasing(WordCasing casing);
 
-	default Alias name(String name) {
+	WordSeparator getSeparator();
+	void setSeparator(WordSeparator separator);
+
+	default AutoAlias name(String name) {
 		setName(name);
 		return this;
 	}
 
-	static Alias create(String name) {
+	static AutoAlias create(String name) {
 		return T.create().name(name);
 	}
 }
