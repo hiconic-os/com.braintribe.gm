@@ -187,7 +187,11 @@ public abstract class TypeBuilder implements Opcodes {
 			value = Type.getObjectType(AsmUtils.toInternalName(castedValue.className));
 		}
 
-		av1.visit(name, value);
+		if (value instanceof Enum)
+			// e.g. av1.visitEnum("enumFiled", "Lfoo/pckg/MyClass;", "constantName");
+			av1.visitEnum(name, AsmUtils.toInternalNameLonger(value.getClass().getName()), ((Enum<?>) value).name());
+		else
+			av1.visit(name, value);
 	}
 
 	protected void visitSource(String fileName) {

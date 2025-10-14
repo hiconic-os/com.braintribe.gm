@@ -30,11 +30,25 @@ public interface HasCustomMdProperties extends GenericEntity {
 	String getPredicate();
 	void setPredicate(String predicate);
 
-	@CustomMd_Annotation(42)
-	String getMd();
-	void setMd(String md);
+	@CustomMd_Annotation( //
+			value = 182, //
+			inherited = false, //
+			important = true, //
+			name = "CUSTOM_NAME", //
+			customEnum = CustomMdEnum.bbb, //
+			customEnumList = { CustomMdEnum.aaa, CustomMdEnum.bbb }, //
+			customEnumSet = { CustomMdEnum.aaa, CustomMdEnum.ccc } //
+	)
+	String getCustomMd();
+	void setCustomMd(String customMd);
 
-	@CustomMd_Annotation(value = 182, name = "CUSTOM_NAME")
-	String getMdWithName();
-	void setMdWithName(String mdWithName);
+	@CustomRepeatableMd_Annotation("one")
+	String getSingleRepeatableMd();
+	void setSingleRepeatableMd(String singleRepeatableMd);
+
+	@CustomRepeatableMd_Annotation("one")
+	@CustomRepeatableMd_Annotation("two")
+	String getTwoRepeatableMds();
+	void setTwoRepeatableMds(String twoRepeatableMds);
+
 }

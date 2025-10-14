@@ -27,6 +27,10 @@ public interface MetaData extends GenericEntity {
 
 	EntityType<MetaData> T = EntityTypes.T(MetaData.class);
 
+	String conflictPriority = "conflictPriority";
+	String inherited = "inherited";
+	String important = "important";
+
 	MetaDataSelector getSelector();
 	void setSelector(MetaDataSelector selector);
 

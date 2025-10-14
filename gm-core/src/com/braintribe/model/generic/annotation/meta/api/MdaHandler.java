@@ -16,38 +16,61 @@
 package com.braintribe.model.generic.annotation.meta.api;
 
 import java.lang.annotation.Annotation;
+import java.lang.annotation.Repeatable;
 import java.util.Collections;
 import java.util.List;
 
 import com.braintribe.model.generic.GMF;
+import com.braintribe.model.generic.annotation.meta.Alias;
+import com.braintribe.model.generic.annotation.meta.Aliases;
+import com.braintribe.model.generic.annotation.meta.Description;
+import com.braintribe.model.generic.annotation.meta.Mandatory;
+import com.braintribe.model.generic.annotation.meta.Name;
 import com.braintribe.model.generic.annotation.meta.api.analysis.MdaAnalysisContext;
 import com.braintribe.model.generic.annotation.meta.api.synthesis.MdaSynthesisContext;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.meta.data.MetaData;
-import com.braintribe.model.meta.data.Predicate;
 
 /**
- * MdaHandler is responsible for converting an annotation of type A into one or more MD.
+ * MdaHandler is responsible for converting annotations of type A into one or more MD (and back, when generating bytecode or source code).
  * <p>
  * IMPLEMENTATION NOTE: From the outside (JTA) only the {@link #buildMdList} is called, but it has a default implementation that delegates to
  * {@link #buildMd} so overriding either of these two methods is fine.
  * 
- * <h2>Registering custom handlers</h2
+ * <h2>Registering custom handlers</h2>
  * 
- * Custom handlers can be registered by adding a text file on path "META-INF/gmf.mda" to your classpath.
+ * Custom handlers can be registered by adding a text file on path <b><i>{@value CustomMdaHandlerLoader#MDA_LOCATION}</i></b> to your classpath.
  * <p>
  * Ideally put this file in the model that declares both the Annotation type and MetaData type you are declaring.
  * <p>
- * The file contains one line per annotation, each line consisting of comma separated values, and the first two values are fully qualified class names
- * of the annotation and the meta-data type, respective.
- * <p>
- * For {@link Predicate} meta data there is nothing to add, so an entry for a custom MdaHandler for Predicate MD could look like this:
+ * The file contains one line per annotation, each line consisting of comma separated values. The first two values are fully qualified class names of
+ * the annotation and the meta-data type, respectively, optionally followed by a sequence of pairs [annotation attribute name, property name]. For
+ * example:
  * 
  * <pre>
- * some.pack.anno.AnnotationForMdClass,some.pack.model.MdType
+ * my.pckg.anno.@MyPredicateMdAnnotation,my.pack.model.MyPredicateMdType
+ * my.pckg.anno.@MyMdAnnotation,my.pack.model.MyMdType,value,name,optionalValue,optionalValue
  * </pre>
  * 
- * Support for more complex MD will be added later.
+ * <h3>Special considerations</h3>
+ * 
+ * <h4>GlobalId</h4>
+ * 
+ * Every annotation must have an attribute globaId, which ideally defaults to an empty string - see e.g. {@link Mandatory#globalId()}.<br>
+ * Consider this legacy, we will remove this constraints once we get rid of Cortex.
+ * 
+ * <h4>Common properties: "important" and "inherited"</h4>
+ * 
+ * These properties don't require a mapping entry, if the annotation has an attribute {@code boolean important()} or {@code boolean inherited()}, it
+ * is automatically mapped to the corresponding MD property.
+ * 
+ * <h4>Repeatable annotations</h4>
+ * 
+ * {@link Repeatable} annotations are supported automatically by the framework and no extra mapping entry is required for the "aggregator" annotation.
+ * For example, we would only have an entry for {@link Alias}, but none for {@link Aliases}.
+ * <p>
+ * This, however, results in multiple MD instances being added for the corresponding element. If we however wanted to merge multiple annotations into
+ * a single MD, like we are doing for {@link Name} and {@link Description} - one annotation for one locale - this is currently not supported.
  * 
  * @see RepeatableMdaHandler
  * 

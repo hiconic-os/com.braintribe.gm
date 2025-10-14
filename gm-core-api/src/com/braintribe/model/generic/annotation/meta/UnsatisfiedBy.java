@@ -17,7 +17,6 @@ package com.braintribe.model.generic.annotation.meta;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
-import java.lang.annotation.Inherited;
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -27,7 +26,6 @@ import com.braintribe.gm.model.reason.Reason;
 
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-@Inherited
 @Documented
 @Repeatable(UnsatisfiedBys.class)
 public @interface UnsatisfiedBy {

@@ -24,25 +24,28 @@ import com.braintribe.model.generic.annotation.meta.api.analysis.MdaAnalysisCont
 import com.braintribe.model.generic.annotation.meta.api.synthesis.MdaSynthesisContext;
 import com.braintribe.model.meta.data.MetaData;
 
+/**
+ * Straight forward implementation of {@link RepeatableAggregatorMdaHandler}
+ */
 public class BasicRepeatableAggregatorMdaHandler<RA extends Annotation, M extends MetaData> implements RepeatableAggregatorMdaHandler<RA, M> {
 
-	private final Class<RA> annotationClass;
+	private final Class<RA> repeatableAnnotationClass;
 	private final Class<M> metaDataClass;
 	private final BiFunction<RA, MdaAnalysisContext, List<M>> mdListBuilder;
 
 	public BasicRepeatableAggregatorMdaHandler( //
-			Class<RA> annotationClass, //
+			Class<RA> repeatableAnnotationClass, //
 			Class<M> metaDataClass, //
 			BiFunction<RA, MdaAnalysisContext, List<M>> mdListBuilder) {
 
-		this.annotationClass = annotationClass;
+		this.repeatableAnnotationClass = repeatableAnnotationClass;
 		this.metaDataClass = metaDataClass;
 		this.mdListBuilder = mdListBuilder;
 	}
 
 	@Override
 	public Class<RA> annotationClass() {
-		return annotationClass;
+		return repeatableAnnotationClass;
 	}
 
 	@Override
@@ -57,7 +60,7 @@ public class BasicRepeatableAggregatorMdaHandler<RA extends Annotation, M extend
 
 	@Override
 	public void buildAnnotation(MdaSynthesisContext context, M metaData) {
-		throw new UnsupportedOperationException("This method should not be invoked for the repeatabe-aggregator type: " + annotationClass.getName());
+		throw new UnsupportedOperationException("This method should not be invoked for the repeatabe-aggregator type: " + repeatableAnnotationClass.getName());
 	}
 
 }

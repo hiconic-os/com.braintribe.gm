@@ -21,7 +21,9 @@ import static com.braintribe.utils.lcd.CollectionTools2.first;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.lang.annotation.Annotation;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.junit.Test;
 
@@ -36,9 +38,13 @@ import com.braintribe.model.meta.data.Predicate;
 import com.braintribe.model.processing.ImportantItwTestSuperType;
 import com.braintribe.model.processing.itw.analysis.JavaTypeAnalysis;
 import com.braintribe.model.processing.test.itw.entity.annotation.CustomMd;
+import com.braintribe.model.processing.test.itw.entity.annotation.CustomMdEnum;
 import com.braintribe.model.processing.test.itw.entity.annotation.CustomMd_Annotation;
 import com.braintribe.model.processing.test.itw.entity.annotation.CustomPredicate;
 import com.braintribe.model.processing.test.itw.entity.annotation.CustomPredicate_Annotation;
+import com.braintribe.model.processing.test.itw.entity.annotation.CustomRepeatableMd;
+import com.braintribe.model.processing.test.itw.entity.annotation.CustomRepeatableMd_Annotation;
+import com.braintribe.model.processing.test.itw.entity.annotation.CustomRepeatableMd_Annotations;
 import com.braintribe.model.processing.test.itw.entity.annotation.HasCustomMdProperties;
 
 /**
@@ -59,6 +65,8 @@ public class CustomMdAnnotationTests extends ImportantItwTestSuperType {
 	public void customMd() {
 		assertMdaRegistry(CustomPredicate_Annotation.class, CustomPredicate.T);
 		assertMdaRegistry(CustomMd_Annotation.class, CustomMd.T);
+		assertMdaRegistry(CustomRepeatableMd_Annotation.class, CustomRepeatableMd.T);
+		assertMdaRegistry(CustomRepeatableMd_Annotations.class, CustomRepeatableMd.T);
 
 		{
 			CustomPredicate md = assertMdaUsedInJta("predicate", CustomPredicate.T);
@@ -66,16 +74,31 @@ public class CustomMdAnnotationTests extends ImportantItwTestSuperType {
 		}
 
 		{
-			CustomMd md = assertMdaUsedInJta("md", CustomMd.T);
-			assertThat(md.getLength()).isEqualTo(42);
-			assertThat(md.getName()).isEqualTo("DEFAULT_NAME");
+			CustomMd md = assertMdaUsedInJta("customMd", CustomMd.T);
+			assertThat(md.getInherited()).isFalse();
+			assertThat(md.getImportant()).isTrue();
+			assertThat(md.getLength()).isEqualTo(182);
+			assertThat(md.getName()).isEqualTo("CUSTOM_NAME");
+			assertThat(md.getCustomEnum()).isEqualTo(CustomMdEnum.bbb);
+			assertThat(md.getCustomEnumList()).containsExactly(CustomMdEnum.aaa, CustomMdEnum.bbb);
+			assertThat(md.getCustomEnumSet()).containsExactly(CustomMdEnum.aaa, CustomMdEnum.ccc);
 		}
 
 		{
-			CustomMd md = assertMdaUsedInJta("mdWithName", CustomMd.T);
-			assertThat(md.getLength()).isEqualTo(182);
-			assertThat(md.getName()).isEqualTo("CUSTOM_NAME");
+			List<CustomRepeatableMd> list = findAllMdsOnProp("singleRepeatableMd", CustomRepeatableMd.T);
+			assertThat(list).hasSize(1);
+
+			assertThat(list.get(0).getValue()).isEqualTo("one");
 		}
+
+		{
+			List<CustomRepeatableMd> list = findAllMdsOnProp("twoRepeatableMds", CustomRepeatableMd.T);
+			assertThat(list).hasSize(2);
+
+			assertThat(list.get(0).getValue()).isEqualTo("one");
+			assertThat(list.get(1).getValue()).isEqualTo("two");
+		}
+
 	}
 
 	private void assertMdaRegistry(Class<? extends Annotation> annoClass, EntityType<?> mdType) {
@@ -89,18 +112,30 @@ public class CustomMdAnnotationTests extends ImportantItwTestSuperType {
 	}
 
 	private <MD extends MetaData> MD assertMdaUsedInJta(String propertyName, EntityType<MD> mdType) {
-		GmProperty joke = gmType.getProperties().stream() //
+		GmProperty prop = gmType.getProperties().stream() //
 				.filter(p -> p.getName().equals(propertyName)) //
 				.findFirst() //
 				.get();
 
-		Set<MetaData> mds = joke.getMetaData();
+		Set<MetaData> mds = prop.getMetaData();
 		assertThat(mds).hasSize(1);
 
 		MetaData md = first(mds);
 		assertEntity(md).isInstanceOf(mdType);
 
 		return (MD) md;
+	}
+
+	private <MD extends MetaData> List<MD> findAllMdsOnProp(String propertyName, EntityType<MD> mdType) {
+		GmProperty prop = gmType.getProperties().stream() //
+				.filter(p -> p.getName().equals(propertyName)) //
+				.findFirst() //
+				.get();
+
+		return prop.getMetaData().stream() //
+				.filter(mdType::isInstance) //
+				.map(md -> (MD) md) //
+				.collect(Collectors.toList());
 	}
 
 }

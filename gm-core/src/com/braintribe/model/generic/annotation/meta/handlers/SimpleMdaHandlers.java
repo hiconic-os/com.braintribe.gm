@@ -128,7 +128,8 @@ public class SimpleMdaHandlers {
 			SimpleMdaHandlers::copyFileNameMdProps);
 
 	@SuppressWarnings("unused")
-	private static void copyFileNameAnnoProps(MdaAnalysisContext context, FileName annotation, com.braintribe.model.meta.data.constraint.FileName metaData) {
+	private static void copyFileNameAnnoProps(MdaAnalysisContext context, FileName annotation,
+			com.braintribe.model.meta.data.constraint.FileName metaData) {
 		metaData.setMustExist(annotation.mustExist());
 	}
 
@@ -148,7 +149,8 @@ public class SimpleMdaHandlers {
 			SimpleMdaHandlers::copyFolderNameMdProps);
 
 	@SuppressWarnings("unused")
-	private static void copyFolderNameAnnoProps(MdaAnalysisContext context, FolderName annotation, com.braintribe.model.meta.data.constraint.FolderName metaData) {
+	private static void copyFolderNameAnnoProps(MdaAnalysisContext context, FolderName annotation,
+			com.braintribe.model.meta.data.constraint.FolderName metaData) {
 		metaData.setMustExist(annotation.mustExist());
 	}
 
@@ -172,8 +174,8 @@ public class SimpleMdaHandlers {
 		metaData.setIndexType(toIndexType(annotation.type()));
 	}
 
-	private static IndexType toIndexType(IndexClass type) {
-		switch (type) {
+	private static IndexType toIndexType(IndexClass indexClass) {
+		switch (indexClass) {
 			case auto:
 				return IndexType.auto;
 			case lookup:
@@ -183,18 +185,32 @@ public class SimpleMdaHandlers {
 			case none:
 				return IndexType.none;
 			default:
-				throw new UnknownEnumException(type);
+				throw new UnknownEnumException(indexClass);
 		}
 	}
 
 	@SuppressWarnings("unused")
 	private static void copyIndexMdProps(MdaSynthesisContext context, SingleAnnotationDescriptor descriptor, Index md) {
-		descriptor.addAnnotationValue("type", indexType(md).name());
+		descriptor.addAnnotationValue("type", indexClass(md));
 	}
 
-	private static IndexType indexType(Index md) {
+	private static IndexClass indexClass(Index md) {
 		IndexType indexType = md.getIndexType();
-		return indexType == null ? IndexType.auto : indexType;
+		if (indexType == null)
+			return IndexClass.auto;
+
+		switch (indexType) {
+			case auto:
+				return IndexClass.auto;
+			case lookup:
+				return IndexClass.lookup;
+			case metric:
+				return IndexClass.metric;
+			case none:
+				return IndexClass.none;
+			default:
+				throw new UnknownEnumException(indexType);
+		}
 	}
 
 	// ###############################################

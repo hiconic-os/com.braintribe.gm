@@ -1,6 +1,4 @@
 // ============================================================================
-// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -23,7 +21,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation for {@link CustomPredicate} meta-data.
+ * Annotation for {@link CustomMd} meta-data.
  * 
  * @author peter.gazdik
  */
@@ -33,7 +31,12 @@ import java.lang.annotation.Target;
 @Documented
 public @interface CustomMd_Annotation {
 	String globalId() default "";
+	boolean inherited() default true;
+	boolean important() default false;
+
 	long value();
 	String name() default "DEFAULT_NAME";
-
+	CustomMdEnum customEnum() default CustomMdEnum.aaa;
+	CustomMdEnum[] customEnumList() default {};
+	CustomMdEnum[] customEnumSet() default {};
 }

@@ -91,7 +91,6 @@ public class SingleAnnotationDescriptor extends AnnotationDescriptor {
 				sb.append(", ");
 
 			appendElementWithValue(sb, entry);
-
 		}
 
 		sb.append(')');
@@ -137,6 +136,12 @@ public class SingleAnnotationDescriptor extends AnnotationDescriptor {
 			ClassReference castedValue = (ClassReference) value;
 			sb.append(castedValue.className);
 			sb.append(".class");
+
+		} else if (value instanceof Enum) {
+			Enum<?> enumValue = (Enum<?>) value;
+			sb.append(enumValue.getClass().getName());
+			sb.append(".");
+			sb.append(enumValue.name());
 
 		} else {
 			sb.append(value);

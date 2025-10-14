@@ -22,7 +22,7 @@ import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
 @Description("enum description")
-public enum EnumWithAnnotations implements com.braintribe.model.generic.base.EnumBase {
+public enum EnumWithAnnotations implements com.braintribe.model.generic.base.EnumBase<EnumWithAnnotations> {
 
 	@Name("C1")
 	@Name(locale = "de", value = "C1-DE")

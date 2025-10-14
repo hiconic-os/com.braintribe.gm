@@ -1,6 +1,4 @@
 // ============================================================================
-// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -13,18 +11,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.generic.annotation.meta;
+package com.braintribe.model.processing.test.itw.entity.annotation;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Annotation for {@link CustomRepeatableMd} meta-data.
+ * 
+ * @author peter.gazdik
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
+@Repeatable(CustomRepeatableMd_Annotations.class)
 @Documented
-public @interface Indexed {
+public @interface CustomRepeatableMd_Annotation {
 	String globalId() default "";
-	IndexClass type() default IndexClass.auto;
+	String value();
 }

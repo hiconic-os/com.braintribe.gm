@@ -15,29 +15,42 @@
 // ============================================================================
 package com.braintribe.model.generic.annotation.meta.api;
 
+import static com.braintribe.utils.lcd.CollectionTools2.asLinkedSet;
+import static com.braintribe.utils.lcd.CollectionTools2.asList;
 import static com.braintribe.utils.lcd.CollectionTools2.newList;
+import static com.braintribe.utils.lcd.CollectionTools2.newSet;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.lang.annotation.Repeatable;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.net.URL;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Scanner;
+import java.util.Set;
 
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.annotation.meta.api.synthesis.SingleAnnotationDescriptor;
 import com.braintribe.model.generic.annotation.meta.base.BasicMdaHandler;
+import com.braintribe.model.generic.annotation.meta.base.BasicRepeatableMdaHandler;
 import com.braintribe.model.generic.reflection.Property;
+import com.braintribe.model.generic.reflection.TypeCode;
 import com.braintribe.model.meta.data.MetaData;
 
 /**
  * Loader for custom {@link MdaHandler}s from classpath files under {@value #MDA_LOCATION}.
+ * <p>
+ * Full documentation for custom MDA handlers is on {@link MdaHandler} (rather than here) as that class is public.
  * 
  * @author peter.gazdik
  */
@@ -51,7 +64,7 @@ import com.braintribe.model.meta.data.MetaData;
 	// ## . . . . . . . . Implementation . . . . . . . . ##
 	// ####################################################
 
-	private static final String MDA_LOCATION = "META-INF/gmf.mda";
+	/* package */ static final String MDA_LOCATION = "META-INF/gmf.mda";
 
 	private static final Logger log = Logger.getLogger(CustomMdaHandlerLoader.class);
 
@@ -67,6 +80,7 @@ import com.braintribe.model.meta.data.MetaData;
 	private String[] entries;
 
 	private Class<? extends Annotation> annoClass;
+	private Class<? extends Annotation> repeatableAnnoClass;
 	private Class<? extends MetaData> mdClass;
 
 	private CustomMdaHandlerLoader(InternalMdaRegistry registry) {
@@ -92,14 +106,14 @@ import com.braintribe.model.meta.data.MetaData;
 
 		try (Scanner scanner = new Scanner(url.openStream())) {
 			while (scanner.hasNextLine())
-				configure(scanner.nextLine());
+				processLine(scanner.nextLine());
 
 		} catch (Exception e) {
 			log.error("Error while parsing configurators from " + url, e);
 		}
 	}
 
-	private void configure(String line) {
+	private void processLine(String line) {
 		line = line.trim();
 		if (line.isEmpty())
 			return;
@@ -127,13 +141,6 @@ import com.braintribe.model.meta.data.MetaData;
 			logInfo("Successfully registered MdaHandler for annotation " + annoClass.getName() + " and meta-data " + mdClass.getName());
 	}
 
-	private boolean configureValidLookingEntry() {
-		if (entries.length == 2)
-			return processPredicateMda();
-		else
-			return processRegularMda();
-	}
-
 	private boolean loadBothTypes() {
 		annoClass = getClassSafe(entries[0].trim(), Annotation.class);
 		if (annoClass == null)
@@ -143,7 +150,16 @@ import com.braintribe.model.meta.data.MetaData;
 		if (mdClass == null)
 			return false;
 
+		repeatableAnnoClass = findRepeatableAnnoClassIfExists();
+
 		return true;
+	}
+
+	private Class<? extends Annotation> findRepeatableAnnoClassIfExists() {
+		if (annoClass.isAnnotationPresent(Repeatable.class))
+			return annoClass.getAnnotation(Repeatable.class).value();
+		else
+			return null;
 	}
 
 	private <T> Class<? extends T> getClassSafe(String className, Class<T> superType) {
@@ -161,6 +177,19 @@ import com.braintribe.model.meta.data.MetaData;
 		}
 	}
 
+	private boolean configureValidLookingEntry() {
+		if (entries.length == 2)
+			return processPredicateMda();
+		else if (repeatableAnnoClass == null)
+			return processRegularMda();
+		else
+			return processRepeatableMda();
+	}
+
+	// ###############################################
+	// ## . . . . . . Predicate Handler . . . . . . ##
+	// ###############################################
+
 	private boolean processPredicateMda() {
 		MethodHandle globalIdHandle = findGlobalIdHandle();
 		if (globalIdHandle == null)
@@ -172,11 +201,97 @@ import com.braintribe.model.meta.data.MetaData;
 				anno -> (String) readAttribute(anno, globalIdHandle, "globalId") //
 		));
 
-		return false;
+		return true;
 	}
+
+	// ###############################################
+	// ## . . . . . . . Regular Handler . . . . . . ##
+	// ###############################################
+
+	private boolean processRegularMda() {
+		MdaHandler<?, ?> mdaHandler = createRegularMdaHandler();
+		if (mdaHandler == null)
+			return false;
+
+		registry.register(mdaHandler);
+		return true;
+	}
+
+	private BasicMdaHandler<?, ?> createRegularMdaHandler() {
+		MethodHandle globalIdHandle = findGlobalIdHandle();
+		if (globalIdHandle == null)
+			return null;
+
+		List<AttributeToProperty> atps = resolveAtps();
+
+		return new BasicMdaHandler<>( //
+				annoClass, //
+				mdClass, //
+				// anno.globalId(): String
+				anno -> (String) readAttribute(anno, globalIdHandle, "globalId"), //
+				(ctx, anno, md) -> {
+					for (AttributeToProperty atp : atps)
+						copyFromAnnotationToMd(atp, anno, md);
+
+				}, //
+				(ctx, descriptor, md) -> {
+					for (AttributeToProperty atp : atps)
+						copyFromMdToAnnotationDescriptor(atp, md, descriptor);
+				} //
+		);
+	}
+
+	// ###############################################
+	// ## . . . . . . Repeatable Handler . . . . . .##
+	// ###############################################
+
+	private boolean processRepeatableMda() {
+		RepeatableMdaHandler<?, ?, ?> repeatableHandler = createRepeatableMdaHandler();
+		if (repeatableHandler == null)
+			return false;
+
+		registry.registerRepeatable(repeatableHandler);
+		return true;
+	}
+
+	private RepeatableMdaHandler<?, ?, ?> createRepeatableMdaHandler() {
+		MethodHandle globalIdHandle = findGlobalIdHandle();
+		if (globalIdHandle == null)
+			return null;
+
+		MethodHandle valueOfAggregatorHandle = findValueOfAggregatorHandle();
+		if (valueOfAggregatorHandle == null)
+			return null;
+
+		List<AttributeToProperty> atps = resolveAtps();
+
+		return new BasicRepeatableMdaHandler<>( //
+				annoClass, //
+				repeatableAnnoClass, //
+				mdClass, //
+				// anno.globalId(): String
+				anno -> readAttribute(anno, globalIdHandle, "globalId"), //
+				// repeatableAnno.values(): A[] // annoClass is Class<A>
+				repeatablAnno -> readAttribute(repeatablAnno, valueOfAggregatorHandle, "value"), //
+				(ctx, anno, md) -> {
+					for (AttributeToProperty atp : atps)
+						copyFromAnnotationToMd(atp, anno, md);
+
+				}, //
+				(ctx, descriptor, md) -> {
+					for (AttributeToProperty atp : atps)
+						copyFromMdToAnnotationDescriptor(atp, md, descriptor);
+				} //
+		);
+	}
+
+	// ###############################################
+	// ## . . . . . . . . Commons . . . . . . . . . ##
+	// ###############################################
 
 	private String attribute;
 	private String propertyName;
+	private final Set<String> attributeNames = newSet();
 
 	private List<AttributeToProperty> resolveAtps() {
 		List<AttributeToProperty> result = newList();
@@ -187,42 +302,50 @@ import com.braintribe.model.meta.data.MetaData;
 			attribute = entries[i++];
 			propertyName = entries[i++];
 
-			Class<?> type = resolveAttributeType();
+			attributeNames.add(attribute);
 
-			MethodHandle methodHandle = findHandle(attribute, type);
-
-			if (verifyPropertyExists(type))
-				result.add(new AttributeToProperty(attribute, methodHandle, propertyName));
+			addAtpIfAnnoSupportsAttribute(result, false);
 		}
+
+		// We map the props automatically if the attributes were not mentioned in the mapping, but exit
+		// E.g. annotation.inherited(): boolean -> MetaData.inherited
+		addAtpIfPossible(result, MetaData.inherited);
+		addAtpIfPossible(result, MetaData.important);
+
+		// We currently don't support MetaData.conflictPriority - it's of type 'Double' and Java annos only allow 'double'.
 
 		return result;
 	}
 
-	private MethodHandle findGlobalIdHandle() {
-		return findHandle("globalId", String.class);
-	}
-
-	private MethodHandle findHandle(String attribute, Class<?> type) {
-		try {
-			return lookup.findVirtual(annoClass, attribute, MethodType.methodType(type));
-
-		} catch (NoSuchMethodException e) {
-			logError("Annotation type " + annoClass.getName() + " has no " + attribute + "() attribute.");
-			return null;
-
-		} catch (IllegalAccessException e) {
-			throw new RuntimeException("Cannot access " + attribute + "() method of MD Annotation " + annoClass.getName(), e);
+	private void addAtpIfPossible(List<AttributeToProperty> result, String attrAndPropName) {
+		if (!attributeNames.contains(attrAndPropName)) {
+			attribute = propertyName = attrAndPropName;
+			addAtpIfAnnoSupportsAttribute(result, true);
 		}
 	}
 
-	private Class<?> resolveAttributeType() {
+	private void addAtpIfAnnoSupportsAttribute(List<AttributeToProperty> result, boolean ignoreIfMissing) {
+		Class<?> type = resolveAttributeType(ignoreIfMissing);
+		if (type == null)
+			return;
+
+		MethodHandle methodHandle = findHandle(annoClass, attribute, type);
+		if (methodHandle == null)
+			return;
+
+		if (verifyPropertyExists(type))
+			result.add(new AttributeToProperty(attribute, methodHandle, propertyName));
+	}
+
+	private Class<?> resolveAttributeType(boolean ignoreIfMissing) {
 		try {
 			Method m = annoClass.getMethod(attribute);
 
 			return m.getReturnType();
 
 		} catch (NoSuchMethodException e) {
-			logError("Annotation type " + annoClass.getName() + " has no " + attribute + "() attribute.");
+			if (!ignoreIfMissing)
+				logError("Annotation type " + annoClass.getName() + " has no " + attribute + "() attribute.");
 			return null;
 
 		} catch (SecurityException e) {
@@ -235,14 +358,38 @@ import com.braintribe.model.meta.data.MetaData;
 		if (m == null)
 			return false;
 
-		if (m.getReturnType() != type) {
-			logError("MD Entity type " + mdClass.getName() + " has a property " + propertyName + " of type " + m.getReturnType().getName()
-					+ ". This doesn't match the type " + type.getName() + " of the corresponding annotation attribute " + attribute + " of "
-					+ annoClass.getName());
-			return false;
+		if (!type.isArray()) {
+			if (m.getReturnType() != type)
+				return logWrongTypeAndReturnFalse(type, m);
+			else
+				return true;
 		}
 
-		return true;
+		Class<?> rawReturnType = m.getReturnType();
+		if (rawReturnType != List.class && rawReturnType != Set.class)
+			return logWrongTypeAndReturnFalse(type, m);
+
+		Class<?> componentType = type.getComponentType();
+
+		// We know this is List<?> or Set<?>, we have to check: ? == componentType
+		Type genericReturnType = m.getGenericReturnType();
+		if (genericReturnType instanceof ParameterizedType) {
+			ParameterizedType pt = (ParameterizedType) genericReturnType;
+
+			// We check that typeArguments == [componentType]
+			Type[] typeArguments = pt.getActualTypeArguments();
+			if (typeArguments.length == 1 && typeArguments[0] == componentType)
+				return true;
+		}
+
+		return logWrongTypeAndReturnFalse(type, m);
+	}
+
+	private boolean logWrongTypeAndReturnFalse(Class<?> type, Method m) {
+		logError("MD Entity type " + mdClass.getName() + " has a property " + propertyName + " of type " + m.getReturnType().getName()
+				+ ". This doesn't match the type " + type.getName() + " of the corresponding annotation attribute " + attribute + " of "
+				+ annoClass.getName());
+		return false;
 	}
 
 	private Method getGetter(String propertyName) {
@@ -260,49 +407,73 @@ import com.braintribe.model.meta.data.MetaData;
 		}
 	}
 
-	private boolean processRegularMda() {
-		MethodHandle globalIdHandle = findGlobalIdHandle();
-		if (globalIdHandle == null)
-			return false;
+	private MethodHandle findGlobalIdHandle() {
+		return findHandle(annoClass, "globalId", String.class);
+	}
 
-		List<AttributeToProperty> atps = resolveAtps();
+	private MethodHandle findValueOfAggregatorHandle() {
+		return findHandle(repeatableAnnoClass, "value", arrayType(annoClass));
+	}
 
-		registry.register(new BasicMdaHandler<>( //
-				annoClass, //
-				mdClass, //
-				anno -> (String) readAttribute(anno, globalIdHandle, "globalId"), //
-				(ctx, anno, md) -> {
-					for (AttributeToProperty atp : atps)
-						copyFromAnnotationToMd(atp, anno, md);
+	private static Class<?> arrayType(Class<?> clazz) {
+		// Copied from Class.arrayType, introduced in Java 12
+		return Array.newInstance(clazz, 0).getClass();
+	}
 
-				}, (ctx, descriptor, md) -> {
-					for (AttributeToProperty atp : atps)
-						copyFromMdToAnnotationDescriptor(atp, md, descriptor);
-				} //
-		));
+	private MethodHandle findHandle(Class<?> clazz, String attribute, Class<?> type) {
+		try {
+			return lookup.findVirtual(clazz, attribute, MethodType.methodType(type));
 
-		return false;
+		} catch (NoSuchMethodException e) {
+			logError("Annotation type " + annoClass.getName() + " has no " + attribute + "() attribute.");
+			return null;
+
+		} catch (IllegalAccessException e) {
+			throw new RuntimeException("Cannot access " + attribute + "() method of MD Annotation " + annoClass.getName(), e);
+		}
 	}
 
 	private void copyFromAnnotationToMd(AttributeToProperty atp, Annotation anno, MetaData md) {
 		atp.ensureProperty(md);
 
 		Object value = readAttribute(anno, atp.methodHandle, atp.attribute);
+		value = convertToCollectionIfArray(value, atp);
 
 		md.write(atp.property, value);
+	}
+
+	private Object convertToCollectionIfArray(Object value, AttributeToProperty atp) {
+		if (value == null)
+			return null;
+
+		if (!value.getClass().isArray())
+			return value;
+
+		if (atp.property.getType().getTypeCode() == TypeCode.listType)
+			return asList((Object[]) value);
+		else
+			return asLinkedSet((Object[]) value);
 	}
 
 	private void copyFromMdToAnnotationDescriptor(AttributeToProperty atp, MetaData md, SingleAnnotationDescriptor descriptor) {
 		atp.ensureProperty(md);
 
 		Object value = md.read(atp.property);
+		value = convertToArrayIfCollection(value);
 
 		descriptor.addAnnotationValue(atp.attribute, value);
 	}
 
-	private Object readAttribute(Annotation anno, MethodHandle handle, String attribute) {
+	private Object convertToArrayIfCollection(Object value) {
+		if (value instanceof Collection)
+			return ((Collection<?>) value).toArray();
+		else
+			return value;
+	}
+
+	private <T> T readAttribute(Annotation anno, MethodHandle handle, String attribute) {
 		try {
-			return handle.invoke(anno);
+			return (T) handle.invoke(anno);
 		} catch (Throwable e) {
 			throw new RuntimeException("Error while reading " + attribute + " from " + anno.getClass().getName() + " Annotation " + anno, e);
 		}

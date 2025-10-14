@@ -1,6 +1,4 @@
 // ============================================================================
-// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -15,21 +13,31 @@
 // ============================================================================
 package com.braintribe.model.processing.test.itw.entity.annotation;
 
+import java.util.List;
+import java.util.Set;
+
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
-import com.braintribe.model.meta.data.ExplicitPredicate;
-import com.braintribe.model.meta.data.ModelSkeletonCompatible;
 import com.braintribe.model.meta.data.UniversalMetaData;
 
-public interface CustomMd extends UniversalMetaData, ExplicitPredicate, ModelSkeletonCompatible {
+public interface CustomMd extends UniversalMetaData {
 
 	EntityType<CustomMd> T = EntityTypes.T(CustomMd.class);
 
 	String getName();
 	void setName(String name);
 
-	// mapped by value 
+	// mapped by value
 	long getLength();
 	void setLength(long length);
+
+	CustomMdEnum getCustomEnum();
+	void setCustomEnum(CustomMdEnum customEnum);
+
+	List<CustomMdEnum> getCustomEnumList();
+	void setCustomEnumList(List<CustomMdEnum> customEnumList);
+
+	Set<CustomMdEnum> getCustomEnumSet();
+	void setCustomEnumSet(Set<CustomMdEnum> customEnumSet);
 
 }

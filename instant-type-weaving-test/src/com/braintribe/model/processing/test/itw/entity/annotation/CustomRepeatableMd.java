@@ -1,6 +1,4 @@
 // ============================================================================
-// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -13,18 +11,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.generic.annotation.meta;
+package com.braintribe.model.processing.test.itw.entity.annotation;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import com.braintribe.model.generic.reflection.EntityType;
+import com.braintribe.model.generic.reflection.EntityTypes;
+import com.braintribe.model.meta.data.UniversalMetaData;
 
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-@Documented
-public @interface Indexed {
-	String globalId() default "";
-	IndexClass type() default IndexClass.auto;
+/**
+ * 
+ */
+public interface CustomRepeatableMd extends UniversalMetaData {
+
+	EntityType<CustomRepeatableMd> T = EntityTypes.T(CustomRepeatableMd.class);
+
+	String getValue();
+	void setValue(String value);
 }

@@ -18,7 +18,7 @@ package com.braintribe.model.processing.test.jta.model;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.EnumTypes;
 
-public enum EnumTypeWithLiteral implements com.braintribe.model.generic.base.EnumBase {
+public enum EnumTypeWithLiteral implements com.braintribe.model.generic.base.EnumBase<EnumTypeWithLiteral> {
 
 	enumValue;
 

@@ -1,2 +1,3 @@
 com.braintribe.model.processing.test.itw.entity.annotation.CustomPredicate_Annotation,com.braintribe.model.processing.test.itw.entity.annotation.CustomPredicate
-com.braintribe.model.processing.test.itw.entity.annotation.CustomMd_Annotation,com.braintribe.model.processing.test.itw.entity.annotation.CustomMd,value,length,name,name
+com.braintribe.model.processing.test.itw.entity.annotation.CustomMd_Annotation,com.braintribe.model.processing.test.itw.entity.annotation.CustomMd,value,length,name,name,customEnum,customEnum,customEnumList,customEnumList,customEnumSet,customEnumSet
+com.braintribe.model.processing.test.itw.entity.annotation.CustomRepeatableMd_Annotation,com.braintribe.model.processing.test.itw.entity.annotation.CustomRepeatableMd,value,value

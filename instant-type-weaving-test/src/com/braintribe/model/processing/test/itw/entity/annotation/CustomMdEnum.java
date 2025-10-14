@@ -13,18 +13,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.generic.annotation.meta;
+package com.braintribe.model.processing.test.itw.entity.annotation;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import com.braintribe.model.generic.reflection.EnumType;
+import com.braintribe.model.generic.reflection.EnumTypes;
 
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-@Documented
-public @interface Indexed {
-	String globalId() default "";
-	IndexClass type() default IndexClass.auto;
+public enum CustomMdEnum implements com.braintribe.model.generic.base.EnumBase<CustomMdEnum> {
+
+	aaa,
+	bbb,
+	ccc;
+
+	public static final EnumType<CustomMdEnum> T = EnumTypes.T(CustomMdEnum.class);
+
+	@Override
+	public EnumType<CustomMdEnum> type() {
+		return T;
+	}
+
 }

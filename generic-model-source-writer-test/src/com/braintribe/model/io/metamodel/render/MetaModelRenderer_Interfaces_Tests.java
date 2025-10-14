@@ -25,6 +25,8 @@ import com.braintribe.model.generic.annotation.TypeRestriction;
 import com.braintribe.model.generic.annotation.meta.Alias;
 import com.braintribe.model.generic.annotation.meta.CompoundUnique;
 import com.braintribe.model.generic.annotation.meta.Description;
+import com.braintribe.model.generic.annotation.meta.IndexClass;
+import com.braintribe.model.generic.annotation.meta.Indexed;
 import com.braintribe.model.generic.annotation.meta.Max;
 import com.braintribe.model.generic.annotation.meta.Min;
 import com.braintribe.model.generic.annotation.meta.Name;
@@ -319,6 +321,14 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 		assertHasImportedAnnotation(Max.class);
 		assertContainsSubstring("@Max(exclusive=false, value=\"100\")");
 		assertContainsSubstring("@Min(exclusive=false, value=\"0\")");
+	}
+
+	@Test
+	public void testWritesInexedCorrectly() throws Exception {
+		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_INDEX);
+		renderEntityType(gmEntityType);
+		assertHasImportedAnnotation(Indexed.class);
+		assertContainsSubstring("@Indexed(type=" + IndexClass.class.getName() + ".metric)");
 	}
 
 	@Test

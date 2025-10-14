@@ -47,6 +47,8 @@ import com.braintribe.model.meta.data.mapping.PositionalArguments;
 import com.braintribe.model.meta.data.prompt.Deprecated;
 import com.braintribe.model.meta.data.prompt.Description;
 import com.braintribe.model.meta.data.prompt.Name;
+import com.braintribe.model.meta.data.query.Index;
+import com.braintribe.model.meta.data.query.IndexType;
 import com.braintribe.model.util.meta.NewMetaModelGeneration;
 import com.braintribe.utils.i18n.I18nTools;
 
@@ -70,6 +72,7 @@ public class MetaModelBuilder {
 	public static String WITH_SELECTIVE_INFORMATION = COMMON_PACKAGE + ".WithSelectiveInformation";
 	public static String WITH_COMPOUND_UNIQUE = COMMON_PACKAGE + ".WithCompoundUnique";
 	public static String WITH_COMPOUND_UNIQUES = COMMON_PACKAGE + ".WithCompoundUniqueS";
+	public static String WITH_INDEX = COMMON_PACKAGE + ".WithIndexed";
 
 	// Mapping
 	public static String WITH_POSITIONAL_ARGUMENTS = COMMON_PACKAGE + ".WithPositionalArguments";
@@ -147,6 +150,10 @@ public class MetaModelBuilder {
 		GmEntityType withCompoundUnique = newEntity(WITH_COMPOUND_UNIQUE).addMd(compoundUnique(null, "prop1", "prop2")).create();
 		GmEntityType withCompoundUniques = newEntity(WITH_COMPOUND_UNIQUES)
 				.addMd(compoundUnique("gid1", "prop1", "prop2"), compoundUnique("gid2", "propA", "propB")).create();
+		GmEntityType withIndexed = newEntity(WITH_INDEX) //
+				.setProperties("name", stringType) //
+				.addPropertyMd("name", index(IndexType.metric)) //
+				.create();
 
 		// Mapping
 		GmEntityType withPositionalArguments = newEntity(WITH_POSITIONAL_ARGUMENTS).addMd(positionalArgs("a1", "a2")).create();
@@ -185,6 +192,7 @@ public class MetaModelBuilder {
 				withSelectiveInformation,
 				withCompoundUnique,
 				withCompoundUniques,
+				withIndexed,
 
 				// mapping
 				withPositionalArguments,
@@ -272,6 +280,12 @@ public class MetaModelBuilder {
 		Description result = Description.T.create(globalId);
 		result.setDescription(localizedString(localizedValues));
 
+		return result;
+	}
+
+	public static Index index(IndexType indexType) {
+		Index result = Index.T.create();
+		result.setIndexType(indexType);
 		return result;
 	}
 

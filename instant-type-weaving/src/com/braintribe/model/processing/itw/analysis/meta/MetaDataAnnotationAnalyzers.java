@@ -15,7 +15,7 @@
 // ============================================================================
 package com.braintribe.model.processing.itw.analysis.meta;
 
-import static com.braintribe.utils.lcd.CollectionTools2.newSet;
+import static com.braintribe.utils.lcd.CollectionTools2.newLinkedSet;
 import static com.braintribe.utils.lcd.StringTools.isEmpty;
 
 import java.lang.annotation.Annotation;
@@ -44,8 +44,8 @@ public class MetaDataAnnotationAnalyzers {
 	 * @param annotations
 	 *            array of all {@link Annotation}s to be analyzed.
 	 * @param context
-	 *            context containing {@link HasMetaData target} to which the {@link MetaData} are added. In case the
-	 *            analyzed annotation has no globalId, a default one is created based on the globalId of the target.
+	 *            context containing {@link HasMetaData target} to which the {@link MetaData} are added. In case the analyzed annotation has no
+	 *            globalId, a default one is created based on the globalId of the target.
 	 */
 	public static void analyzeMetaDataAnnotations(Annotation[] annotations, MdaAnalysisContext context) {
 		ProtoHasMetaData target = context.getTarget();
@@ -53,14 +53,14 @@ public class MetaDataAnnotationAnalyzers {
 		Objects.requireNonNull(target.getGlobalId(), () -> "Target must have a globalId. Target: " + target);
 
 		MdaRegistry mdaRegistry = MetaDataAnnotations.registry();
-		Map<Class<? extends Annotation>, MdaHandler<?, ?>> analyzerMap = context.isProto() ? mdaRegistry.protoAnnoToHandler()
-				: mdaRegistry.annoToHandler();
+		Map<Class<? extends Annotation>, MdaHandler<?, ?>> analyzerMap = //
+				context.isProto() //
+						? mdaRegistry.protoAnnoToHandler() //
+						: mdaRegistry.annoToHandler();
 
 		Set<MetaData> metaData = target.getMetaData();
-		if (metaData == null) {
-			metaData = newSet();
-			target.setMetaData(metaData);
-		}
+		if (metaData == null)
+			target.setMetaData(metaData = newLinkedSet());
 
 		for (Annotation annotation : annotations) {
 			Class<? extends Annotation> annotationType = annotation.annotationType();

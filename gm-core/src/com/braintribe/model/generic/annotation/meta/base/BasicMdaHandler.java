@@ -25,6 +25,7 @@ import com.braintribe.model.generic.annotation.meta.api.analysis.MdaAnalysisCont
 import com.braintribe.model.generic.annotation.meta.api.synthesis.MdaSynthesisContext;
 import com.braintribe.model.generic.annotation.meta.api.synthesis.SingleAnnotationDescriptor;
 import com.braintribe.model.meta.data.MetaData;
+import com.braintribe.model.meta.data.Predicate;
 
 /**
  * @author peter.gazdik
@@ -37,6 +38,7 @@ public class BasicMdaHandler<A extends Annotation, M extends MetaData> implement
 	private final MetaDataToDescriptorPropertyCopier<M> m2dPropertyCopier;
 	private Class<M> metaDataClass;
 
+	/** Constructor for {@link Predicate} metadata, where having properties makes no sense (think about it). */
 	public BasicMdaHandler(Class<A> annotationClass, Class<M> metaDataClass, Function<A, String> globalIdResolver) {
 		this(annotationClass, metaDataClass, globalIdResolver, (c, a, m) -> { /* NO OP */ }, (c, a, m) -> { /* NO OP */ });
 	}
