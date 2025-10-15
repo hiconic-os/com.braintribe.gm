@@ -27,25 +27,25 @@ import com.braintribe.model.meta.data.MetaData;
 /**
  * Straight forward implementation of {@link RepeatableAggregatorMdaHandler}
  */
-public class BasicRepeatableAggregatorMdaHandler<RA extends Annotation, M extends MetaData> implements RepeatableAggregatorMdaHandler<RA, M> {
+public class BasicRepeatableAggregatorMdaHandler<RAA extends Annotation, M extends MetaData> implements RepeatableAggregatorMdaHandler<RAA, M> {
 
-	private final Class<RA> repeatableAnnotationClass;
+	private final Class<RAA> aggregatorAnnotationClass;
 	private final Class<M> metaDataClass;
-	private final BiFunction<RA, MdaAnalysisContext, List<M>> mdListBuilder;
+	private final BiFunction<RAA, MdaAnalysisContext, List<M>> mdListBuilder;
 
 	public BasicRepeatableAggregatorMdaHandler( //
-			Class<RA> repeatableAnnotationClass, //
+			Class<RAA> aggregatorAnnotationClass, //
 			Class<M> metaDataClass, //
-			BiFunction<RA, MdaAnalysisContext, List<M>> mdListBuilder) {
+			BiFunction<RAA, MdaAnalysisContext, List<M>> mdListBuilder) {
 
-		this.repeatableAnnotationClass = repeatableAnnotationClass;
+		this.aggregatorAnnotationClass = aggregatorAnnotationClass;
 		this.metaDataClass = metaDataClass;
 		this.mdListBuilder = mdListBuilder;
 	}
 
 	@Override
-	public Class<RA> annotationClass() {
-		return repeatableAnnotationClass;
+	public Class<RAA> annotationClass() {
+		return aggregatorAnnotationClass;
 	}
 
 	@Override
@@ -54,13 +54,13 @@ public class BasicRepeatableAggregatorMdaHandler<RA extends Annotation, M extend
 	}
 
 	@Override
-	public List<M> buildMdList(RA annotation, MdaAnalysisContext context) {
+	public List<M> buildMdList(RAA annotation, MdaAnalysisContext context) {
 		return mdListBuilder.apply(annotation, context);
 	}
 
 	@Override
 	public void buildAnnotation(MdaSynthesisContext context, M metaData) {
-		throw new UnsupportedOperationException("This method should not be invoked for the repeatabe-aggregator type: " + repeatableAnnotationClass.getName());
+		throw new UnsupportedOperationException("This method should not be invoked for the repeatabe-aggregator type: " + aggregatorAnnotationClass.getName());
 	}
 
 }

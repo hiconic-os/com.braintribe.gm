@@ -324,7 +324,7 @@ public class MetaModelRenderer_Interfaces_Tests extends MetaModelRendererTestBas
 	}
 
 	@Test
-	public void testWritesInexedCorrectly() throws Exception {
+	public void testWritesIndexedCorrectly() throws Exception {
 		GmEntityType gmEntityType = getTypeBySignature(MetaModelBuilder.WITH_INDEX);
 		renderEntityType(gmEntityType);
 		assertHasImportedAnnotation(Indexed.class);

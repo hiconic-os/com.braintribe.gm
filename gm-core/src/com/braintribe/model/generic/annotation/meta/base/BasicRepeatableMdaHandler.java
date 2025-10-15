@@ -33,30 +33,30 @@ import com.braintribe.model.meta.data.MetaData;
 /**
  * @author peter.gazdik
  */
-public class BasicRepeatableMdaHandler<A extends Annotation, RA extends Annotation, M extends MetaData> implements RepeatableMdaHandler<A, RA, M> {
+public class BasicRepeatableMdaHandler<A extends Annotation, RAA extends Annotation, M extends MetaData> implements RepeatableMdaHandler<A, RAA, M> {
 
 	private final Class<A> annotationClass;
-	private final RepeatableAggregatorMdaHandler<RA, M> aggregatorHandler;
+	private final RepeatableAggregatorMdaHandler<RAA, M> aggregatorHandler;
 	private final Class<M> metaDataClass;
 
 	private final Function<A, String> globalIdResolver;
-	private final Function<RA, A[]> repeatableExtractor;
+	private final Function<RAA, A[]> repeatableExtractor;
 
 	private final AnnotationToMetaDataPropertyCopier<A, M> a2mPropertyCopier;
 	private final MetaDataToDescriptorPropertyCopier<M> m2dPropertyCopier;
-	private final Class<RA> repeatableAnnotationClass;
+	private final Class<RAA> aggregatorAnnotationClass;
 
 	public BasicRepeatableMdaHandler(//
 			Class<A> annotationClass, //
-			Class<RA> repeatableAnnotationClass, //
+			Class<RAA> aggregatorAnnotationClass, //
 			Class<M> metaDataClass, //
 			Function<A, String> globalIdResolver, //
-			Function<RA, A[]> repeatableExtractor, //
+			Function<RAA, A[]> repeatableExtractor, //
 			AnnotationToMetaDataPropertyCopier<A, M> a2mPropertyCopier, //
 			MetaDataToDescriptorPropertyCopier<M> m2dPropertyCopier //
 	) {
 		this.annotationClass = annotationClass;
-		this.repeatableAnnotationClass = repeatableAnnotationClass;
+		this.aggregatorAnnotationClass = aggregatorAnnotationClass;
 		this.metaDataClass = metaDataClass;
 		this.globalIdResolver = globalIdResolver;
 		this.repeatableExtractor = repeatableExtractor;
@@ -64,12 +64,12 @@ public class BasicRepeatableMdaHandler<A extends Annotation, RA extends Annotati
 		this.a2mPropertyCopier = a2mPropertyCopier;
 		this.m2dPropertyCopier = m2dPropertyCopier //
 		;
-		this.aggregatorHandler = new BasicRepeatableAggregatorMdaHandler<>(repeatableAnnotationClass, metaDataClass, this::buildMdListForRepeatable);
+		this.aggregatorHandler = new BasicRepeatableAggregatorMdaHandler<>(aggregatorAnnotationClass, metaDataClass, this::buildMdListForRepeatable);
 	}
 
 	// @formatter:off
 	@Override public Class<A> annotationClass() { return annotationClass; }
-	@Override public RepeatableAggregatorMdaHandler<RA, M> aggregatorHandler() { return aggregatorHandler; }
+	@Override public RepeatableAggregatorMdaHandler<RAA, M> aggregatorHandler() { return aggregatorHandler; }
 	@Override public Class<M> metaDataClass() { return metaDataClass; }
 	// @formatter:on
 
@@ -78,7 +78,7 @@ public class BasicRepeatableMdaHandler<A extends Annotation, RA extends Annotati
 		return buildMetaDataFor(context, annotation);
 	}
 
-	private List<M> buildMdListForRepeatable(RA repeatableAnno, MdaAnalysisContext context) {
+	private List<M> buildMdListForRepeatable(RAA repeatableAnno, MdaAnalysisContext context) {
 		return buildMetaDataFor(context, repeatableExtractor.apply(repeatableAnno));
 	}
 
@@ -106,7 +106,7 @@ public class BasicRepeatableMdaHandler<A extends Annotation, RA extends Annotati
 		SingleAnnotationDescriptor result = context.newDescriptor(annotationClass);
 		m2dPropertyCopier.copyProperties(context, result, md);
 
-		context.setCurrentDescriptorMulti(result, repeatableAnnotationClass);
+		context.setCurrentDescriptorMulti(result, aggregatorAnnotationClass);
 	}
 
 }

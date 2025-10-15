@@ -80,7 +80,7 @@ import com.braintribe.model.meta.data.MetaData;
 	private String[] entries;
 
 	private Class<? extends Annotation> annoClass;
-	private Class<? extends Annotation> repeatableAnnoClass;
+	private Class<? extends Annotation> aggregatorAnnoClass;
 	private Class<? extends MetaData> mdClass;
 
 	private CustomMdaHandlerLoader(InternalMdaRegistry registry) {
@@ -150,12 +150,12 @@ import com.braintribe.model.meta.data.MetaData;
 		if (mdClass == null)
 			return false;
 
-		repeatableAnnoClass = findRepeatableAnnoClassIfExists();
+		aggregatorAnnoClass = findAggregatorAnnoClassIfExists();
 
 		return true;
 	}
 
-	private Class<? extends Annotation> findRepeatableAnnoClassIfExists() {
+	private Class<? extends Annotation> findAggregatorAnnoClassIfExists() {
 		if (annoClass.isAnnotationPresent(Repeatable.class))
 			return annoClass.getAnnotation(Repeatable.class).value();
 		else
@@ -180,7 +180,7 @@ import com.braintribe.model.meta.data.MetaData;
 	private boolean configureValidLookingEntry() {
 		if (entries.length == 2)
 			return processPredicateMda();
-		else if (repeatableAnnoClass == null)
+		else if (aggregatorAnnoClass == null)
 			return processRegularMda();
 		else
 			return processRepeatableMda();
@@ -267,7 +267,7 @@ import com.braintribe.model.meta.data.MetaData;
 
 		return new BasicRepeatableMdaHandler<>( //
 				annoClass, //
-				repeatableAnnoClass, //
+				aggregatorAnnoClass, //
 				mdClass, //
 				// anno.globalId(): String
 				anno -> readAttribute(anno, globalIdHandle, "globalId"), //
@@ -412,7 +412,7 @@ import com.braintribe.model.meta.data.MetaData;
 	}
 
 	private MethodHandle findValueOfAggregatorHandle() {
-		return findHandle(repeatableAnnoClass, "value", arrayType(annoClass));
+		return findHandle(aggregatorAnnoClass, "value", arrayType(annoClass));
 	}
 
 	private static Class<?> arrayType(Class<?> clazz) {
