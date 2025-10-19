@@ -1,6 +1,4 @@
 // ============================================================================
-// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -21,8 +19,8 @@ import static com.braintribe.utils.lcd.CollectionTools2.newList;
 import java.util.List;
 
 import com.braintribe.common.lcd.UnknownEnumException;
-import com.braintribe.model.generic.annotation.meta.AutoAlias;
-import com.braintribe.model.generic.annotation.meta.AutoAliases;
+import com.braintribe.model.generic.annotation.meta.AliasRule;
+import com.braintribe.model.generic.annotation.meta.AliaseRules;
 import com.braintribe.model.generic.annotation.meta.WordCasing;
 import com.braintribe.model.generic.annotation.meta.api.RepeatableMdaHandler;
 import com.braintribe.model.generic.annotation.meta.api.analysis.MdaAnalysisContext;
@@ -35,42 +33,42 @@ import com.braintribe.utils.lcd.NullSafe;
 /**
  * @author peter.gazdik
  */
-public class AutoAliasMdaHandler implements RepeatableMdaHandler<AutoAlias, AutoAliases, com.braintribe.model.meta.data.mapping.AutoAlias> {
+public class AliasRuleMdaHandler implements RepeatableMdaHandler<AliasRule, AliaseRules, com.braintribe.model.meta.data.mapping.AliasRule> {
 
-	public static final AutoAliasMdaHandler INSTANCE = new AutoAliasMdaHandler();
+	public static final AliasRuleMdaHandler INSTANCE = new AliasRuleMdaHandler();
 
-	private final RepeatableAggregatorMdaHandler<AutoAliases, com.braintribe.model.meta.data.mapping.AutoAlias> aggregatorHandler = new BasicRepeatableAggregatorMdaHandler<>(
-			AutoAliases.class, com.braintribe.model.meta.data.mapping.AutoAlias.class, this::buildMdListForRepeatable);
+	private final RepeatableAggregatorMdaHandler<AliaseRules, com.braintribe.model.meta.data.mapping.AliasRule> aggregatorHandler = new BasicRepeatableAggregatorMdaHandler<>(
+			AliaseRules.class, com.braintribe.model.meta.data.mapping.AliasRule.class, this::buildMdListForRepeatable);
 
 	// @formatter:off
-	@Override public Class<AutoAlias> annotationClass() { return AutoAlias.class; }
-	@Override public RepeatableAggregatorMdaHandler<AutoAliases, com.braintribe.model.meta.data.mapping.AutoAlias> aggregatorHandler() { return aggregatorHandler; }
-	@Override public Class<com.braintribe.model.meta.data.mapping.AutoAlias> metaDataClass() { return com.braintribe.model.meta.data.mapping.AutoAlias.class; }
+	@Override public Class<AliasRule> annotationClass() { return AliasRule.class; }
+	@Override public RepeatableAggregatorMdaHandler<AliaseRules, com.braintribe.model.meta.data.mapping.AliasRule> aggregatorHandler() { return aggregatorHandler; }
+	@Override public Class<com.braintribe.model.meta.data.mapping.AliasRule> metaDataClass() { return com.braintribe.model.meta.data.mapping.AliasRule.class; }
 	// @formatter:on
 
 	@Override
-	public List<com.braintribe.model.meta.data.mapping.AutoAlias> buildMdList(AutoAlias annotation, MdaAnalysisContext context) {
+	public List<com.braintribe.model.meta.data.mapping.AliasRule> buildMdList(AliasRule annotation, MdaAnalysisContext context) {
 		return buildMetaDataFor(context, annotation);
 	}
 
-	private List<com.braintribe.model.meta.data.mapping.AutoAlias> buildMdListForRepeatable(AutoAliases aliases, MdaAnalysisContext context) {
+	private List<com.braintribe.model.meta.data.mapping.AliasRule> buildMdListForRepeatable(AliaseRules aliases, MdaAnalysisContext context) {
 		return buildMetaDataFor(context, aliases.value());
 	}
 
-	private static List<com.braintribe.model.meta.data.mapping.AutoAlias> buildMetaDataFor(MdaAnalysisContext context, AutoAlias... aliases) {
-		List<com.braintribe.model.meta.data.mapping.AutoAlias> result = newList();
+	private static List<com.braintribe.model.meta.data.mapping.AliasRule> buildMetaDataFor(MdaAnalysisContext context, AliasRule... aliases) {
+		List<com.braintribe.model.meta.data.mapping.AliasRule> result = newList();
 
 		int i = 0;
-		for (AutoAlias alias : aliases)
+		for (AliasRule alias : aliases)
 			result.add(toAliasMd(context, alias, i++));
 
 		return result;
 	}
 
-	private static com.braintribe.model.meta.data.mapping.AutoAlias toAliasMd(MdaAnalysisContext context, AutoAlias alias, int i) {
+	private static com.braintribe.model.meta.data.mapping.AliasRule toAliasMd(MdaAnalysisContext context, AliasRule alias, int i) {
 		String globalId = alias.globalId();
 
-		com.braintribe.model.meta.data.mapping.AutoAlias result = newMd(context, com.braintribe.model.meta.data.mapping.AutoAlias.T, globalId, i);
+		com.braintribe.model.meta.data.mapping.AliasRule result = newMd(context, com.braintribe.model.meta.data.mapping.AliasRule.T, globalId, i);
 		result.setCasing(convertCasing(alias.casing()));
 		result.setSeparator(convertSeparator(alias.separator()));
 
@@ -106,12 +104,12 @@ public class AutoAliasMdaHandler implements RepeatableMdaHandler<AutoAlias, Auto
 	}
 
 	@Override
-	public void buildAnnotation(MdaSynthesisContext context, com.braintribe.model.meta.data.mapping.AutoAlias md) {
-		SingleAnnotationDescriptor result = context.newDescriptor(AutoAlias.class);
+	public void buildAnnotation(MdaSynthesisContext context, com.braintribe.model.meta.data.mapping.AliasRule md) {
+		SingleAnnotationDescriptor result = context.newDescriptor(AliasRule.class);
 		result.addAnnotationValue("casing", NullSafe.get(md.getCasing(), WordCasing.original).name());
 		result.addAnnotationValue("separator", NullSafe.get(md.getSeparator(), WordSeparator.none).name());
 
-		context.setCurrentDescriptorMulti(result, AutoAliases.class);
+		context.setCurrentDescriptorMulti(result, AliaseRules.class);
 	}
 
 }

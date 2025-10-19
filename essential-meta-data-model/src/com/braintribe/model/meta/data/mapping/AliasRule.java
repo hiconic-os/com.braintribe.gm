@@ -11,21 +11,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.generic.annotation.meta;
+package com.braintribe.model.meta.data.mapping;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Repeatable;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import com.braintribe.model.generic.reflection.EntityType;
+import com.braintribe.model.generic.reflection.EntityTypes;
+import com.braintribe.model.meta.data.ModelSkeletonCompatible;
+import com.braintribe.model.meta.data.UniversalMetaData;
 
 /**
- * Container for {@link Repeatable} annotation {@link AutoAlias}.
+ * Similar to {@link Alias}, but the new name is derived based on {@link #getCasing() casing} and {@link #getSeparator() separator}.
  */
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ ElementType.TYPE, ElementType.METHOD, ElementType.FIELD })
-@Documented
-public @interface AutoAliases {
-	AutoAlias[] value();
+public interface AliasRule extends UniversalMetaData, ModelSkeletonCompatible {
+
+	EntityType<AliasRule> T = EntityTypes.T(AliasRule.class);
+
+	WordCasing getCasing();
+	void setCasing(WordCasing casing);
+
+	WordSeparator getSeparator();
+	void setSeparator(WordSeparator separator);
+
 }

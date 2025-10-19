@@ -21,13 +21,13 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation for the Alias meta data.
+ * Annotation for the AliasRule meta data.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ ElementType.TYPE, ElementType.METHOD, ElementType.FIELD })
 @Documented
-@Repeatable(AutoAliases.class)
-public @interface AutoAlias {
+@Repeatable(AliaseRules.class)
+public @interface AliasRule {
 	String globalId() default "";
 	WordCasing casing() default WordCasing.original;
 	WordSeparator separator() default WordSeparator.none;

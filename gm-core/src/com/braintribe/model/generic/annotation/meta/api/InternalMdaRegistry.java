@@ -23,7 +23,7 @@ import java.util.Map;
 
 import com.braintribe.model.generic.annotation.meta.api.RepeatableMdaHandler.RepeatableAggregatorMdaHandler;
 import com.braintribe.model.generic.annotation.meta.handlers.AliasMdaHandler;
-import com.braintribe.model.generic.annotation.meta.handlers.AutoAliasMdaHandler;
+import com.braintribe.model.generic.annotation.meta.handlers.AliasRuleMdaHandler;
 import com.braintribe.model.generic.annotation.meta.handlers.CompoundUniqueMdaHandler;
 import com.braintribe.model.generic.annotation.meta.handlers.DescriptionMdaHandler;
 import com.braintribe.model.generic.annotation.meta.handlers.NameMdaHandler;
@@ -77,7 +77,7 @@ import com.braintribe.model.meta.data.MetaData;
 
 		registerRepeatable( //
 				AliasMdaHandler.INSTANCE, //
-				AutoAliasMdaHandler.INSTANCE, //
+				AliasRuleMdaHandler.INSTANCE, //
 				CompoundUniqueMdaHandler.INSTANCE, //
 				DescriptionMdaHandler.INSTANCE, //
 				NameMdaHandler.INSTANCE, //
