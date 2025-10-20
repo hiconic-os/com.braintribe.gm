@@ -24,11 +24,10 @@ import com.braintribe.model.generic.reflection.GenericModelException;
 /**
  * Provides the correct implementation of {@link GmPlatform}. This is the default JVM implementation.
  * <p>
- * As of 22.2.2013 (when this was created) the intended usage was that the {@link GMF} is provided with the right
- * implementation of this interface via {@linkplain GmPlatformProvider} at the startup automatically. For this there the
- * static method {@link #provide()} should be used. As stated before, this is the default JVM implementation for such
- * provider and different platforms are expected to implement (emulate) their own version of this class (i.e. such with
- * exact same name and methods).
+ * As of 22.2.2013 (when this was created) the intended usage was that the {@link GMF} is provided with the right implementation of this interface via
+ * {@linkplain GmPlatformProvider} at the startup automatically. For this there the static method {@link #provide()} should be used. As stated before,
+ * this is the default JVM implementation for such provider and different platforms are expected to implement (emulate) their own version of this
+ * class (i.e. such with exact same name and methods).
  */
 public class GmPlatformProvider {
 
@@ -58,9 +57,8 @@ public class GmPlatformProvider {
 
 					InputStream is = GenericEntity.class.getClassLoader().getResourceAsStream(GMF_PROPS_RESOURCE_NAME);
 
-					if (is == null) {
+					if (is == null)
 						is = Thread.currentThread().getContextClassLoader().getResourceAsStream(GMF_PROPS_RESOURCE_NAME);
-					}
 
 					if (is == null)
 						throw new GenericModelException(
@@ -82,10 +80,10 @@ public class GmPlatformProvider {
 				}
 				Class<?> delegateClass = Class.forName(gmfDelegateClassName);
 
-				if (!GmPlatform.class.isAssignableFrom(delegateClass)) {
-					throw new RuntimeException("Wrong GM configuration. Class defined by '" + PLATFORM_IMPL_PROPERTY
-							+ "' property must implement the '" + GmPlatform.class.getName() + "'");
-				}
+				if (!GmPlatform.class.isAssignableFrom(delegateClass))
+					throw new RuntimeException("Wrong GM configuration. Class [" + gmfDelegateClassName + "] defined by [" + PLATFORM_IMPL_PROPERTY
+							+ "] property  and loaded by ClassLoader '" + delegateClass.getClassLoader() + "' must implement ["
+							+ GmPlatform.class.getName() + "] loaded by ClassLoader [" + GmPlatform.class.getClassLoader() + "]");
 
 				plattform = delegateClass.asSubclass(GmPlatform.class).getDeclaredConstructor().newInstance();
 
