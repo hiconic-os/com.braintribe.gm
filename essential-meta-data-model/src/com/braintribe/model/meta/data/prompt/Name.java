@@ -16,6 +16,7 @@
 package com.braintribe.model.meta.data.prompt;
 
 import com.braintribe.model.descriptive.HasLocalizedName;
+import com.braintribe.model.generic.annotation.SelectiveInformation;
 import com.braintribe.model.generic.i18n.LocalizedString;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
@@ -23,6 +24,7 @@ import com.braintribe.model.generic.session.GmSession;
 import com.braintribe.model.meta.data.ModelSkeletonCompatible;
 import com.braintribe.model.meta.data.UniversalMetaData;
 
+@SelectiveInformation("Name: ${name}")
 public interface Name extends UniversalMetaData, HasLocalizedName, ModelSkeletonCompatible {
 
 	EntityType<Name> T = EntityTypes.T(Name.class);
