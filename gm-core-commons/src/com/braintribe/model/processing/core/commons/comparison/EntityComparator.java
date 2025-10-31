@@ -101,6 +101,19 @@ public class EntityComparator implements Comparator<GenericEntity> {
 		// properties
 		for (Property property: t1.getProperties()) {
 			GenericModelType propertyType = property.getType();
+
+			boolean absent1 = property.isAbsent(e1);
+			boolean absent2 = property.isAbsent(e2);
+			
+			if (absent1) {
+				if (absent2) {
+					return 0;
+				}
+				else {
+					assemblyComparison.setMismatchDescription("absence information mismatch on property " + property.getName() + ": " + id1  + " vs. " + id2 + "." );
+					return -1;
+				}
+			}
 			
 			Comparator<Object> comparator = assemblyComparison.getComparator(propertyType);
 			Object v1 = property.get(e1);

@@ -124,15 +124,17 @@ public class ConfigurableGmExpertRegistry implements GmExpertRegistry {
 			this.expertRequired = expertRequired;
 		}
 		
+		@SuppressWarnings("unchecked")
 		@Override
 		public <R extends T> R  forInstance(GenericEntity instance) throws GmExpertRegistryException {
-			return forType(instance.entityType());
+			return (R)forType(instance.entityType());
 		}
 		
+		@SuppressWarnings("unchecked")
 		@Override
 		public <R extends T> R  forType(Class<?> clazz)	throws GmExpertRegistryException {
 			GenericModelType type = genericModelTypeReflection.getType(clazz);
-			return forType(type);
+			return (R)forType(type);
 		}
 		
 		@SuppressWarnings("unchecked")
@@ -149,9 +151,10 @@ public class ConfigurableGmExpertRegistry implements GmExpertRegistry {
 			return expert;
 		}
 		
+		@SuppressWarnings("unchecked")
 		@Override
 		public <R extends T> R  forType(String typeSignature) throws GmExpertRegistryException {
-			return forType(genericModelTypeReflection.getEntityType(typeSignature));
+			return (R)forType(genericModelTypeReflection.getEntityType(typeSignature));
 		}
 		
 		
