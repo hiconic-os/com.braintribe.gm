@@ -28,75 +28,82 @@ import com.braintribe.model.record.ListRecord;
 import com.braintribe.utils.lcd.CollectionTools2;
 
 /**
- * Utility class for (recursive) fetching of to-many (collection) relationships in an entity graph.
- * Splits between entity collections and scalar collections.
- * Uses bulk queries and optional consumer/visitor for processing.
+ * Utility class for (recursive) fetching of to-many (collection) relationships in an entity graph. Splits between entity collections and scalar
+ * collections. Uses bulk queries and optional consumer/visitor for processing.
  */
 public class ToManyFetching {
-	
+
 	/**
 	 * Fetch all to-many properties of the given node (entity and scalar collections).
 	 */
 	public static void fetch(FetchContext context, EntityGraphNode node, FetchTask fetchTask) {
 		List<EntityCollectionPropertyGraphNode> entityCollectionProperties = node.entityCollectionProperties();
 		List<ScalarCollectionPropertyGraphNode> scalarCollectionProperties = node.scalarCollectionProperties();
-		
+
 		// entity collections
 		if (!entityCollectionProperties.isEmpty()) {
-			for (EntityCollectionPropertyGraphNode collectionNode: entityCollectionProperties) {
+			for (EntityCollectionPropertyGraphNode collectionNode : entityCollectionProperties) {
 				FetchQualification fqToOne = new FetchQualification(collectionNode, FetchType.TO_ONE);
 				FetchQualification fqToMany = new FetchQualification(collectionNode, FetchType.TO_MANY);
 
 				Map<Object, GenericEntity> toManyFetches = new HashMap<>();
 				Map<Object, GenericEntity> toOneFetches = new HashMap<>();
-				
-				fetch(context, node.entityType(), fetchTask, collectionNode.collectionType(), collectionNode.property(), 
-						(GenericEntity e) -> {
-							EntityIdm entityIdm = context.acquireEntity(e);
-							e = entityIdm.entity;
-							
-							if (!entityIdm.isHandled(fqToOne)) {
-								entityIdm.addHandled(fqToOne);
-								toOneFetches.put(e.getId(), e);
-							}
-							
-							if (!entityIdm.isHandled(fqToMany)) {
-								entityIdm.addHandled(fqToMany);
-								toManyFetches.put(e.getId(), e);
-							}
 
-							return e;
-						});
-				
+				fetch(context, node.entityType(), fetchTask, collectionNode.collectionType(), collectionNode.property(), (GenericEntity e) -> {
+					EntityIdm entityIdm = context.acquireEntity(e);
+					e = entityIdm.entity;
+
+					if (!entityIdm.isHandled(fqToOne)) {
+						entityIdm.addHandled(fqToOne);
+						toOneFetches.put(e.getId(), e);
+					}
+
+					if (!entityIdm.isHandled(fqToMany)) {
+						entityIdm.addHandled(fqToMany);
+						toManyFetches.put(e.getId(), e);
+					}
+
+					return e;
+				});
+
 				context.enqueueToManyIfRequired(collectionNode, toManyFetches);
 				context.enqueueToOneIfRequired(collectionNode, toOneFetches);
 			}
 		}
-		
+
 		// scalar collections
 		if (!scalarCollectionProperties.isEmpty()) {
-			for (ScalarCollectionPropertyGraphNode collectionNode: scalarCollectionProperties) {
+			for (ScalarCollectionPropertyGraphNode collectionNode : scalarCollectionProperties) {
 				fetch(context, node.entityType(), fetchTask, collectionNode.collectionType(), collectionNode.property(), null);
 			}
 		}
-		
+
 	}
-	
+
 	/**
 	 * Bulk fetching for each collection property in the graph; assigns collections back to owning entities.
 	 */
-	public static <E> void fetch(FetchContext context, EntityType<?> type, FetchTask fetchTask, LinearCollectionType collectionType, Property property, Function<E,E> visitor) {
+	public static <E> void fetch(FetchContext context, EntityType<?> type, FetchTask fetchTask, LinearCollectionType collectionType,
+			Property property, Function<E, E> visitor) {
 		PersistenceGmSession session = context.session();
 		Map<Object, GenericEntity> entityIndex = fetchTask.entities;
-		
+
+		Map<Object, Collection<E>> collectionsPerId = new HashMap<>();
+		for (GenericEntity entity : fetchTask.entities.values()) {
+			@SuppressWarnings("unchecked")
+			Collection<E> collection = (Collection<E>) collectionType.createPlain();
+			property.set(entity, collection);
+			collectionsPerId.put(entity.getId(), collection);
+		}
+
 		List<Set<Object>> allIds = CollectionTools2.splitToSets(entityIndex.keySet(), 100);
-		
+
 		SelectQuery query = ToManyQueries.joinQuery(type, property);
-		
-		for (Set<Object> ids: allIds) {
+
+		for (Set<Object> ids : allIds) {
 
 			List<ListRecord> results = session.queryDetached().select(query).setVariable("ids", ids).list();
-			
+
 			Object curId = null;
 			Collection<E> curCollection = null;
 
@@ -104,30 +111,26 @@ public class ToManyFetching {
 				Object id = record.get(0);
 				@SuppressWarnings("unchecked")
 				E element = (E) record.get(1);
-				
+
 				if (!id.equals(curId)) {
 					curId = id;
-					GenericEntity entity = entityIndex.get(id);
-					@SuppressWarnings("unchecked")
-					Collection<E> collection = (Collection<E>)collectionType.createPlain();
-					curCollection = collection; 
-					property.set(entity, curCollection);
+					curCollection = collectionsPerId.get(id);
 				}
-				
+
 				if (visitor != null)
 					element = visitor.apply(element);
-				
+
 				curCollection.add(element);
 			}
 		}
 	}
-	
+
 	/**
 	 * Helper that composes a select query for joining to-many targets efficiently. Handles lists with ordering.
 	 */
 	private static class ToManyQueries extends SelectQueries {
 		public static SelectQuery joinQuery(EntityType<?> refereeType, Property property) {
-					From referee = source(refereeType);
+			From referee = source(refereeType);
 			Join refered = referee.join(property.getName());
 
 			Variable idsVar = Variable.T.create();
