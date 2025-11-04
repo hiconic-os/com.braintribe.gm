@@ -41,14 +41,14 @@ public class StatefulYamlMarshaller extends AbstractStatefulYamlMarshaller {
 		public boolean visited;
 	}
 
-	private final Map<GenericEntity, StatefulYamlMarshaller.EntityAnchoring> anchors = new IdentityHashMap<>();
+	private final Map<GenericEntity, EntityAnchoring> anchors = new IdentityHashMap<>();
 
 	public StatefulYamlMarshaller(GmSerializationOptions options, Writer writer, Object rootValue) {
 		super(options, writer, rootValue);
 	}
 
 	public void write() {
-		new ConfigurableEntityVisiting(this::indexEntity).visit(rootValue);
+		new ConfigurableEntityVisiting((et, e) -> indexEntity(e)).visit(rootValue);
 		try {
 			write(options.getInferredRootType(), BaseType.INSTANCE, rootValue);
 			writer.write('\n');
@@ -57,14 +57,14 @@ public class StatefulYamlMarshaller extends AbstractStatefulYamlMarshaller {
 		} 
 	}
 
-	private boolean indexEntity(EntityType<?> entityType, GenericEntity entity) {
-		StatefulYamlMarshaller.EntityAnchoring anchoring = anchors.computeIfAbsent(entity, e -> new EntityAnchoring());
+	private boolean indexEntity(GenericEntity entity) {
+		EntityAnchoring anchoring = anchors.computeIfAbsent(entity, e -> new EntityAnchoring());
 		return ++anchoring.refCount == 1;
 	}
 
 	@Override
 	protected void writeEntity(GenericModelType inferredType, GenericEntity entity, boolean isComplexPropertyValue) throws IOException {
-		StatefulYamlMarshaller.EntityAnchoring anchoring = anchors.get(entity);
+		EntityAnchoring anchoring = anchors.get(entity);
 
 		int tokenCounter = isComplexPropertyValue ? 1 : 0;
 
@@ -144,9 +144,11 @@ public class StatefulYamlMarshaller extends AbstractStatefulYamlMarshaller {
 				}
 			} else {
 				Object value = property.get(entity);
-				
-				if (property.isEmptyValue(value) && !options.writeEmptyProperties())
-					continue;
+				GenericModelType type = property.getType();
+
+				if (!writeEmptyProperties)
+					if (value == null || (!type.isBase() && property.isEmptyValue(value)))
+						continue;
 
 				if (startWithNewline) {
 					writer.write('\n');
@@ -156,7 +158,6 @@ public class StatefulYamlMarshaller extends AbstractStatefulYamlMarshaller {
 				writer.write(property.getName());
 				writer.write(':');
 
-				GenericModelType type = property.getType();
 				indent.pushIndent();
 				write(type, type, value, true);
 				indent.popIndent();

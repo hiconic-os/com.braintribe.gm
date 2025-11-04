@@ -13,7 +13,6 @@
 // ============================================================================
 package com.braintribe.codec.marshaller.json;
 
-import static com.braintribe.testing.junit.assertions.assertj.core.api.Assertions.assertThatExecuting;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
@@ -44,7 +43,6 @@ import com.braintribe.model.meta.GmMetaModel;
 import com.braintribe.model.processing.meta.cmd.CmdResolver;
 import com.braintribe.model.processing.meta.cmd.CmdResolverImpl;
 import com.braintribe.model.processing.meta.oracle.BasicModelOracle;
-import com.braintribe.model.resource.Resource;
 import com.braintribe.testing.model.test.technical.features.EnumEntity;
 import com.braintribe.testing.model.test.technical.features.poly.PolyA;
 import com.braintribe.testing.model.test.technical.features.poly.PolyB;

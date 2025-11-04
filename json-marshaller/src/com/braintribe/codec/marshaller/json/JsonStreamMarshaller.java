@@ -188,10 +188,6 @@ public class JsonStreamMarshaller implements CharacterMarshaller, HasStringCodec
 			this.startLocation = context.parser.currentTokenLocation();
 		}
 		
-		public JsonLocation startLocation() {
-			return startLocation;
-		}
-		
 		public abstract ContainerDecoder arrayDecoder() throws Exception;
 		public abstract ContainerDecoder objectDecoder() throws Exception;
 

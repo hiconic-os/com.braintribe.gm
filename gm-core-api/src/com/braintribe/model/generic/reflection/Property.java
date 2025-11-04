@@ -38,10 +38,10 @@ public interface Property extends Attribute {
 	/**
 	 * Returns true based on the following rules:
 	 * <ol>
-	 * <li>The value is null</li>
+	 * <li>The value is <tt>null</tt>
 	 * <li>The type of the property is a collection and the value is an empty collection (special case of {@link GenericModelType#isEmpty(Object)}
-	 * )</li>
-	 * <li>The property is not nullable and the value is equal to the default value of the property (see {@link #getDefaultRawValue()})</li>
+	 * )
+	 * <li>The property is not nullable and the value is equal to the default value of the property (see {@link #getDefaultRawValue()})
 	 * </ol>
 	 */
 	@JsIgnore // See PropertyJs in gwt-gm-core

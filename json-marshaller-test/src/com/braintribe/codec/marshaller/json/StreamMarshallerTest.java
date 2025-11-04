@@ -179,7 +179,6 @@ public class StreamMarshallerTest {
 		System.out.println(parsedEntity);
 		
 		
-		@SuppressWarnings("unchecked")
 		List<PerformanceCertificate> parsedEntities = (List<PerformanceCertificate>) marshaller.decode(jsonList, 
 				GmDeserializationOptions.deriveDefaults()
 					.setInferredRootType(GMF.getTypeReflection().getType("list<"+PerformanceCertificate.T.getTypeSignature()+">"))
@@ -286,7 +285,7 @@ public class StreamMarshallerTest {
 		Assertions.assertThat(e4_1.getFloatValue()).isEqualTo(1f);
 		
 		TestEntity e5 = (TestEntity) parsedValue.get(i++);
-		TestEntity e5_1 = e4.getEntityValue();
+		TestEntity e5_1 = e5.getEntityValue();
 		
 		Assertions.assertThat(e5_1.getStringValue()).isEqualTo("Hallo");
 		Assertions.assertThat(e5_1.getFloatValue()).isEqualTo(1f);
@@ -1161,7 +1160,6 @@ public class StreamMarshallerTest {
 
 	@Test
 	public void testConsent() throws Exception {
-
 		JsonStreamMarshaller marshaller = newJsonMarshaller();
 
 		//@formatter:off
@@ -1185,7 +1183,6 @@ public class StreamMarshallerTest {
 		marshaller.marshall(os, consent, options);
 
 		assertEquals("{\"access\": {\"availableAccounts\": \"allAccounts\"}," //
-				+ "\"combinedServiceIndicator\": false," //
 				+ "\"frequencyPerDay\": 10," //
 				+ "\"recurringIndicator\": true," //
 				+ "\"validUntil\": \"2020-10-10\"}", os.toString()); //

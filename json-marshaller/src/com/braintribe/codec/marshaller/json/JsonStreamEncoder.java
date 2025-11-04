@@ -58,7 +58,6 @@ import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.SetType;
 import com.braintribe.model.generic.reflection.StringType;
-import com.braintribe.model.generic.reflection.TypeCode;
 import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 
 /**
@@ -612,9 +611,7 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 				}
 
 				Object value = getProperty(entity, property);
-
 				if (value == null) {
-
 					AbsenceInformation absenceInformation = property.getAbsenceInformation(entity);
 					if (absenceInformation == null) {
 						if (!writeEmptyProperties)
@@ -634,7 +631,7 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 					}
 
 				} else {
-					if (!writeEmptyProperties && propertyType.getTypeCode() != TypeCode.objectType && propertyType.isEmpty(value))
+					if (!writeEmptyProperties && !propertyType.isBase() && property.isEmptyValue(value))
 						continue;
 				}
 
@@ -707,13 +704,10 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 			for (int i = 0, len = typeInfo.propertyInfos.length; i < len; i++) {
 				PropertyInfo propertyInfo = typeInfo.propertyInfos[i];
 				Property property = propertyInfo.property;
-
 				GenericModelType propertyType = property.getType();
 
 				Object value = getProperty(entity, property);
-
 				if (value == null) {
-
 					AbsenceInformation absenceInformation = property.getAbsenceInformation(entity);
 					if (absenceInformation == null) {
 						if (!writeEmptyProperties)
@@ -733,7 +727,7 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 					}
 
 				} else {
-					if (!writeEmptyProperties && propertyType.getTypeCode() != TypeCode.objectType && propertyType.isEmpty(value))
+					if (!writeEmptyProperties && !propertyType.isBase() && property.isEmptyValue(value))
 						continue;
 				}
 
@@ -746,6 +740,7 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 				marshall(propertyType, value, propertyInfo.typeEncoder, property.isIdentifier());
 				wroteProperty = true;
 			}
+
 			if (canIncreaseIndent)
 				indent--;
 

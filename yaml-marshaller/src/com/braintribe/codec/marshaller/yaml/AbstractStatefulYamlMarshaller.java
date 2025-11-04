@@ -54,21 +54,26 @@ import com.braintribe.model.generic.value.ValueDescriptor;
 import com.braintribe.model.generic.value.Variable;
 
 public abstract class AbstractStatefulYamlMarshaller {
+
 	private final static char[] HEX_CHARS = "0123456789ABCDEF".toCharArray();
 	private static final char[][] ESCAPES_NORMAL = generateEscapes(false);
 	private static final char[][] ESCAPES_WITH_PLACEHOLDERS = generateEscapes(true);
+
 	protected final GmSerializationOptions options;
 	protected final Writer writer;
 	protected final Object rootValue;
 	protected final Indent indent = new Indent(2);
-	protected int anchorSequence;
-	protected TypeExplicitness typeExplicitness;
+	protected final TypeExplicitness typeExplicitness;
 	protected final Consumer<? super GenericEntity> entityVisitor;
 	protected final IdentityManagementMode identityManagementMode;
-	protected boolean stabilize;
-	private boolean scalarsFirst;
+	protected final boolean stabilize;
+
+	private final boolean scalarsFirst;
 	private Map<EntityType<?>, Iterable<Property>> orderedProperties;
-	protected boolean placeholderSupport;
+
+	protected int anchorSequence;
+	protected final boolean placeholderSupport;
+	protected final boolean writeEmptyProperties;
 	protected final char[][] ESCAPES;
 
 	public AbstractStatefulYamlMarshaller(GmSerializationOptions options, Writer writer, Object rootValue) {
@@ -76,11 +81,8 @@ public abstract class AbstractStatefulYamlMarshaller {
 		this.options = options;
 		this.writer = writer;
 		this.rootValue = rootValue;
-		this.typeExplicitness = options.findOrNull(TypeExplicitnessOption.class);
 		this.stabilize = options.findOrDefault(StabilizeOrderOption.class, false);
-		if (this.typeExplicitness == null || this.typeExplicitness == TypeExplicitness.auto) {
-			this.typeExplicitness = TypeExplicitness.entities;
-		}
+		this.typeExplicitness = typeExplicitiness(options.findOrNull(TypeExplicitnessOption.class));
 		this.entityVisitor = options.findOrNull(EntityVisitorOption.class);
 		this.identityManagementMode = options.findAttribute(IdentityManagementModeOption.class).orElse(IdentityManagementMode.auto);
 		this.scalarsFirst = options.findOrDefault(ScalarsFirst.class, false);
@@ -89,10 +91,18 @@ public abstract class AbstractStatefulYamlMarshaller {
 			this.orderedProperties = new IdentityHashMap<>();
 
 		this.placeholderSupport = options.findOrDefault(PlaceholderSupport.class, false);
+		this.writeEmptyProperties = options.writeEmptyProperties();
 		
 		this.ESCAPES = placeholderSupport? ESCAPES_WITH_PLACEHOLDERS: ESCAPES_NORMAL;
 	}
 	
+	private TypeExplicitness typeExplicitiness(TypeExplicitness result) {
+		if (result == null || result == TypeExplicitness.auto)
+			return TypeExplicitness.entities;
+		else
+			return result;
+	}
+
 	protected Iterable<Property> properties(EntityType<?> type) {
 		if (scalarsFirst)
 			return orderedProperties.computeIfAbsent(type, k -> {
@@ -138,7 +148,6 @@ public abstract class AbstractStatefulYamlMarshaller {
 	 *            To prevent unnecessary newlines it is tried to render as little newlines as possible. However when a
 	 *            property value of complex type is going to be marshaled for an entity, a newline (that otherwise would not
 	 *            have been necessary) has to be enforced via this flag.
-	 * @throws IOException
 	 */
 	protected void write(GenericModelType inferredType, GenericModelType type, Object value, boolean isComplexPropertyValue) throws IOException {
 		if (value == null) {

@@ -42,22 +42,27 @@ public interface GmSerializationOptions extends GmMarshallingOptions {
 		return defaultOptions.derive();
 	}
 
+	/** @return the value of {@link OutputPrettinessOption} */
 	default OutputPrettiness outputPrettiness() {
 		return getAttribute(OutputPrettinessOption.class);
 	}
 
+	/** @return the value of {@link WriteEmptyPropertiesOption} */
 	default boolean writeEmptyProperties() {
 		return getAttribute(WriteEmptyPropertiesOption.class);
 	}
 
+	/** @return the value of {@link UseDirectPropertyAccessOption} */
 	default boolean useDirectPropertyAccess() {
 		return getAttribute(UseDirectPropertyAccessOption.class);
 	}
 
+	/** @return the value of {@link StabilizeOrderOption} */
 	default boolean stabilizeOrder() {
 		return getAttribute(StabilizeOrderOption.class);
 	}
 
+	/** @return the value of {@link WriteAbsenceInformationOption} */
 	default boolean writeAbsenceInformation() {
 		return getAttribute(WriteAbsenceInformationOption.class);
 	}
