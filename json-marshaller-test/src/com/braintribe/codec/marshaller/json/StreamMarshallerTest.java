@@ -126,7 +126,6 @@ import com.braintribe.utils.genericmodel.GmTools;
 import com.braintribe.utils.lcd.StringTools;
 
 public class StreamMarshallerTest {
-	
 
 	@Test
 	public void testCustomDateFormat() {
@@ -244,9 +243,9 @@ public class StreamMarshallerTest {
 		try (InputStream in = new FileInputStream("res/listOfScalars.json")) {
 			parsedValue = (List<Object>) marshaller.unmarshall(in);
 		}
-		
+
 		int i = 0;
-		
+
 		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(1);
 		Assertions.assertThat(parsedValue.get(i++)).isEqualTo("Hallo");
 		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(true);
@@ -259,39 +258,39 @@ public class StreamMarshallerTest {
 		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(TestEnum.ONE);
 		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(TestEnum.TWO);
 		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(TestEnum.THREE);
-		
+
 		Assertions.assertThat(parsedValue.get(i++)).isEqualTo(Map.of("one", 1, "two", 2, "three", 3));
-		
+
 		TestEntity e1 = (TestEntity) parsedValue.get(i++);
-		
+
 		Assertions.assertThat(e1.getIntegerValue()).isEqualTo(1);
 		Assertions.assertThat(e1.getFloatValue()).isEqualTo(2f);
-		
+
 		TestEntity e2 = (TestEntity) parsedValue.get(i++);
-		
+
 		Assertions.assertThat(e2.getIntegerValue()).isEqualTo(1);
 		Assertions.assertThat(e2.getFloatValue()).isEqualTo(2.1f);
 		Assertions.assertThat(e2.getDoubleValue()).isEqualTo(3.14);
 		Assertions.assertThat(e2.getDecimalValue()).isEqualTo(new BigDecimal("2.8132142342314231412432315214231423155214231423152314231412212"));
-		
+
 		TestEntity e3 = (TestEntity) parsedValue.get(i++);
-		
+
 		Assertions.assertThat(e3.getDecimalValue()).isEqualTo(new BigDecimal("2.81"));
 
 		TestEntity e4 = (TestEntity) parsedValue.get(i++);
 		TestEntity e4_1 = e4.getEntityValue();
-		
+
 		Assertions.assertThat(e4_1.getStringValue()).isEqualTo("Hallo");
 		Assertions.assertThat(e4_1.getFloatValue()).isEqualTo(1f);
-		
+
 		TestEntity e5 = (TestEntity) parsedValue.get(i++);
 		TestEntity e5_1 = e5.getEntityValue();
-		
+
 		Assertions.assertThat(e5_1.getStringValue()).isEqualTo("Hallo");
 		Assertions.assertThat(e5_1.getFloatValue()).isEqualTo(1f);
-		
+
 		TestEntity e6 = (TestEntity) parsedValue.get(i++);
-		
+
 		Assertions.assertThat(e6.getStringValue()).isNull();
 		Map<String, String> expectedMap = new HashMap<>();
 		expectedMap.put("null", null);
@@ -909,19 +908,19 @@ public class StreamMarshallerTest {
 			marshaller.decode(jsonInput);
 		} catch (CodecException ce) {
 			Throwable cause = getCause(ce);
-			
+
 			if (cause instanceof ReasonException re) {
 				Reason reason = re.getReason();
 				Reason subReason = reason.getReasons().get(0);
 				Reason sub2Reason = subReason.getReasons().get(0);
-				
+
 				Assertions.assertThat(reason).isInstanceOf(ParseError.class);
 				Assertions.assertThat(subReason).isInstanceOf(InvalidArgument.class);
 				Assertions.assertThat(sub2Reason).isInstanceOf(NotFound.class);
-				Assertions.assertThat(sub2Reason.getText()).startsWith("Cannot resolve polymorphic ambiguity for abstract entity type [com.braintribe.model.resource.source.ResourceSource]");
+				Assertions.assertThat(sub2Reason.getText()).startsWith(
+						"Cannot resolve polymorphic ambiguity for abstract entity type [com.braintribe.model.resource.source.ResourceSource]");
 
-			}
-			else {
+			} else {
 				assertEquals(
 						"_type is missing for property: resourceSource with path [com.braintribe.model.resource.source.ResourceSource:resourceSource]",
 						cause.getMessage());
@@ -952,13 +951,13 @@ public class StreamMarshallerTest {
 				Reason reason = reasonEx.getReason();
 				Reason subReason = reason.getReasons().get(0);
 				Reason sub2Reason = subReason.getReasons().get(0);
-				
+
 				Assertions.assertThat(reason).isInstanceOf(ParseError.class);
 				Assertions.assertThat(subReason).isInstanceOf(InvalidArgument.class);
 				Assertions.assertThat(sub2Reason).isInstanceOf(NotFound.class);
-				Assertions.assertThat(sub2Reason.getText()).startsWith("Cannot resolve polymorphic ambiguity for abstract entity type [com.braintribe.model.resource.source.ResourceSource]");
-			}
-			else {
+				Assertions.assertThat(sub2Reason.getText()).startsWith(
+						"Cannot resolve polymorphic ambiguity for abstract entity type [com.braintribe.model.resource.source.ResourceSource]");
+			} else {
 				assertEquals(
 						"_type is missing for property: resourceSource with path [com.braintribe.model.resource.source.ResourceSource:resourceSource]",
 						cause.getMessage());
@@ -981,18 +980,18 @@ public class StreamMarshallerTest {
 			marshaller.decode(json);
 		} catch (CodecException ce) {
 			Throwable cause = getCause(ce);
-			
+
 			if (cause instanceof ReasonException reasonEx) {
 				Reason reason = reasonEx.getReason();
 				Reason subReason = reason.getReasons().get(0);
 				Reason sub2Reason = subReason.getReasons().get(0);
-				
+
 				Assertions.assertThat(reason).isInstanceOf(ParseError.class);
 				Assertions.assertThat(subReason).isInstanceOf(InvalidArgument.class);
 				Assertions.assertThat(sub2Reason).isInstanceOf(NotFound.class);
-				Assertions.assertThat(sub2Reason.getText()).startsWith("Cannot resolve polymorphic ambiguity for abstract entity type [com.braintribe.codec.marshaller.json.model.abstractentities.ThirdLevelAbstract]");
-			}
-			else {
+				Assertions.assertThat(sub2Reason.getText()).startsWith(
+						"Cannot resolve polymorphic ambiguity for abstract entity type [com.braintribe.codec.marshaller.json.model.abstractentities.ThirdLevelAbstract]");
+			} else {
 				assertEquals(
 						"_type is missing for property: thirdLevelAbstract with path [com.braintribe.codec.marshaller.json.model.abstractentities.BasicEntity:firstLevelAbstract -> com.braintribe.codec.marshaller.json.model.abstractentities.FirstLevelImpl:secondLevelAbstract -> com.braintribe.codec.marshaller.json.model.abstractentities.ThirdLevelAbstract:thirdLevelAbstract]",
 						cause.getMessage());
@@ -1230,16 +1229,16 @@ public class StreamMarshallerTest {
 		assertThat(decodedEntity.getName()).isEqualTo(resourceName);
 		assertThat(decodedEntity.getMd5()).isEqualTo(resourceMd5);
 	}
-	
+
 	protected Reason getUniqueRootCause(Reason r) {
 		List<Reason> reasons = r.getReasons();
-		
+
 		if (reasons.isEmpty())
 			return r;
-		
+
 		if (reasons.size() > 1)
 			Assertions.fail("Unexpected reason ambiguity");
-		
+
 		return getUniqueRootCause(reasons.get(0));
 	}
 }

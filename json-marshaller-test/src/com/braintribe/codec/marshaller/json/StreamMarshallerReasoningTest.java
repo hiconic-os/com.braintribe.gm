@@ -23,41 +23,40 @@ import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.essential.ParseError;
 
 public class StreamMarshallerReasoningTest {
-	@Test 
+
+	@Test
 	public void testPropertyTypeMismatchReasoning() throws FileNotFoundException, IOException {
 		testParseError("res/property-value-type-mismatch.json", "parsing json with a property value type mismatch");
 	}
-	
-	@Test 
+
+	@Test
 	public void testCollectionElementTypeMismatchReasoning() throws FileNotFoundException, IOException {
 		testParseError("res/collection-element-type-mismatch.json", "parsing json with a collection element type mismatch");
 	}
-	
-	@Test 
+
+	@Test
 	public void testSyntaxErrorReasoning() throws FileNotFoundException, IOException {
 		testParseError("res/syntax-error.json", "parsing json with a syntax error");
 	}
-	
-	@Test 
+
+	@Test
 	public void testUnknownTypeReasoning() throws FileNotFoundException, IOException {
 		testParseError("res/unknown-type.json", "parsing json with an unknown type");
 	}
-	
-	@Test 
+
+	@Test
 	public void testUnknownPropertyReasoning() throws FileNotFoundException, IOException {
 		testParseError("res/unknown-property.json", "parsing json with an unknown property");
 	}
-	
+
 	private void testParseError(String fileName, String errorCase) throws FileNotFoundException, IOException {
 		JsonStreamMarshaller marshaller = new JsonStreamMarshaller();
-		
+
 		try (InputStream in = new FileInputStream(fileName)) {
 			Maybe<Object> maybe = marshaller.unmarshallReasoned(in);
-			
+
 			if (!maybe.isUnsatisfiedBy(ParseError.T))
 				Assertions.fail("Missing ParseError reason when " + errorCase);
-			
-			System.out.println(maybe.whyUnsatisfied().asString());
 		}
 	}
 
