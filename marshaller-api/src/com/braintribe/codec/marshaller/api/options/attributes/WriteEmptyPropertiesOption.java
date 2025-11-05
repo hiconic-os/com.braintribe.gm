@@ -17,26 +17,18 @@ package com.braintribe.codec.marshaller.api.options.attributes;
 
 import com.braintribe.codec.marshaller.api.MarshallerOption;
 import com.braintribe.model.generic.reflection.EntityType;
-import com.braintribe.model.generic.reflection.Property;
-import com.braintribe.model.generic.reflection.SimpleType;
+import com.braintribe.model.generic.reflection.GenericModelType;
 
 /**
  * If <tt>false</tt>, empty properties are not written out.
  * <p>
- * An <i>empty property</i> is a property with a value that corresponds to the default value when a raw instance is created, e.g. via
- * {@link EntityType#createRaw()}. This means:
- * <ul>
- * <li><tt>null</tt> for nullable non-collection properties
- * <li>empty collection for collection properties
- * <li>{@link SimpleType#getDefaultValue() default primitive value} for primitive type properties (such as <tt>false</tt> for boolean).
- * </ul>
- * <p>
- * Note the implementation should in this case do the following check: {@code !.isBase() && property.isEmptyValue(value)}
+ * An <i>empty property</i> is either null or an empty collection, as long as the type of the property is also a collection. Empty collections
+ * properties of base type (i.e. Object in Java) will be written.
  * 
  * @see EntityType#isBase()
- * @see Property#isEmptyValue(Object)
+ * @see GenericModelType#isEmpty(Object)
  * 
  */
 public interface WriteEmptyPropertiesOption extends MarshallerOption<Boolean> {
-	// Intentionally left blank - Used as type safe key only
+	// Intentionally left blank
 }

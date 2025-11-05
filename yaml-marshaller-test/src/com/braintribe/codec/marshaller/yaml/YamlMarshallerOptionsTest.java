@@ -272,24 +272,27 @@ public class YamlMarshallerOptionsTest implements YamlMarshallerTestUtils {
 	@Test
 	// The marshaller should ignore property @Initializers
 	public void testEmptyProperties() throws Exception {
+		GmSerializationOptions serializationOpts = GmSerializationOptions.defaultOptions.derive() //
+				.set(TypeExplicitnessOption.class, TypeExplicitness.never) //
+				.build();
+
+		GmDeserializationOptions deserializationOpts = GmDeserializationOptions.defaultOptions.derive() //
+				.setInferredRootType(EntityWithInitializer.T) //
+				.build();
+
+		//--------------------------------------------------------------------------------------------------
+		
 		EntityWithInitializer entity = EntityWithInitializer.T.create();
 		entity.setTrue(false);
 
 		YamlMarshaller marshaller = new YamlMarshaller();
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-		GmSerializationOptions marshallingOptions = GmSerializationOptions.defaultOptions.derive() //
-				.set(TypeExplicitnessOption.class, TypeExplicitness.never) //
-				.build();
-		marshaller.marshall(baos, entity, marshallingOptions);
-		assertThat(baos.toString()).isEqualTo("{}\n");
-
-		GmDeserializationOptions deserializationOptions = GmDeserializationOptions.defaultOptions.derive() //
-				.setInferredRootType(EntityWithInitializer.T) //
-				.build();
+		marshaller.marshall(baos, entity, serializationOpts);
+		assertThat(baos.toString()).isEqualTo("true: false\n");
 
 		EntityWithInitializer roundTrippedEntity = (EntityWithInitializer) marshaller.unmarshall(new ByteArrayInputStream(baos.toByteArray()),
-				deserializationOptions);
+				deserializationOpts);
 		assertThat(roundTrippedEntity.getTrue()).isFalse();
 
 		entity = EntityWithInitializer.T.create();
@@ -297,10 +300,10 @@ public class YamlMarshallerOptionsTest implements YamlMarshallerTestUtils {
 
 		baos = new ByteArrayOutputStream();
 
-		marshaller.marshall(baos, entity, marshallingOptions);
+		marshaller.marshall(baos, entity, serializationOpts);
 		assertThat(baos.toString()).isEqualTo("true: true\n");
 
-		roundTrippedEntity = (EntityWithInitializer) marshaller.unmarshall(new ByteArrayInputStream(baos.toByteArray()), deserializationOptions);
+		roundTrippedEntity = (EntityWithInitializer) marshaller.unmarshall(new ByteArrayInputStream(baos.toByteArray()), deserializationOpts);
 		assertThat(roundTrippedEntity.getTrue()).isTrue();
 	}
 

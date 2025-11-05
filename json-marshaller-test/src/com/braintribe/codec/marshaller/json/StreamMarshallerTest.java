@@ -1182,6 +1182,7 @@ public class StreamMarshallerTest {
 		marshaller.marshall(os, consent, options);
 
 		assertEquals("{\"access\": {\"availableAccounts\": \"allAccounts\"}," //
+				+ "\"combinedServiceIndicator\": false," //
 				+ "\"frequencyPerDay\": 10," //
 				+ "\"recurringIndicator\": true," //
 				+ "\"validUntil\": \"2020-10-10\"}", os.toString()); //

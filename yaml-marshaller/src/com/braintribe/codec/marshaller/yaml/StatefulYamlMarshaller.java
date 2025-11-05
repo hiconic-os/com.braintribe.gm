@@ -147,7 +147,7 @@ public class StatefulYamlMarshaller extends AbstractStatefulYamlMarshaller {
 				GenericModelType type = property.getType();
 
 				if (!writeEmptyProperties)
-					if (value == null || (!type.isBase() && property.isEmptyValue(value)))
+					if (value == null || (!type.isBase() && type.isEmpty(value)))
 						continue;
 
 				if (startWithNewline) {

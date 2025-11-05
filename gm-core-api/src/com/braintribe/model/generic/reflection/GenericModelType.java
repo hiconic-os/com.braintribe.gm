@@ -163,9 +163,7 @@ public interface GenericModelType extends Comparable<GenericModelType> {
 
 	<T extends GenericModelType> T cast();
 
-	/**
-	 * @return true if the you can reach any entities when traversing from an instance of this type
-	 */
+	/** @return true if the you can reach any entities when traversing an instance of this type */
 	boolean areEntitiesReachable();
 
 	/**
@@ -176,6 +174,10 @@ public interface GenericModelType extends Comparable<GenericModelType> {
 	/** @return true if this is an instance of {@link SimpleType} or {@link EnumType}. */
 	boolean isScalar();
 
+	/**
+	 * Returns true iff the passed value is null or an empty collection matching given type. Thus, while being non-sensical, asking a {@link ListType}
+	 * whether an empty set is empty would return false.
+	 */
 	@JsIgnore // See GenericModelTypeJs in gwt-gm-core
 	@TsUnignoreMethod
 	boolean isEmpty(Object value);

@@ -631,7 +631,7 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 					}
 
 				} else {
-					if (!writeEmptyProperties && !propertyType.isBase() && property.isEmptyValue(value))
+					if (!writeEmptyProperties && !propertyType.isBase() && propertyType.isEmpty(value))
 						continue;
 				}
 
@@ -727,7 +727,7 @@ import com.braintribe.utils.io.UnsynchronizedBufferedWriter;
 					}
 
 				} else {
-					if (!writeEmptyProperties && !propertyType.isBase() && property.isEmptyValue(value))
+					if (!writeEmptyProperties && !propertyType.isBase() && propertyType.isEmpty(value))
 						continue;
 				}
 
