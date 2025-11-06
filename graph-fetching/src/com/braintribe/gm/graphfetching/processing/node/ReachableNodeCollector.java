@@ -4,13 +4,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.node.ReachableNodeBuilder;
 import com.braintribe.model.generic.reflection.CollectionType;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
@@ -19,38 +20,61 @@ import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.processing.meta.oracle.ModelOracle;
 
 public class ReachableNodeCollector {
-	
-	public static EntityGraphNode collect(ModelOracle oracle, EntityType<?> entityType) {
-		
-		return collect(
-				t -> oracle.getEntityTypeOracle(t).getSubTypes().onlyInstantiable().asTypes(),
-				entityType
-		);
+
+	public static ReachableNodeBuilder builder(EntityType<?> entityType) {
+		return new CollectContext(entityType);
 	}
 
-	public static EntityGraphNode collect(EntityType<?> entityType) {
-		return collect(t -> Collections.singletonList(t), entityType);
-	}
-	
-	public static EntityGraphNode collect(Function<EntityType<?>, Collection<? extends EntityType<?>>> covariance, EntityType<?> entityType) {
-		
-		ConfigurableEntityGraphNode configurableEntityGraphNode = new ConfigurableEntityGraphNode(entityType);
-		
+	private static class CollectContext implements ReachableNodeBuilder {
+		Function<EntityType<?>, Collection<? extends EntityType<?>>> covariance = t -> Collections.emptyList();
+		EntityType<?> entityType;
+		Predicate<EntityType<?>> typeExclusion = t -> false;
 		Set<EntityType<?>> entityTypeStack = new HashSet<>();
-		
-		fillProperties(covariance, entityType, entityType, configurableEntityGraphNode, entityTypeStack);
-		
+
+		public CollectContext(EntityType<?> entityType) {
+			this.entityType = entityType;
+		}
+
+		@Override
+		public ReachableNodeBuilder covariance(Function<EntityType<?>, Collection<? extends EntityType<?>>> covariance) {
+			this.covariance = covariance;
+			return this;
+		}
+		@Override
+		public ReachableNodeBuilder covariance(ModelOracle modelOracle) {
+			this.covariance = t -> modelOracle.getEntityTypeOracle(t).getSubTypes().transitive().onlyInstantiable().asTypes();
+			return this;
+		}
+		@Override
+		public ReachableNodeBuilder typeExclusion(Predicate<EntityType<?>> typeExclusion) {
+			this.typeExclusion = typeExclusion;
+			return this;
+		}
+
+		@Override
+		public EntityGraphNode build() {
+			return collect(this);
+		}
+	}
+
+	public static EntityGraphNode collect(CollectContext context) {
+
+		ConfigurableEntityGraphNode configurableEntityGraphNode = new ConfigurableEntityGraphNode(context.entityType);
+
+		fillProperties(context, context.entityType, context.entityType, configurableEntityGraphNode);
+
 		return configurableEntityGraphNode;
 	}
 
-	private static void fillProperties(Function<EntityType<?>, Collection<? extends EntityType<?>>> covariance, EntityType<?> baseType, EntityType<?> entityType, ConfigurableEntityGraphNode configurableEntityGraphNode,
-			Set<EntityType<?>> entityTypeStack) {
+	private static void fillProperties(CollectContext context, EntityType<?> baseType, EntityType<?> entityType,
+			ConfigurableEntityGraphNode configurableEntityGraphNode) {
 
-		if (!entityTypeStack.add(entityType)) {
+		if (!context.entityTypeStack.add(entityType)) {
 			return;
 		}
 		try {
-			for (Property property : getProperties(baseType, entityType)) {
+			Collection<Property> properties = getProperties(baseType, entityType);
+			for (Property property : properties) {
 				GenericModelType propertyType = property.getType();
 				if (propertyType.isScalar() || property.isIdentifier()) {
 					continue;
@@ -58,13 +82,16 @@ public class ReachableNodeCollector {
 
 				if (propertyType.isEntity()) {
 					EntityType<?> propertyEntityType = (EntityType<?>) propertyType;
-					
-					configurableEntityGraphNode.add(entityPropertyGraphNode(covariance, propertyEntityType, propertyEntityType, property, entityTypeStack));
+					if (context.typeExclusion.test(propertyEntityType)) {
+						continue;
+					}
 
-					Collection<? extends EntityType<?>> covariantTypes = covariance.apply(propertyEntityType);
-					
-					for (EntityType<?> covariantType: covariantTypes) {
-						configurableEntityGraphNode.add(entityPropertyGraphNode(covariance, propertyEntityType, covariantType, property, entityTypeStack));
+					configurableEntityGraphNode.add(entityPropertyGraphNode(context, propertyEntityType, propertyEntityType, property));
+
+					Collection<? extends EntityType<?>> covariantTypes = context.covariance.apply(propertyEntityType);
+
+					for (EntityType<?> covariantType : covariantTypes) {
+						configurableEntityGraphNode.add(entityPropertyGraphNode(context, propertyEntityType, covariantType, property));
 					}
 
 				} else if (propertyType.isCollection()) {
@@ -78,12 +105,18 @@ public class ReachableNodeCollector {
 							GenericModelType elementType = linearCollectionType.getCollectionElementType();
 							if (elementType.isEntity()) {
 								EntityType<?> elementEntityType = (EntityType<?>) elementType;
-								configurableEntityGraphNode.add(entityCollectionPropertyGraphNode(covariance, elementEntityType, elementEntityType, property, entityTypeStack));
+								if (context.typeExclusion.test(elementEntityType)) {
+									continue;
+								}
 
-								Collection<? extends EntityType<?>> covariantTypes = covariance.apply(elementEntityType);
-								
-								for (EntityType<?> covariantType: covariantTypes) {
-									configurableEntityGraphNode.add(entityCollectionPropertyGraphNode(covariance, elementEntityType, covariantType, property, entityTypeStack));
+								configurableEntityGraphNode
+										.add(entityCollectionPropertyGraphNode(context, elementEntityType, elementEntityType, property));
+
+								Collection<? extends EntityType<?>> covariantTypes = context.covariance.apply(elementEntityType);
+
+								for (EntityType<?> covariantType : covariantTypes) {
+									configurableEntityGraphNode
+											.add(entityCollectionPropertyGraphNode(context, elementEntityType, covariantType, property));
 								}
 
 							} else {
@@ -101,35 +134,36 @@ public class ReachableNodeCollector {
 
 			}
 		} finally {
-			entityTypeStack.remove(entityType);
+			context.entityTypeStack.remove(entityType);
 		}
 	}
 
 	private static Collection<Property> getProperties(EntityType<?> baseType, EntityType<?> entityType) {
 		if (baseType == entityType)
 			return entityType.getProperties();
-		
+
 		Set<Property> covariantProperties = new LinkedHashSet<Property>(entityType.getProperties());
 		covariantProperties.removeAll(baseType.getProperties());
 		return covariantProperties;
 	}
 
-	private static EntityPropertyGraphNode entityPropertyGraphNode(Function<EntityType<?>, Collection<? extends EntityType<?>>> covariance, EntityType<?> baseType, EntityType<?> entityType, Property property, Set<EntityType<?>> entityTypeStack) {
+	private static EntityPropertyGraphNode entityPropertyGraphNode(CollectContext context, EntityType<?> baseType, EntityType<?> entityType,
+			Property property) {
 
 		ConfigurableEntityPropertyGraphNode configurableEntityGraphNode = new ConfigurableEntityPropertyGraphNode(property, entityType);
 
-		fillProperties(covariance, baseType, entityType, configurableEntityGraphNode, entityTypeStack);
+		fillProperties(context, baseType, entityType, configurableEntityGraphNode);
 
 		return configurableEntityGraphNode;
 	}
 
-	private static EntityCollectionPropertyGraphNode entityCollectionPropertyGraphNode(Function<EntityType<?>, Collection<? extends EntityType<?>>> covariance, EntityType<?> baseType, EntityType<?> entityType, Property property,
-			Set<EntityType<?>> entityTypeStack) {
+	private static EntityCollectionPropertyGraphNode entityCollectionPropertyGraphNode(CollectContext context, EntityType<?> baseType,
+			EntityType<?> entityType, Property property) {
 
 		ConfigurableEntityCollectionPropertyGraphNode configurableEntityGraphNode = new ConfigurableEntityCollectionPropertyGraphNode(property,
 				entityType);
 
-		fillProperties(covariance, baseType, entityType, configurableEntityGraphNode, entityTypeStack);
+		fillProperties(context, baseType, entityType, configurableEntityGraphNode);
 
 		return configurableEntityGraphNode;
 	}

@@ -3,7 +3,6 @@ package com.braintribe.gm.graphfetching;
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.HashSet;
@@ -18,7 +17,6 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -66,103 +64,105 @@ public class GraphFetchingTest implements GraphFetchingTestConstants {
 	private static SmoodAccess access = GmTestTools.newSmoodAccessMemoryOnly(ACCESS_ID_TEST, model);
 
 	private static TestDataSeeder seeder = new TestDataSeeder();
-	
+
 	private void configureLogging() {
 		LogManager.getLogManager().reset();
-	    Logger root = Logger.getLogger("");
-	    root.setLevel(Level.INFO);
+		Logger root = Logger.getLogger("");
+		root.setLevel(Level.INFO);
 
-	    // log file path
-	    File logFile = new File("out/test.log");
+		// log file path
+		File logFile = new File("out/test.log");
 
-	    // remove default console handlers
-	    for (Handler h : root.getHandlers()) {
-	        root.removeHandler(h);
-	    }
+		// remove default console handlers
+		for (Handler h : root.getHandlers()) {
+			root.removeHandler(h);
+		}
 
-	    try {
-	        // FileHandler in append mode -> the file is already truncated above
-	        FileHandler fh = new FileHandler(logFile.getPath(), true);
-	        fh.setLevel(Level.FINEST);
+		try {
+			// FileHandler in append mode -> the file is already truncated above
+			FileHandler fh = new FileHandler(logFile.getPath(), true);
+			fh.setLevel(Level.FINEST);
 
-	        // ultra-short minimal formatter
-	        fh.setFormatter(new Formatter() {
-	            private String shortLevel(Level l) {
-	                int v = l.intValue();
-	                if (v >= 1000) return "E"; // SEVERE
-	                if (v >= 900)  return "W"; // WARNING
-	                if (v >= 800)  return "I"; // INFO
-	                if (v >= 700)  return "D"; // CONFIG
-	                return "T";               // FINE/FINER/FINEST
-	            }
+			// ultra-short minimal formatter
+			fh.setFormatter(new Formatter() {
+				private String shortLevel(Level l) {
+					int v = l.intValue();
+					if (v >= 1000)
+						return "E"; // SEVERE
+					if (v >= 900)
+						return "W"; // WARNING
+					if (v >= 800)
+						return "I"; // INFO
+					if (v >= 700)
+						return "D"; // CONFIG
+					return "T"; // FINE/FINER/FINEST
+				}
 
-	            @Override
-	            public String format(LogRecord r) {
-	                String cn = r.getSourceClassName();
-	                int ix = cn.lastIndexOf('.');
-	                String shortName = ix >= 0 ? cn.substring(ix + 1) : cn;
-	                return shortLevel(r.getLevel()) + " " + shortName + ": " + r.getMessage() + "\n";
-	            }
-	        });
+				@Override
+				public String format(LogRecord r) {
+					String cn = r.getSourceClassName();
+					int ix = cn.lastIndexOf('.');
+					String shortName = ix >= 0 ? cn.substring(ix + 1) : cn;
+					return shortLevel(r.getLevel()) + " " + shortName + ": " + r.getMessage() + "\n";
+				}
+			});
 
-	        root.addHandler(fh);
+			root.addHandler(fh);
 
-	    } catch (Exception e) {
-	        e.printStackTrace(); // last resort
-	    }
+		} catch (Exception e) {
+			e.printStackTrace(); // last resort
+		}
 
-	    // enable detailed log level for your package
-	    String logPackageName = UniversalPath.empty()
-	        .push(Fetching.class.getPackage().getName(), ".")
-	        .pop().toDottedPath();
-	    Logger.getLogger(logPackageName).setLevel(Level.FINEST);
-	    System.out.println("configured logging");
+		// enable detailed log level for your package
+		String logPackageName = UniversalPath.empty().push(Fetching.class.getPackage().getName(), ".").pop().toDottedPath();
+		Logger.getLogger(logPackageName).setLevel(Level.FINEST);
+		System.out.println("configured logging");
 	}
 
 	private static void truncateLogFile() {
-	    // log file path
-	    File logFile = new File("out/test.log");
+		// log file path
+		File logFile = new File("out/test.log");
 
-	    try {
-	        // ensure directory exists
-	        logFile.getParentFile().mkdirs();
+		try {
+			// ensure directory exists
+			logFile.getParentFile().mkdirs();
 
-	        if (logFile.exists()) {
-		        Path p = logFile.toPath();
-		        try (FileChannel ch = FileChannel.open(p, StandardOpenOption.WRITE)) {
-		            ch.truncate(0); // makes file empty but does not remove handle
-		        }
-	        }
+			if (logFile.exists()) {
+				Path p = logFile.toPath();
+				try (FileChannel ch = FileChannel.open(p, StandardOpenOption.WRITE)) {
+					ch.truncate(0); // makes file empty but does not remove handle
+				}
+			}
 
-	    } catch (IOException io) {
-	        io.printStackTrace();
-	    }
+		} catch (IOException io) {
+			io.printStackTrace();
+		}
 	}
-	
+
 	@BeforeClass
 	public static void init() {
 		truncateLogFile();
 		PersistenceGmSession session = GmTestTools.newSession(access);
 		new TestDataSeeder(session);
 		session.commit();
-		// load all entities once to deep initialize the access to have better time reading 
+		// load all entities once to deep initialize the access to have better time reading
 		// session.query().entities(EntityQuery.create(GenericEntity.T)).list();
 	}
-	
+
 	@Before
 	public void before() {
 		configureLogging();
 	}
-	
+
 	@Test
 	public void testReachable() {
 		PersistenceGmSession session = GmTestTools.newSession(access);
 
 		BasicModelOracle oracle = new BasicModelOracle(model);
-		EntityGraphNode graphNode = Fetching.reachable(Company.T, oracle);
-		
+		EntityGraphNode graphNode = Fetching.reachable(Company.T).covariance(oracle).build();
+
 		System.out.println(graphNode.stringify());
-		
+
 		Set<Company> expectedCompanies = new HashSet<>(seeder.getCompanies());
 
 		Set<Object> companyIds = expectedCompanies.stream().map(c -> c.getId()).collect(Collectors.toSet());
@@ -170,15 +170,15 @@ public class GraphFetchingTest implements GraphFetchingTestConstants {
 		{
 			Set<Company> actualCompanies = new HashSet<>(session.query()
 					.entities(EntityQuery.create(Company.T).where(EntityQueries.in(EntityQueries.property(GenericEntity.id), companyIds))).list());
-	
+
 			Fetching.fetch(session, graphNode, actualCompanies);
 		}
-		
+
 		logger.info("==== ACTUAL RUN ===");
-		
+
 		Set<Company> actualCompanies = new HashSet<>(session.query()
 				.entities(EntityQuery.create(Company.T).where(EntityQueries.in(EntityQueries.property(GenericEntity.id), companyIds))).list());
-		
+
 		Fetching.fetch(session, graphNode, actualCompanies);
 
 		AssemblyComparisonResult comparisonResult = AssemblyComparison.build() //
@@ -336,28 +336,22 @@ public class GraphFetchingTest implements GraphFetchingTestConstants {
 		}
 
 	}
-	
+
 	void foo() {
-		Fetching.rootNode(Company.T,
-				Fetching.node(Company.contracts,
-						Fetching.node(Document.tags)
-				),
-				Fetching.node(Company.contracts, SignableDocument.T,
-						Fetching.node(SignableDocument.signatures)
-				)
-		);
-		
+		Fetching.rootNode(Company.T, Fetching.node(Company.contracts, Fetching.node(Document.tags)),
+				Fetching.node(Company.contracts, SignableDocument.T, Fetching.node(SignableDocument.signatures)));
+
 		Company c = Fetching.graphPrototype(Company.T);
 		SignableDocument sd = Fetching.graphPrototype(SignableDocument.T);
 		Document d = Fetching.graphPrototype(Document.T);
-		
+
 		sd.getSignatures();
 		d.getTags();
-		
+
 		c.setContracts(Collections.set(d, sd));
-		
-//		c.setAddress(a);
-//		c.setAddress(sa);
+
+		// c.setAddress(a);
+		// c.setAddress(sa);
 	}
 
 }

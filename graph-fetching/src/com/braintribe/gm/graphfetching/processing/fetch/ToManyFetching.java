@@ -3,7 +3,6 @@ package com.braintribe.gm.graphfetching.processing.fetch;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,59 +36,60 @@ import com.braintribe.utils.lcd.CollectionTools2;
  */
 public class ToManyFetching {
 	private static final Logger logger = Logger.getLogger(ToManyFetching.class);
-	
+
 	static class EntityMapping {
 		public List<EntityCollectionPropertyGraphNode> exactNodes = new ArrayList<>();
 		public List<EntityCollectionPropertyGraphNode> covariantNodes = new ArrayList<>();
 		public Property property;
+
 		public EntityMapping(Property property) {
 			super();
 			this.property = property;
 		}
 	}
-	
+
 	static class NodePostProcessing {
 		public EntityCollectionPropertyGraphNode node;
 		public Map<Object, GenericEntity> toOnes = new LinkedHashMap<Object, GenericEntity>();
 		public Map<Object, GenericEntity> toManies = new LinkedHashMap<Object, GenericEntity>();
 		public boolean covariant;
+
 		public NodePostProcessing(EntityCollectionPropertyGraphNode node, boolean covariant) {
 			super();
 			this.node = node;
 			this.covariant = covariant;
 		}
 	}
-	
+
 	private static Map<Property, EntityMapping> buildMappings(List<EntityCollectionPropertyGraphNode> nodes) {
 		Map<Property, EntityMapping> mappings = new LinkedHashMap<>();
-		
-		for (EntityCollectionPropertyGraphNode node: nodes) {
+
+		for (EntityCollectionPropertyGraphNode node : nodes) {
 			EntityMapping mapping = mappings.computeIfAbsent(node.property(), EntityMapping::new);
-			
+
 			if (node.entityType() == node.condensedPropertyType()) {
 				mapping.exactNodes.add(node);
-			}
-			else {
+			} else {
 				mapping.covariantNodes.add(node);
 			}
 		}
-		
+
 		return mappings;
 	}
-	
+
 	private static List<NodePostProcessing> buildPostProcessings(EntityMapping mapping) {
 		List<NodePostProcessing> postProcessings = new ArrayList<>();
-		for (EntityCollectionPropertyGraphNode exactNode: mapping.exactNodes) {
+		for (EntityCollectionPropertyGraphNode exactNode : mapping.exactNodes) {
 			postProcessings.add(new NodePostProcessing(exactNode, false));
 		}
-		
-		for (EntityCollectionPropertyGraphNode covariantNode: mapping.covariantNodes) {
+
+		for (EntityCollectionPropertyGraphNode covariantNode : mapping.covariantNodes) {
 			postProcessings.add(new NodePostProcessing(covariantNode, true));
 		}
-		
+
 		return postProcessings;
 	}
-	
+
 	/**
 	 * Fetch all to-many properties of the given node (entity and scalar collections).
 	 */
@@ -100,37 +100,36 @@ public class ToManyFetching {
 		// entity collections
 		if (!entityCollectionProperties.isEmpty()) {
 			Collection<EntityMapping> mappings = buildMappings(entityCollectionProperties).values();
-			
-			for (EntityMapping mapping: mappings) {
-				List<NodePostProcessing> postProcessings = buildPostProcessings(mapping);
-				
-				Property property = mapping.property;
-				
-				fetch(context, node.entityType(), fetchTask, (LinearCollectionType)property.getType(), property, 
-						(GenericEntity e) -> {
-							EntityIdm entityIdm = context.acquireEntity(e);
-							e = entityIdm.entity;
-							
-							for (NodePostProcessing postProcessing: postProcessings) {
-								EntityCollectionPropertyGraphNode subNode = postProcessing.node;
-								if (postProcessing.covariant && !subNode.entityType().isInstance(e))
-									break;
-								
-								if (!entityIdm.isHandled(subNode.toOneQualification())) {
-									entityIdm.addHandled(subNode.toOneQualification());
-									postProcessing.toOnes.put(e.getId(), e);
-								}
-								
-								if (!entityIdm.isHandled(subNode.toManyQualification())) {
-									entityIdm.addHandled(subNode.toManyQualification());
-									postProcessing.toManies.put(e.getId(), e);
-								}
-							}
 
-							return e;
-						});
-				
-				for (NodePostProcessing postProcessing: postProcessings) {
+			for (EntityMapping mapping : mappings) {
+				List<NodePostProcessing> postProcessings = buildPostProcessings(mapping);
+
+				Property property = mapping.property;
+
+				fetch(context, node.entityType(), fetchTask, (LinearCollectionType) property.getType(), property, (GenericEntity e) -> {
+					EntityIdm entityIdm = context.acquireEntity(e);
+					e = entityIdm.entity;
+
+					for (NodePostProcessing postProcessing : postProcessings) {
+						EntityCollectionPropertyGraphNode subNode = postProcessing.node;
+						if (postProcessing.covariant && !subNode.entityType().isInstance(e))
+							continue;
+
+						if (!entityIdm.isHandled(subNode.toOneQualification())) {
+							entityIdm.addHandled(subNode.toOneQualification());
+							postProcessing.toOnes.put(e.getId(), e);
+						}
+
+						if (!entityIdm.isHandled(subNode.toManyQualification())) {
+							entityIdm.addHandled(subNode.toManyQualification());
+							postProcessing.toManies.put(e.getId(), e);
+						}
+					}
+
+					return e;
+				});
+
+				for (NodePostProcessing postProcessing : postProcessings) {
 					context.enqueueToManyIfRequired(postProcessing.node, postProcessing.toManies);
 					context.enqueueToOneIfRequired(postProcessing.node, postProcessing.toOnes);
 				}
@@ -153,58 +152,89 @@ public class ToManyFetching {
 		PersistenceGmSession session = context.session();
 		Map<Object, GenericEntity> entityIndex = fetchTask.entities;
 
-		Map<Object, Collection<E>> collectionsPerId = new HashMap<>();
-		for (GenericEntity entity : fetchTask.entities.values()) {
-			@SuppressWarnings("unchecked")
-			Collection<E> collection = (Collection<E>) collectionType.createPlain();
-			property.set(entity, collection);
-			collectionsPerId.put(entity.getId(), collection);
-		}
-
 		Set<Object> allIds = entityIndex.keySet();
-		List<Set<Object>> idBulks = CollectionTools2.splitToSets(allIds, 100);
-		
+		List<Set<Object>> idBulks = CollectionTools2.splitToSets(allIds, FetchProcessing.BULK_SIZE);
+
 		for (GenericEntity entity : fetchTask.entities.values()) {
 			property.set(entity, collectionType.createPlain());
 		}
-		
+
 		SelectQuery query = ToManyQueries.joinQuery(type, property);
-		
-		long nanosTotal = 0;
-		long wiringNanosTotal = 0;
-		
-		for (Set<Object> ids : idBulks) {
 
-			long nanoStart = System.nanoTime();
+		long queryNanoStart = System.nanoTime();
+
+		List<ListRecord> collectedListRecords = new ArrayList<>();
+
+		context.processParallel(idBulks, ids -> {
 			List<ListRecord> results = session.queryDetached().select(query).setVariable("ids", ids).list();
-			nanosTotal += System.nanoTime() - nanoStart;
 
-			long wiringNanoStart = System.nanoTime();
+			synchronized (collectedListRecords) {
+				collectedListRecords.addAll(results);
+			}
+		});
+
+		long queryDuration = System.nanoTime() - queryNanoStart;
+
+		long wiringNanoStart = System.nanoTime();
+
+		for (ListRecord record : collectedListRecords) {
+			Object id = record.get(0);
+			E element = (E) record.get(1);
+
 			Object curId = null;
 			Collection<E> curCollection = null;
 
-			for (ListRecord record : results) {
-				Object id = record.get(0);
-				E element = (E) record.get(1);
-
-				if (!id.equals(curId)) {
-					curId = id;
-					GenericEntity entity = entityIndex.get(id);
-					curCollection = property.get(entity);
-				}
-
-				if (visitor != null)
-					element = visitor.apply(element);
-
-				curCollection.add(element);
+			if (!id.equals(curId)) {
+				curId = id;
+				GenericEntity entity = entityIndex.get(id);
+				curCollection = property.get(entity);
 			}
-			
-			wiringNanosTotal += System.nanoTime() - wiringNanoStart;
+
+			if (visitor != null)
+				element = visitor.apply(element);
+
+			curCollection.add(element);
 		}
-		
+
+		long wiringDurationTotal = System.nanoTime() - wiringNanoStart;
+
+		// long nanosTotal = 0;
+		// long wiringNanosTotal = 0;
+		//
+		// for (Set<Object> ids : idBulks) {
+		//
+		// long nanoStart = System.nanoTime();
+		// List<ListRecord> results = session.queryDetached().select(query).setVariable("ids", ids).list();
+		// nanosTotal += System.nanoTime() - nanoStart;
+		//
+		// long wiringNanoStart = System.nanoTime();
+		// Object curId = null;
+		// Collection<E> curCollection = null;
+		//
+		// for (ListRecord record : results) {
+		// Object id = record.get(0);
+		// E element = (E) record.get(1);
+		//
+		// if (!id.equals(curId)) {
+		// curId = id;
+		// GenericEntity entity = entityIndex.get(id);
+		// curCollection = property.get(entity);
+		// }
+		//
+		// if (visitor != null)
+		// element = visitor.apply(element);
+		//
+		// curCollection.add(element);
+		// }
+		//
+		// wiringNanosTotal += System.nanoTime() - wiringNanoStart;
+		// }
+
 		if (logger.isTraceEnabled()) {
-			logger.trace("consumed " + Duration.ofNanos(nanosTotal).toMillis() + " ms for querying " + allIds.size() + " entities in " + idBulks.size() + " batches with: "  + query.stringify());
-			logger.trace("consumed " + Duration.ofNanos(wiringNanosTotal).toMillis() + " ms for wiring " + allIds.size() + " entities in " + idBulks.size() + " batches with: "  + query.stringify());
+			logger.trace("consumed " + Duration.ofNanos(queryDuration).toMillis() + " ms for querying " + allIds.size() + " entities in "
+					+ idBulks.size() + " batches with: " + query.stringify());
+			logger.trace("consumed " + Duration.ofNanos(wiringDurationTotal).toMillis() + " ms for wiring " + allIds.size() + " entities in "
+					+ idBulks.size() + " batches with: " + query.stringify());
 		}
 	}
 
