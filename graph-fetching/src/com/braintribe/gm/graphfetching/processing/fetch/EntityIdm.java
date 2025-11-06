@@ -1,5 +1,6 @@
 package com.braintribe.gm.graphfetching.processing.fetch;
 
+import com.braintribe.gm.graphfetching.api.node.FetchQualification;
 import com.braintribe.model.generic.GenericEntity;
 import java.util.ArrayList;
 import java.util.List;

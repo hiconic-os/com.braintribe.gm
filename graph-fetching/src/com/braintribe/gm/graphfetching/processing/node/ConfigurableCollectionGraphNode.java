@@ -5,7 +5,7 @@ import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.LinearCollectionType;
 import com.braintribe.model.generic.reflection.Property;
 
-public abstract class ConfigurableCollectionGraphNode implements CollectionPropertyGraphNode {
+public abstract class ConfigurableCollectionGraphNode extends BaseTypedGraphNode implements CollectionPropertyGraphNode {
 	private Property property;
 	private LinearCollectionType collectionType;
 	
@@ -38,5 +38,11 @@ public abstract class ConfigurableCollectionGraphNode implements CollectionPrope
 	public Property property() {
 		return property;
 	}
+	
+	@Override
+	public GenericModelType condensedPropertyType() {
+		return collectionType.getCollectionElementType();
+	}
+
 
 }

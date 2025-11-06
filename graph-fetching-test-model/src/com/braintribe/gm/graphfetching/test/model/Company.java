@@ -11,6 +11,14 @@ public interface Company extends GenericEntity {
 
 	EntityType<Company> T = EntityTypes.T(Company.class);
 	
+	String name = "name";
+	String foundedAt = "foundedAt";
+	String address = "address";
+	String owners = "owners";
+	String ceos = "ceos";
+	String lawyer = "lawyer";
+	String contracts = "contracts";
+	
 	String getName();
 	void setName(String name);
 	
@@ -24,10 +32,10 @@ public interface Company extends GenericEntity {
 	void setOwners(Set<Person> owners);
 	
 	Set<Person> getCeos();
-	void setCeos(Set<Person> owners);
+	void setCeos(Set<Person> ceos);
 	
 	Person getLawyer();
-	void setLawyer(Person person);
+	void setLawyer(Person lawyer);
 	
 	Set<Document> getContracts();
 	void setContracts(Set<Document> contracts);

@@ -11,11 +11,16 @@ public interface Document extends GenericEntity {
 
 	EntityType<Document> T = EntityTypes.T(Document.class);
 	
+	String name = "name";
+	String createdAt = "createdAt";
+	String tags = "tags";
+	String text = "text";
+	
 	String getName();
 	void setName(String name);
 	
 	Date getCreatedAt();
-	void setCreatedAt(Date greatedAt);
+	void setCreatedAt(Date createdAt);
 
 	Set<String> getTags();
 	void setTags(Set<String> tags);

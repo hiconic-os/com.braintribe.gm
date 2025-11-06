@@ -1,6 +1,6 @@
-package com.braintribe.gm.graphfetching.processing.fetch;
+package com.braintribe.gm.graphfetching.api.node;
 
-import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
+import com.braintribe.gm.graphfetching.processing.fetch.FetchType;
 
 public class FetchQualification {
 	public final EntityGraphNode node;

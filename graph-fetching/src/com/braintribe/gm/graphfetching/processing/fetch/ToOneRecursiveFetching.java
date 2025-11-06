@@ -1,6 +1,8 @@
 package com.braintribe.gm.graphfetching.processing.fetch;
 
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -9,6 +11,8 @@ import java.util.Set;
 
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.node.FetchQualification;
+import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EssentialCollectionTypes;
 import com.braintribe.model.generic.reflection.Property;
@@ -29,6 +33,9 @@ import com.braintribe.utils.lcd.CollectionTools2;
  * Batches queries for efficiency. Usage is internal to FetchProcessing.
  */
 public class ToOneRecursiveFetching {
+	private static Logger logger = Logger.getLogger(ToOneRecursiveFetching.class);
+	
+	// select c.id, e, a, c from Company c join c.employees e join e.address a join a.city c
 	
 	private abstract class EntityMapping {
 		protected List<FetchedEntityMapping> wirings = new ArrayList<>();
@@ -36,16 +43,14 @@ public class ToOneRecursiveFetching {
 		protected EntityGraphNode node;
 		protected Source source;
 		
-		public EntityMapping(EntityGraphNode node, int pos, Source source) {
+		public EntityMapping(int pos, Source source) {
 			super();
-			this.node = node;
 			this.pos = pos;
 			this.source = source;
 		}
 
-		public EntityGraphNode node() {
-			return node;
-		}
+		public abstract List<? extends EntityGraphNode> exactNodes();
+		public abstract List<? extends EntityGraphNode> covariantNodes();
 		
 		public int pos() {
 			return pos;
@@ -62,21 +67,54 @@ public class ToOneRecursiveFetching {
 	
 	private class ExistingEntityMapping extends EntityMapping {
 
+		private EntityGraphNode node;
+
 		public ExistingEntityMapping(EntityGraphNode node, int pos, Source source) {
-			super(node, pos, source);
+			super(pos, source);
+			this.node = node;
+		}
+		
+		@Override
+		public List<EntityGraphNode> covariantNodes() {
+			return Collections.emptyList();
+		}
+		
+		@Override
+		public List<EntityGraphNode> exactNodes() {
+			return Collections.singletonList(node);
 		}
 	}
 	
 	private class FetchedEntityMapping extends EntityMapping {
 		private Property property;
+		private List<EntityPropertyGraphNode> covariantNodes = new ArrayList<>();
+		private List<EntityPropertyGraphNode> exactNodes = new ArrayList<>();
 
-		public FetchedEntityMapping(EntityPropertyGraphNode node, int pos, Source source) {
-			super(node, pos, source);
-			property = node.property();
+		public FetchedEntityMapping(Property property, int pos, Source source) {
+			super(pos, source);
+			this.property = property;
 		}
 		
 		public Property property() {
 			return property;
+		}
+
+		public void addExact(EntityPropertyGraphNode subNode) {
+			exactNodes.add(subNode);
+		}
+
+		public void addCovariant(EntityPropertyGraphNode subNode) {
+			covariantNodes.add(subNode);
+		}
+		
+		@Override
+		public List<EntityPropertyGraphNode> covariantNodes() {
+			return covariantNodes;
+		}
+		
+		@Override
+		public List<EntityPropertyGraphNode> exactNodes() {
+			return exactNodes;
 		}
 	}
 	
@@ -110,23 +148,35 @@ public class ToOneRecursiveFetching {
 		List<Set<Object>> idBulks = CollectionTools2.splitToSets(allIds, 100);
 		
 		PersistenceGmSession session = context.session();
+
+		long nanoStart = System.nanoTime();
 		
 		for (Set<Object> ids: idBulks) {
 			List<ListRecord> records = session.queryDetached().select(query).setVariable("ids", ids).list();
 			wiringContext.fetchedRows.addAll(records); 
 		}
 		
-		Map<EntityGraphNode, Map<Object, GenericEntity>> fetchEntities = wireAndExtractFetchedEntities(context, wiringContext);
+		Duration duration = Duration.ofNanos(System.nanoTime() - nanoStart);
+		logger.trace(() ->  "consumed " + duration.toMillis() + " ms for querying " + allIds.size() + " entities in " + idBulks.size() + " batches with: "  + query.stringify());
 		
-		for (Map.Entry<EntityGraphNode, Map<Object, GenericEntity>> entry: fetchEntities.entrySet()) {
+		long wiringNanoStart = System.nanoTime();
+		PostProcessing postProcessing = wireAndExtractFetchedEntities(context, wiringContext);
+		Duration wiringDuration = Duration.ofNanos(System.nanoTime() - wiringNanoStart);
+		logger.trace(() ->  "consumed " + wiringDuration.toMillis() + " ms for wiring " + allIds.size() + " entities");
+		
+		for (Map.Entry<EntityGraphNode, Map<Object, GenericEntity>> entry: postProcessing.toManies.entrySet()) {
 			context.enqueueToManyIfRequired(entry.getKey(), entry.getValue());
+		}
+		
+		for (Map.Entry<EntityGraphNode, Map<Object, GenericEntity>> entry: postProcessing.toOnes.entrySet()) {
+			context.enqueueToOneIfRequired(entry.getKey(), entry.getValue());
 		}
 	}
 	
-	private Map<EntityGraphNode, Map<Object, GenericEntity>> wireAndExtractFetchedEntities(FetchContext fetchContext, ResultWiringContext context) {
+	private PostProcessing wireAndExtractFetchedEntities(FetchContext fetchContext, ResultWiringContext context) {
 		List<ListRecord> fetchedRows = context.fetchedRows;
 		
-		Map<EntityGraphNode, Map<Object, GenericEntity>> fetchedEntities = new LinkedHashMap<>();
+		PostProcessing postProcessing = new PostProcessing();
 		
 		int rowCount = fetchedRows.size(); 
 		int colCount = mappings.size(); 
@@ -145,9 +195,7 @@ public class ToOneRecursiveFetching {
 			EntityMapping mapping = mappings.get(col);
 			GenericEntity colEntities[] = entities[col];
 			
-			Map<Object, GenericEntity> extractedEntities = fetchedEntities.computeIfAbsent(mapping.node(), k -> new HashMap<>());
-			FetchQualification fqToMany = new FetchQualification(mapping.node(), FetchType.TO_MANY);
-			FetchQualification fqToOne = new FetchQualification(mapping.node(), FetchType.TO_ONE);
+			List<NodePostProcessing> nodePostProcessings = buildNodePostProcessings(postProcessing, mapping);
 			
 			for (int row = 0; row < rowCount; row++) {
 				ListRecord record = fetchedRows.get(row);
@@ -162,12 +210,8 @@ public class ToOneRecursiveFetching {
 				
 				colEntities[row] = entity;
 				
-				entityIdm.addHandled(fqToOne);
-				
-				if (!entityIdm.isHandled(fqToMany)) {
-					entityIdm.addHandled(fqToMany);
-					extractedEntities.put(entity.getId(), entity);
-				}
+				for (NodePostProcessing nodePostProcessing: nodePostProcessings)
+					nodePostProcessing.handle(entityIdm);
 			}
 		}
 		
@@ -175,7 +219,97 @@ public class ToOneRecursiveFetching {
 			for (int row = 0; row < rowCount; row++)
 				wireEntities(entities, mapping, row);
 		
-		return fetchedEntities;
+		return postProcessing;
+	}
+	
+	private List<NodePostProcessing> buildNodePostProcessings(PostProcessing postProcessing, EntityMapping mapping) {
+		List<NodePostProcessing> processings = new ArrayList<>();
+
+		for (EntityGraphNode node: mapping.covariantNodes())
+			processings.add(new NodePostProcessing(postProcessing, node, false));
+		
+		for (EntityGraphNode node: mapping.covariantNodes())
+			processings.add(new NodePostProcessing(postProcessing, node, true));
+		
+		return processings;
+	}
+
+	private static class PostProcessing {
+		private Map<EntityGraphNode, Map<Object, GenericEntity>> toManies = new LinkedHashMap<EntityGraphNode, Map<Object,GenericEntity>>();
+		private Map<EntityGraphNode, Map<Object, GenericEntity>> toOnes = new LinkedHashMap<EntityGraphNode, Map<Object,GenericEntity>>();
+		
+		public Map<Object, GenericEntity> acquireToManies(EntityGraphNode node) {
+			return toManies.computeIfAbsent(node, k -> new HashMap<>());
+		}
+		public Map<Object, GenericEntity> acquireToOnes(EntityGraphNode node) {
+			return toOnes.computeIfAbsent(node, k -> new HashMap<>());
+		}
+	}
+	
+	private static class NodePostProcessing {
+		private PostProcessing postProcessing;
+		private Map<Object, GenericEntity> toManies;
+		private Map<Object, GenericEntity> toOnes;
+		private EntityGraphNode node;
+		private boolean covariant;
+		
+		public NodePostProcessing(PostProcessing postProcessing, EntityGraphNode node, boolean covariant) {
+			super();
+			this.postProcessing = postProcessing;
+			this.node = node;
+			this.covariant = covariant;
+		}
+
+		public void handle(EntityIdm entityIdm) {
+			if (covariant) 
+				handleCovariant(entityIdm);
+			else
+				handleExact(entityIdm);
+		}
+		
+		private void handleExact(EntityIdm entityIdm) {
+			entityIdm.addHandled(node.toOneQualification());
+			handleToMany(entityIdm);
+		}
+		
+		private void handleCovariant(EntityIdm entityIdm) {
+			if (!node.entityType().isInstance(entityIdm.entity))
+				return;
+			
+			handleToOne(entityIdm);
+			handleToMany(entityIdm);
+		}
+		
+		private void handleToMany(EntityIdm entityIdm) {
+			FetchQualification fqToMany = node.toManyQualification();
+			if (!entityIdm.isHandled(fqToMany)) {
+				entityIdm.addHandled(fqToMany);
+				addToMany(entityIdm.entity);
+			}
+		}
+		
+		private void handleToOne(EntityIdm entityIdm) {
+			FetchQualification fqToOne = node.toOneQualification();
+			if (!entityIdm.isHandled(fqToOne)) {
+				entityIdm.addHandled(fqToOne);
+				addToOne(entityIdm.entity);
+			}
+		}
+		
+		private void addToMany(GenericEntity entity) {
+			if (toManies == null)
+				toManies = postProcessing.acquireToManies(node);
+
+			toManies.put(entity.getId(), entity);
+		}
+		
+		private void addToOne(GenericEntity entity) {
+			if (toOnes == null)
+				toOnes = postProcessing.acquireToOnes(node);
+
+			toOnes.put(entity.getId(), entity);
+		}
+		
 	}
 
 	/**
@@ -206,12 +340,33 @@ public class ToOneRecursiveFetching {
 	private void registerMappingWithJoins(EntityMapping refererMapping) {
 		mappings.add(refererMapping);
 		
-		 for (EntityPropertyGraphNode subNode: refererMapping.node().entityProperties()) {
-			 Property property = subNode.property();
-			 Join join = refererMapping.source().join(property.getName(), JoinType.left);
-			 int pos = select(join);
-			 FetchedEntityMapping fetchedMapping = new FetchedEntityMapping(subNode, pos, join);
-			 refererMapping.wirings().add(fetchedMapping);
+		Map<Property, FetchedEntityMapping> propertyMappings = new LinkedHashMap<>();
+		
+		for (EntityGraphNode exactNode : refererMapping.exactNodes()) {
+			for (EntityPropertyGraphNode subNode : exactNode.entityProperties()) {
+				Property property = subNode.property();
+
+				FetchedEntityMapping fetchedMapping = propertyMappings.get(property);
+
+				if (fetchedMapping == null) {
+					Join join = refererMapping.source().join(property.getName(), JoinType.left);
+					int pos = select(join);
+					fetchedMapping = new FetchedEntityMapping(property, pos, join);
+					propertyMappings.put(property, fetchedMapping);
+				}
+
+				// is it a property polymorphic node?
+				if (subNode.entityType() == property.getType()) {
+					fetchedMapping.addExact(subNode);
+					refererMapping.wirings().add(fetchedMapping);
+				} else {
+					fetchedMapping.addCovariant(subNode);
+				}
+			}
+		}
+		 
+		 // register next level
+		 for (FetchedEntityMapping fetchedMapping: propertyMappings.values()) {
 			 registerMappingWithJoins(fetchedMapping);
 		 }
 	}

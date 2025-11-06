@@ -8,6 +8,10 @@ public interface Address extends GenericEntity {
 
 	EntityType<Address> T = EntityTypes.T(Address.class);
 
+	String city = "city";
+	String street = "street";
+	String streetNumber = "streetNumber";
+	
 	City getCity();
 	void setCity(City city);
 	

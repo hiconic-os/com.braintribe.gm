@@ -37,4 +37,8 @@ public interface EntityGraphNode extends TypedGraphNode  {
      * @return true if there are to-one entity properties
      */
     boolean hasEntityProperties();
+    
+    FetchQualification toOneQualification();
+    
+    FetchQualification toManyQualification();
 }

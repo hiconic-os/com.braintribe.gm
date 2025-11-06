@@ -9,6 +9,13 @@ import com.braintribe.model.generic.reflection.EntityTypes;
 public interface Person extends GenericEntity {
 
 	EntityType<Person> T = EntityTypes.T(Person.class);
+	
+	String firstName = "firstName";
+	String lastName = "lastName";
+	String gender = "gender";
+	String birthday = "birthday";
+	String address = "address";
+	String bestFriend = "bestFriend";
 
 	String getFirstName();
 	void setFirstName(String firstName);

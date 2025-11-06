@@ -8,6 +8,9 @@ public interface City extends GenericEntity {
 
 	EntityType<City> T = EntityTypes.T(City.class);
 
+	String name = "name";
+	String postalCode = "postalCode";
+	
 	String getName();
 	void setName(String name);
 	

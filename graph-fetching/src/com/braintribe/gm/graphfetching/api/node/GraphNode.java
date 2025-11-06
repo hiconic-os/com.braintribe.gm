@@ -9,5 +9,5 @@ public interface GraphNode {
      */
     String name();
     
-    String toString();
+    String stringify();
 }

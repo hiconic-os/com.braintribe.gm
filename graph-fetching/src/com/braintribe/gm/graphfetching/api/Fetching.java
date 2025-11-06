@@ -3,18 +3,20 @@ package com.braintribe.gm.graphfetching.api;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Function;
 
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
-import com.braintribe.gm.graphfetching.api.node.UntypedGraphNode;
+import com.braintribe.gm.graphfetching.api.node.InferableGraphNode;
 import com.braintribe.gm.graphfetching.processing.fetch.FetchProcessing;
 import com.braintribe.gm.graphfetching.processing.fetch.LocalFetching;
 import com.braintribe.gm.graphfetching.processing.node.ConfigurableEntityGraphNode;
-import com.braintribe.gm.graphfetching.processing.node.ConfigurableUntypedGraphNode;
+import com.braintribe.gm.graphfetching.processing.node.ConfigurableInferableGraphNode;
 import com.braintribe.gm.graphfetching.processing.node.GraphPrototypePai;
 import com.braintribe.gm.graphfetching.processing.node.ReachableNodeCollector;
 import com.braintribe.gm.graphfetching.processing.util.FetchingTools;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
+import com.braintribe.model.processing.meta.oracle.ModelOracle;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
 
 /**
@@ -65,8 +67,12 @@ public interface Fetching {
 	 *            optional subnodes (for nested fetches)
 	 * @return a new UntypedGraphNode
 	 */
-	static UntypedGraphNode node(String name, UntypedGraphNode... subNodes) {
-		return new ConfigurableUntypedGraphNode(name, subNodes);
+	static InferableGraphNode node(String name, InferableGraphNode... subNodes) {
+		return new ConfigurableInferableGraphNode(name, subNodes);
+	}
+	
+	static InferableGraphNode node(String name, EntityType<?> entityType, InferableGraphNode... subNodes) {
+		return new ConfigurableInferableGraphNode(entityType, name, subNodes);
 	}
 
 	/**
@@ -78,12 +84,12 @@ public interface Fetching {
 	 *            optional subnodes (property branches)
 	 * @return a new EntityGraphNode representing the root of the fetch graph
 	 */
-	static EntityGraphNode rootNode(EntityType<?> entityType, UntypedGraphNode... subNodes) {
+	static EntityGraphNode rootNode(EntityType<?> entityType, InferableGraphNode... subNodes) {
 		return new ConfigurableEntityGraphNode(entityType, subNodes);
 	}
 
 	/**
-	 * Creates a node with transitive subnodes for the complete reachable structure but stops at type recurrence
+	 * Creates a node with transitive subnodes for the complete reachable structure excluding covariant property types but stops at type recurrence
 	 * 
 	 * @param entityType
 	 *            the root entity's type
@@ -91,6 +97,32 @@ public interface Fetching {
 	 */
 	static EntityGraphNode reachable(EntityType<?> entityType) {
 		return ReachableNodeCollector.collect(entityType);
+	}
+	
+	/**
+	 * Creates a node with transitive subnodes for the complete reachable structure including covariant property types but stops at type recurrence
+	 * 
+	 * @param entityType
+	 *            the root entity's type
+	 * @param oracle
+	 *            the model oracle used to discover covariant property types
+	 * @return a new EntityGraphNode representing the root of the fetch graph
+	 */
+	static EntityGraphNode reachable(EntityType<?> entityType, ModelOracle oracle) {
+		return ReachableNodeCollector.collect(oracle, entityType);
+	}
+	
+	/**
+	 * Creates a node with transitive subnodes for the complete reachable structure including covariant property types but stops at type recurrence
+	 * 
+	 * @param entityType
+	 *            the root entity's type
+	 * @param covariance
+	 *            the covariance expert that returns instantiable types for a given base type
+	 * @return a new EntityGraphNode representing the root of the fetch graph
+	 */
+	static EntityGraphNode reachable(EntityType<?> entityType, Function<EntityType<?>, Collection<? extends EntityType<?>>> covariance) {
+		return ReachableNodeCollector.collect(covariance, entityType);
 	}
 
 	/**

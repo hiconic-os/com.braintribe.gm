@@ -8,6 +8,8 @@ public interface Country extends GenericEntity {
 
 	EntityType<Country> T = EntityTypes.T(Country.class);
 
+	String name = "name";
+	
 	String getName();
 	void setName(String name);
 }

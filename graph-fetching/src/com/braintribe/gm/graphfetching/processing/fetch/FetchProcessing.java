@@ -1,5 +1,6 @@
 package com.braintribe.gm.graphfetching.processing.fetch;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -9,6 +10,8 @@ import java.util.Queue;
 
 import com.braintribe.common.lcd.Pair;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
+import com.braintribe.gm.graphfetching.api.node.FetchQualification;
+import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
@@ -19,6 +22,7 @@ import com.braintribe.model.processing.session.api.persistence.PersistenceGmSess
  * Extensible via FetchTask and FetchType.
  */
 public class FetchProcessing implements FetchContext {
+	private static Logger logger = Logger.getLogger(FetchProcessing.class);
 	private Queue<FetchTask> taskQueue = new LinkedList<>();
 	
 	private PersistenceGmSession session;
@@ -28,14 +32,17 @@ public class FetchProcessing implements FetchContext {
 		this.session = session;
 	}
 	
+	@Override
 	public EntityIdm acquireEntity(GenericEntity entity) {
 		return index.computeIfAbsent(Pair.of(entity.entityType(), entity.getId()), k -> new EntityIdm(entity));
 	}
 	
+	@Override
 	public EntityIdm resolveEntity(EntityType<?> type, Object id) {
 		return index.get(Pair.of(type, id));
 	}
 	
+	@Override
 	public PersistenceGmSession session() {
 		return session;
 	}
@@ -51,6 +58,7 @@ public class FetchProcessing implements FetchContext {
 	 * Main scheduling: enqueue required fetch tasks for the given graph node and entities and process all.
 	 */
 	public void fetch(EntityGraphNode node, Map<Object, GenericEntity> entities) {
+		long nanosStart = System.nanoTime();
 		FetchQualification fqToOne = new FetchQualification(node, FetchType.TO_ONE);
 		FetchQualification fqToMany = new FetchQualification(node, FetchType.TO_MANY);
 		for (GenericEntity entity : entities.values()) {
@@ -61,6 +69,8 @@ public class FetchProcessing implements FetchContext {
 		enqueueToOneIfRequired(node, entities);
 		enqueueToManyIfRequired(node, entities);
 		process();
+		Duration duration = Duration.ofNanos(System.nanoTime() - nanosStart);
+		logger.debug(() -> "consumed " + duration.toMillis() + " ms for graph fetching of " +  entities.size() + " entities with graph: \n" + node.stringify());
 	}
 	
 	private Map<Object, GenericEntity> entityIndex(Collection<? extends GenericEntity> entities) {
@@ -71,14 +81,18 @@ public class FetchProcessing implements FetchContext {
 		return index;
 	}
 
+	@Override
 	public void enqueueToOneIfRequired(EntityGraphNode node, Map<Object, GenericEntity> entities) {
-		if (node.hasEntityProperties() && !entities.isEmpty())
+		if (node.hasEntityProperties() && !entities.isEmpty()) {
 			taskQueue.offer(new FetchTask(node, FetchType.TO_ONE, entities));
+		}
 	}
 
+	@Override
 	public void enqueueToManyIfRequired(EntityGraphNode node, Map<Object, GenericEntity> entities) {
-		if (node.hasCollectionProperties() && !entities.isEmpty())
+		if (node.hasCollectionProperties() && !entities.isEmpty()) {
 			taskQueue.offer(new FetchTask(node, FetchType.TO_MANY, entities));
+		}
 	}
 	
 	private void process() {
@@ -96,10 +110,15 @@ public class FetchProcessing implements FetchContext {
 	 * Task worker: decide if a TO_ONE or TO_MANY fetch is required, and process accordingly.
 	 */
 	private void processTask(FetchTask task) {
+		long nanosStart = System.nanoTime();
+
 		switch (task.fetchType) {
 		case TO_MANY: processToManyTask(task); break;
 		case TO_ONE: processToOneTask(task); break;
 		}
+		
+		Duration duration = Duration.ofNanos(System.nanoTime() - nanosStart);
+		logger.trace(() -> "consumed " + duration.toMillis() + " ms for graph " + task.fetchType + " fetching of " +  task.entities.size() + " entities with graph: \n" + task.node.stringify());
 	}
 
 	/**

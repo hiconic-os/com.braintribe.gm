@@ -19,6 +19,8 @@ import com.braintribe.gm.graphfetching.test.model.Country;
 import com.braintribe.gm.graphfetching.test.model.Document;
 import com.braintribe.gm.graphfetching.test.model.Gender;
 import com.braintribe.gm.graphfetching.test.model.Person;
+import com.braintribe.gm.graphfetching.test.model.SignableDocument;
+import com.braintribe.gm.graphfetching.test.model.Signature;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
@@ -88,6 +90,10 @@ public class TestDataSeeder implements GraphFetchingTestConstants {
 
 	// Die zentrale generische create-Methode
 	public <T extends GenericEntity> T create(EntityType<T> type) {
+		return create(type, type);
+	}
+	
+	public <T extends GenericEntity> T create(EntityType<T> type, EntityType<? super T> idType) {
 		T entity;
 		if (session != null) {
 			entity = session.create(type);
@@ -95,7 +101,7 @@ public class TestDataSeeder implements GraphFetchingTestConstants {
 			entity = type.create();
 		}
 		// Zentrale, vorhersehbare Sequenz-ID zuweisen
-		AtomicLong sequence = idSequences.computeIfAbsent(type, t -> new AtomicLong(1));
+		AtomicLong sequence = idSequences.computeIfAbsent(idType, t -> new AtomicLong(1));
 		long id = sequence.getAndIncrement();
 		entity.setId(id);
 		entity.setGlobalId(type.getTypeSignature() + "@" + String.valueOf(id));
@@ -212,7 +218,25 @@ public class TestDataSeeder implements GraphFetchingTestConstants {
 	}
 
 	private Document createRandomContract(String companyName, int idx) {
-		Document doc = create(Document.T);
+		boolean signable = (idx % 2) == 0;
+		
+		final Document doc;
+		
+		if (signable) {
+			SignableDocument signableDocument = create(SignableDocument.T, Document.T);
+			int signatureCount = idx % 5;
+			for (int i = 0; i < signatureCount; i++) {
+				Signature signature = create(Signature.T); 
+				signature.setHash("" + signableDocument.getId());
+				signature.setSignature(companyName + signature.getId());
+				signableDocument.getSignatures().add(signature);
+			}
+			doc = signableDocument;
+		}
+		else {
+			doc = create(Document.T);
+		}
+		
 		doc.setName(companyName + " Contract #" + idx);
 		Set<String> tags = new HashSet<>();
 		tags.add("contract");
@@ -221,6 +245,7 @@ public class TestDataSeeder implements GraphFetchingTestConstants {
 		doc.setTags(tags);
 		doc.setText("This is a sample contract document for " + companyName + ".");
 		documents.add(doc);
+		
 		return doc;
 	}
 

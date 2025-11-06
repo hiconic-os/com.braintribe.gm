@@ -1,5 +1,6 @@
 package com.braintribe.gm.graphfetching.api.node;
 
+import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.Property;
 
 /**
@@ -11,4 +12,5 @@ public interface PropertyGraphNode extends TypedGraphNode {
      * @return The reflected property info (see model reflection API)
      */
     Property property();
+    GenericModelType condensedPropertyType();
 }
