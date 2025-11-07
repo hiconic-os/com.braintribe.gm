@@ -4,10 +4,12 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
@@ -41,6 +43,7 @@ public class ToOneRecursiveFetching {
 		protected int pos;
 		protected EntityGraphNode node;
 		protected Source source;
+		protected boolean recursionStop = false;
 
 		public EntityMapping(int pos, Source source) {
 			super();
@@ -53,6 +56,14 @@ public class ToOneRecursiveFetching {
 
 		public int pos() {
 			return pos;
+		}
+		
+		public boolean isRecursionStop() {
+			return recursionStop;
+		}
+		
+		public void setRecursionStop(boolean recursionStop) {
+			this.recursionStop = recursionStop;
 		}
 
 		public Source source() {
@@ -86,8 +97,8 @@ public class ToOneRecursiveFetching {
 
 	private class FetchedEntityMapping extends EntityMapping {
 		private Property property;
-		private List<EntityPropertyGraphNode> covariantNodes = new ArrayList<>();
-		private List<EntityPropertyGraphNode> exactNodes = new ArrayList<>();
+		private List<EntityGraphNode> covariantNodes = new ArrayList<>();
+		private List<EntityGraphNode> exactNodes = new ArrayList<>();
 
 		public FetchedEntityMapping(Property property, int pos, Source source) {
 			super(pos, source);
@@ -98,21 +109,21 @@ public class ToOneRecursiveFetching {
 			return property;
 		}
 
-		public void addExact(EntityPropertyGraphNode subNode) {
+		public void addExact(EntityGraphNode subNode) {
 			exactNodes.add(subNode);
 		}
 
-		public void addCovariant(EntityPropertyGraphNode subNode) {
+		public void addCovariant(EntityGraphNode subNode) {
 			covariantNodes.add(subNode);
 		}
 
 		@Override
-		public List<EntityPropertyGraphNode> covariantNodes() {
+		public List<EntityGraphNode> covariantNodes() {
 			return covariantNodes;
 		}
 
 		@Override
-		public List<EntityPropertyGraphNode> exactNodes() {
+		public List<EntityGraphNode> exactNodes() {
 			return exactNodes;
 		}
 	}
@@ -132,9 +143,10 @@ public class ToOneRecursiveFetching {
 
 		int pos = select(SelectQueries.property(source, GenericEntity.id));
 
+		CyclicRecurrenceCheck check = new CyclicRecurrenceCheck();
 		ExistingEntityMapping entityMapping = new ExistingEntityMapping(node, pos, source);
 
-		registerMappingWithJoins(entityMapping);
+		registerMappingWithJoins(entityMapping, check);
 	}
 
 	public void fetch(FetchContext context, FetchTask task) {
@@ -230,11 +242,13 @@ public class ToOneRecursiveFetching {
 	private List<NodePostProcessing> buildNodePostProcessings(PostProcessing postProcessing, EntityMapping mapping) {
 		List<NodePostProcessing> processings = new ArrayList<>();
 
+		boolean toOneAlreadyFetched = !mapping.isRecursionStop();
+		
 		for (EntityGraphNode node : mapping.exactNodes())
-			processings.add(new NodePostProcessing(postProcessing, node, false));
+			processings.add(new NodePostProcessing(postProcessing, node, toOneAlreadyFetched, false));
 
 		for (EntityGraphNode node : mapping.covariantNodes())
-			processings.add(new NodePostProcessing(postProcessing, node, true));
+			processings.add(new NodePostProcessing(postProcessing, node, false, true));
 
 		return processings;
 	}
@@ -256,32 +270,26 @@ public class ToOneRecursiveFetching {
 		private Map<Object, GenericEntity> toManies;
 		private Map<Object, GenericEntity> toOnes;
 		private EntityGraphNode node;
+		private boolean toOneAlreadyFetched;
 		private boolean covariant;
 
-		public NodePostProcessing(PostProcessing postProcessing, EntityGraphNode node, boolean covariant) {
+		public NodePostProcessing(PostProcessing postProcessing, EntityGraphNode node, boolean toOneAlreadyFetched, boolean covariant) {
 			super();
 			this.postProcessing = postProcessing;
 			this.node = node;
+			this.toOneAlreadyFetched = toOneAlreadyFetched;
 			this.covariant = covariant;
 		}
 
 		public void handle(EntityIdm entityIdm) {
-			if (covariant)
-				handleCovariant(entityIdm);
-			else
-				handleExact(entityIdm);
-		}
-
-		private void handleExact(EntityIdm entityIdm) {
-			entityIdm.addHandled(node.toOneQualification());
-			handleToMany(entityIdm);
-		}
-
-		private void handleCovariant(EntityIdm entityIdm) {
-			if (!node.entityType().isInstance(entityIdm.entity))
+			if (covariant && !node.entityType().isInstance(entityIdm.entity))
 				return;
 
-			handleToOne(entityIdm);
+			if (toOneAlreadyFetched)
+				entityIdm.addHandled(node.toOneQualification());	
+			else
+				handleToOne(entityIdm);
+			
 			handleToMany(entityIdm);
 		}
 
@@ -339,40 +347,77 @@ public class ToOneRecursiveFetching {
 		return pos;
 	}
 
+	private static class CyclicRecurrenceCheck {
+		private Map<EntityGraphNode, AtomicInteger> recurrences = new IdentityHashMap<>();
+		private int limit = 3;
+		
+		public boolean add(EntityGraphNode entityNode) {
+			AtomicInteger counter = recurrences.computeIfAbsent(entityNode, k -> new AtomicInteger(0));
+			
+			counter.incrementAndGet();
+			
+			return counter.get() > limit;
+		}
+		
+		public void remove(EntityGraphNode entityNode) {
+			recurrences.compute(entityNode, (n, c) -> {
+				if (c == null || c.get() == 0)
+					throw new IllegalStateException("unexpected remove");
+				
+				int counter = c.decrementAndGet();
+				
+				return counter == 0? null: c;
+			});
+		}
+	}
+	
 	/**
 	 * Resolves/assigns entity/graph nodes recursively; creates mappings for joined properties.
 	 */
-	private void registerMappingWithJoins(EntityMapping refererMapping) {
+	private void registerMappingWithJoins(EntityMapping refererMapping, CyclicRecurrenceCheck check) {
 		mappings.add(refererMapping);
 
-		Map<Property, FetchedEntityMapping> propertyMappings = new LinkedHashMap<>();
-
-		for (EntityGraphNode exactNode : refererMapping.exactNodes()) {
-			for (EntityPropertyGraphNode subNode : exactNode.entityProperties()) {
-				Property property = subNode.property();
-
-				FetchedEntityMapping fetchedMapping = propertyMappings.get(property);
-
-				if (fetchedMapping == null) {
-					Join join = refererMapping.source().join(property.getName(), JoinType.left);
-					int pos = select(join);
-					fetchedMapping = new FetchedEntityMapping(property, pos, join);
-					propertyMappings.put(property, fetchedMapping);
-				}
-
-				// is it a property polymorphic node?
-				if (subNode.entityType() == property.getType()) {
-					fetchedMapping.addExact(subNode);
-					refererMapping.wirings().add(fetchedMapping);
-				} else {
-					fetchedMapping.addCovariant(subNode);
+		boolean recursionStop = check.add(refererMapping.node);
+		
+		try {
+			refererMapping.setRecursionStop(recursionStop);
+			
+			if (recursionStop)
+				return;
+	
+			Map<Property, FetchedEntityMapping> propertyMappings = new LinkedHashMap<>();
+	
+			for (EntityGraphNode exactNode : refererMapping.exactNodes()) {
+				for (EntityPropertyGraphNode subNode : exactNode.entityProperties()) {
+					EntityGraphNode entityNode = subNode.entityNode();
+					Property property = subNode.property();
+	
+					FetchedEntityMapping fetchedMapping = propertyMappings.get(property);
+	
+					if (fetchedMapping == null) {
+						Join join = refererMapping.source().join(property.getName(), JoinType.left);
+						int pos = select(join);
+						fetchedMapping = new FetchedEntityMapping(property, pos, join);
+						propertyMappings.put(property, fetchedMapping);
+					}
+	
+					// is it a property polymorphic node?
+					if (entityNode.entityType() == property.getType()) {
+						fetchedMapping.addExact(entityNode);
+						refererMapping.wirings().add(fetchedMapping);
+					} else {
+						fetchedMapping.addCovariant(entityNode);
+					}
 				}
 			}
+	
+			// register next level
+			for (FetchedEntityMapping fetchedMapping : propertyMappings.values()) {
+				registerMappingWithJoins(fetchedMapping, check);
+			}
 		}
-
-		// register next level
-		for (FetchedEntityMapping fetchedMapping : propertyMappings.values()) {
-			registerMappingWithJoins(fetchedMapping);
+		finally {
+			check.remove(refererMapping.node);
 		}
 	}
 

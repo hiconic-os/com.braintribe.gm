@@ -38,8 +38,8 @@ public class ToManyFetching {
 	private static final Logger logger = Logger.getLogger(ToManyFetching.class);
 
 	static class EntityMapping {
-		public List<EntityCollectionPropertyGraphNode> exactNodes = new ArrayList<>();
-		public List<EntityCollectionPropertyGraphNode> covariantNodes = new ArrayList<>();
+		public List<EntityGraphNode> exactNodes = new ArrayList<>();
+		public List<EntityGraphNode> covariantNodes = new ArrayList<>();
 		public Property property;
 
 		public EntityMapping(Property property) {
@@ -49,12 +49,12 @@ public class ToManyFetching {
 	}
 
 	static class NodePostProcessing {
-		public EntityCollectionPropertyGraphNode node;
+		public EntityGraphNode node;
 		public Map<Object, GenericEntity> toOnes = new LinkedHashMap<Object, GenericEntity>();
 		public Map<Object, GenericEntity> toManies = new LinkedHashMap<Object, GenericEntity>();
 		public boolean covariant;
 
-		public NodePostProcessing(EntityCollectionPropertyGraphNode node, boolean covariant) {
+		public NodePostProcessing(EntityGraphNode node, boolean covariant) {
 			super();
 			this.node = node;
 			this.covariant = covariant;
@@ -65,12 +65,13 @@ public class ToManyFetching {
 		Map<Property, EntityMapping> mappings = new LinkedHashMap<>();
 
 		for (EntityCollectionPropertyGraphNode node : nodes) {
+			EntityGraphNode entityNode = node.entityNode();
 			EntityMapping mapping = mappings.computeIfAbsent(node.property(), EntityMapping::new);
 
-			if (node.entityType() == node.condensedPropertyType()) {
-				mapping.exactNodes.add(node);
+			if (entityNode.entityType() == node.condensedPropertyType()) {
+				mapping.exactNodes.add(entityNode);
 			} else {
-				mapping.covariantNodes.add(node);
+				mapping.covariantNodes.add(entityNode);
 			}
 		}
 
@@ -79,11 +80,11 @@ public class ToManyFetching {
 
 	private static List<NodePostProcessing> buildPostProcessings(EntityMapping mapping) {
 		List<NodePostProcessing> postProcessings = new ArrayList<>();
-		for (EntityCollectionPropertyGraphNode exactNode : mapping.exactNodes) {
+		for (EntityGraphNode exactNode : mapping.exactNodes) {
 			postProcessings.add(new NodePostProcessing(exactNode, false));
 		}
 
-		for (EntityCollectionPropertyGraphNode covariantNode : mapping.covariantNodes) {
+		for (EntityGraphNode covariantNode : mapping.covariantNodes) {
 			postProcessings.add(new NodePostProcessing(covariantNode, true));
 		}
 
@@ -111,17 +112,17 @@ public class ToManyFetching {
 					e = entityIdm.entity;
 
 					for (NodePostProcessing postProcessing : postProcessings) {
-						EntityCollectionPropertyGraphNode subNode = postProcessing.node;
-						if (postProcessing.covariant && !subNode.entityType().isInstance(e))
+						EntityGraphNode entityNode = postProcessing.node;
+						if (postProcessing.covariant && !entityNode.entityType().isInstance(e))
 							continue;
 
-						if (!entityIdm.isHandled(subNode.toOneQualification())) {
-							entityIdm.addHandled(subNode.toOneQualification());
+						if (!entityIdm.isHandled(entityNode.toOneQualification())) {
+							entityIdm.addHandled(entityNode.toOneQualification());
 							postProcessing.toOnes.put(e.getId(), e);
 						}
 
-						if (!entityIdm.isHandled(subNode.toManyQualification())) {
-							entityIdm.addHandled(subNode.toManyQualification());
+						if (!entityIdm.isHandled(entityNode.toManyQualification())) {
+							entityIdm.addHandled(entityNode.toManyQualification());
 							postProcessing.toManies.put(e.getId(), e);
 						}
 					}
@@ -139,7 +140,7 @@ public class ToManyFetching {
 		// scalar collections
 		if (!scalarCollectionProperties.isEmpty()) {
 			for (ScalarCollectionPropertyGraphNode collectionNode : scalarCollectionProperties) {
-				fetch(context, node.entityType(), fetchTask, collectionNode.collectionType(), collectionNode.property(), null);
+				fetch(context, node.entityType(), fetchTask, collectionNode.type(), collectionNode.property(), null);
 			}
 		}
 	}

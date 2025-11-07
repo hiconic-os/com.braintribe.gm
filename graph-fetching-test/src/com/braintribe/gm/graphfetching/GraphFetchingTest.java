@@ -116,7 +116,6 @@ public class GraphFetchingTest implements GraphFetchingTestConstants {
 		// enable detailed log level for your package
 		String logPackageName = UniversalPath.empty().push(Fetching.class.getPackage().getName(), ".").pop().toDottedPath();
 		Logger.getLogger(logPackageName).setLevel(Level.FINEST);
-		System.out.println("configured logging");
 	}
 
 	private static void truncateLogFile() {

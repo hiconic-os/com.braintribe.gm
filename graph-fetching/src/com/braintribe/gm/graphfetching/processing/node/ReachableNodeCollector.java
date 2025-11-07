@@ -2,12 +2,14 @@ package com.braintribe.gm.graphfetching.processing.node;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import com.braintribe.common.lcd.Pair;
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
@@ -29,7 +31,7 @@ public class ReachableNodeCollector {
 		Function<EntityType<?>, Collection<? extends EntityType<?>>> covariance = t -> Collections.emptyList();
 		EntityType<?> entityType;
 		Predicate<EntityType<?>> typeExclusion = t -> false;
-		Set<EntityType<?>> entityTypeStack = new HashSet<>();
+		Map<Pair<EntityType<?>, EntityType<?>>, EntityGraphNode> visitedEntityNodes = new HashMap<>();
 
 		public CollectContext(EntityType<?> entityType) {
 			this.entityType = entityType;
@@ -58,84 +60,7 @@ public class ReachableNodeCollector {
 	}
 
 	public static EntityGraphNode collect(CollectContext context) {
-
-		ConfigurableEntityGraphNode configurableEntityGraphNode = new ConfigurableEntityGraphNode(context.entityType);
-
-		fillProperties(context, context.entityType, context.entityType, configurableEntityGraphNode);
-
-		return configurableEntityGraphNode;
-	}
-
-	private static void fillProperties(CollectContext context, EntityType<?> baseType, EntityType<?> entityType,
-			ConfigurableEntityGraphNode configurableEntityGraphNode) {
-
-		if (!context.entityTypeStack.add(entityType)) {
-			return;
-		}
-		try {
-			Collection<Property> properties = getProperties(baseType, entityType);
-			for (Property property : properties) {
-				GenericModelType propertyType = property.getType();
-				if (propertyType.isScalar() || property.isIdentifier()) {
-					continue;
-				}
-
-				if (propertyType.isEntity()) {
-					EntityType<?> propertyEntityType = (EntityType<?>) propertyType;
-					if (context.typeExclusion.test(propertyEntityType)) {
-						continue;
-					}
-
-					configurableEntityGraphNode.add(entityPropertyGraphNode(context, propertyEntityType, propertyEntityType, property));
-
-					Collection<? extends EntityType<?>> covariantTypes = context.covariance.apply(propertyEntityType);
-
-					for (EntityType<?> covariantType : covariantTypes) {
-						configurableEntityGraphNode.add(entityPropertyGraphNode(context, propertyEntityType, covariantType, property));
-					}
-
-				} else if (propertyType.isCollection()) {
-
-					CollectionType collectionType = (CollectionType) propertyType;
-
-					switch (collectionType.getCollectionKind()) {
-						case list:
-						case set:
-							LinearCollectionType linearCollectionType = (LinearCollectionType) collectionType;
-							GenericModelType elementType = linearCollectionType.getCollectionElementType();
-							if (elementType.isEntity()) {
-								EntityType<?> elementEntityType = (EntityType<?>) elementType;
-								if (context.typeExclusion.test(elementEntityType)) {
-									continue;
-								}
-
-								configurableEntityGraphNode
-										.add(entityCollectionPropertyGraphNode(context, elementEntityType, elementEntityType, property));
-
-								Collection<? extends EntityType<?>> covariantTypes = context.covariance.apply(elementEntityType);
-
-								for (EntityType<?> covariantType : covariantTypes) {
-									configurableEntityGraphNode
-											.add(entityCollectionPropertyGraphNode(context, elementEntityType, covariantType, property));
-								}
-
-							} else {
-								configurableEntityGraphNode.add(new ConfigurableScalarCollectionPropertyGraphNode(property));
-							}
-							break;
-						case map:
-							break;
-						default:
-							break;
-
-					}
-
-				}
-
-			}
-		} finally {
-			context.entityTypeStack.remove(entityType);
-		}
+		return entityGraphNode(context, context.entityType, context.entityType);
 	}
 
 	private static Collection<Property> getProperties(EntityType<?> baseType, EntityType<?> entityType) {
@@ -147,25 +72,91 @@ public class ReachableNodeCollector {
 		return covariantProperties;
 	}
 
+	private static EntityGraphNode entityGraphNode(CollectContext context, EntityType<?> baseType, EntityType<?> entityType) {
+		Pair<EntityType<?>, EntityType<?>> visitedKey = Pair.of(baseType, entityType);
+		
+		EntityGraphNode entityNode = context.visitedEntityNodes.get(visitedKey);
+		
+		if (entityNode != null)
+			return entityNode;
+		
+		ConfigurableEntityGraphNode configurableEntityGraphNode = new ConfigurableEntityGraphNode(entityType);
+		context.visitedEntityNodes.put(visitedKey, configurableEntityGraphNode);
+		
+		Collection<Property> properties = getProperties(baseType, entityType);
+		for (Property property : properties) {
+			GenericModelType propertyType = property.getType();
+			if (propertyType.isScalar() || property.isIdentifier()) {
+				continue;
+			}
+
+			if (propertyType.isEntity()) {
+				EntityType<?> propertyEntityType = (EntityType<?>) propertyType;
+				if (context.typeExclusion.test(propertyEntityType)) {
+					continue;
+				}
+
+				configurableEntityGraphNode.add(entityPropertyGraphNode(context, propertyEntityType, propertyEntityType, property));
+
+				Collection<? extends EntityType<?>> covariantTypes = context.covariance.apply(propertyEntityType);
+
+				for (EntityType<?> covariantType : covariantTypes) {
+					configurableEntityGraphNode.add(entityPropertyGraphNode(context, propertyEntityType, covariantType, property));
+				}
+
+			} else if (propertyType.isCollection()) {
+
+				CollectionType collectionType = (CollectionType) propertyType;
+
+				switch (collectionType.getCollectionKind()) {
+					case list:
+					case set:
+						LinearCollectionType linearCollectionType = (LinearCollectionType) collectionType;
+						GenericModelType elementType = linearCollectionType.getCollectionElementType();
+						if (elementType.isEntity()) {
+							EntityType<?> elementEntityType = (EntityType<?>) elementType;
+							if (context.typeExclusion.test(elementEntityType)) {
+								continue;
+							}
+
+							configurableEntityGraphNode
+									.add(entityCollectionPropertyGraphNode(context, elementEntityType, elementEntityType, property));
+
+							Collection<? extends EntityType<?>> covariantTypes = context.covariance.apply(elementEntityType);
+
+							for (EntityType<?> covariantType : covariantTypes) {
+								configurableEntityGraphNode
+										.add(entityCollectionPropertyGraphNode(context, elementEntityType, covariantType, property));
+							}
+
+						} else {
+							configurableEntityGraphNode.add(new ConfigurableScalarCollectionPropertyGraphNode(property));
+						}
+						break;
+					case map:
+						break;
+					default:
+						break;
+
+				}
+
+			}
+
+		}
+		
+		return configurableEntityGraphNode;
+	}
+	
 	private static EntityPropertyGraphNode entityPropertyGraphNode(CollectContext context, EntityType<?> baseType, EntityType<?> entityType,
 			Property property) {
-
-		ConfigurableEntityPropertyGraphNode configurableEntityGraphNode = new ConfigurableEntityPropertyGraphNode(property, entityType);
-
-		fillProperties(context, baseType, entityType, configurableEntityGraphNode);
-
-		return configurableEntityGraphNode;
+		EntityGraphNode entityNode = entityGraphNode(context, baseType, entityType);
+		return new ConfigurableEntityPropertyGraphNode(property, entityNode);
 	}
 
 	private static EntityCollectionPropertyGraphNode entityCollectionPropertyGraphNode(CollectContext context, EntityType<?> baseType,
 			EntityType<?> entityType, Property property) {
 
-		ConfigurableEntityCollectionPropertyGraphNode configurableEntityGraphNode = new ConfigurableEntityCollectionPropertyGraphNode(property,
-				entityType);
-
-		fillProperties(context, baseType, entityType, configurableEntityGraphNode);
-
-		return configurableEntityGraphNode;
+		EntityGraphNode entityNode = entityGraphNode(context, baseType, entityType);
+		return new ConfigurableEntityCollectionPropertyGraphNode(property, entityNode);	
 	}
-
 }

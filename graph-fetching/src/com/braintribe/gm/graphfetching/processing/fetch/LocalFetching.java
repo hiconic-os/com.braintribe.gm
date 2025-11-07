@@ -62,7 +62,7 @@ public class LocalFetching {
 			
 			if (otherEntity != null) {
 				taskQueue.offer(() -> {
-					GenericEntity otherDetachedEntity = process(entityPropertyNode, otherEntity);
+					GenericEntity otherDetachedEntity = process(entityPropertyNode.entityNode(), otherEntity);
 					property.set(clonedEntity, otherDetachedEntity);
 				});
 			}
@@ -79,7 +79,7 @@ public class LocalFetching {
 			
 			for (GenericEntity otherEntity: otherEntities) {
 				taskQueue.offer(() -> {
-					GenericEntity otherDetachedEntity = process(entityCollectionPropertyNode, otherEntity);
+					GenericEntity otherDetachedEntity = process(entityCollectionPropertyNode.entityNode(), otherEntity);
 					clonedCollection.add(otherDetachedEntity);
 				});
 			}

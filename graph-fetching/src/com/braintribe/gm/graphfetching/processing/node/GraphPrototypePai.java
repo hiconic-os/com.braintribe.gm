@@ -71,17 +71,11 @@ public class GraphPrototypePai extends PropertyAccessInterceptor {
 	}
 	
 	private static EntityPropertyGraphNode toEntityPropertyGraphNode(Property property, GenericEntity entity) {
-		ConfigurableEntityPropertyGraphNode node = new ConfigurableEntityPropertyGraphNode(property, entity.entityType());
-		fillProperties(node, entity);
-		
-		return node;
+		return new ConfigurableEntityPropertyGraphNode(property, convert(entity));
 	}
 	
 	private static EntityCollectionPropertyGraphNode toEntityCollectionGraphNode(Property property, GenericEntity entity) {
-		ConfigurableEntityCollectionPropertyGraphNode node = new ConfigurableEntityCollectionPropertyGraphNode(property, entity.entityType());
-		fillProperties(node, entity);
-		
-		return node;
+		return new ConfigurableEntityCollectionPropertyGraphNode(property, convert(entity));
 	}
 	
 	private static void fillProperties(ConfigurableEntityGraphNode node, GenericEntity entity) {

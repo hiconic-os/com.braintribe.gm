@@ -10,5 +10,6 @@ public interface CollectionPropertyGraphNode extends PropertyGraphNode {
     /**
      * @return the modelled collection type for this property (list, set, etc.)
      */
-    LinearCollectionType collectionType();
+    @Override
+    LinearCollectionType type();
 }
