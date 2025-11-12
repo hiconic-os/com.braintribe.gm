@@ -11,11 +11,6 @@
     <dependencies>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
-            <artifactId>simple-access-wirings</artifactId>
-            <version>${V.com.braintribe.gm}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.braintribe.gm</groupId>
             <artifactId>gm-unit-test-deps</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
@@ -34,6 +29,11 @@
             <artifactId>graph-fetching-test-model</artifactId>
             <version>${V.com.braintribe.gm}</version>
             <?tag asset ?>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>graph-fetching-test-commons</artifactId>
+            <version>${V.com.braintribe.gm}</version>
         </dependency>
     </dependencies>
 </project>

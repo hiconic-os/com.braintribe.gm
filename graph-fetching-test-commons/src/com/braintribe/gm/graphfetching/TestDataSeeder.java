@@ -44,7 +44,9 @@ public class TestDataSeeder implements GraphFetchingTestConstants {
 	private final List<Person> persons = new ArrayList<>();
 	private final List<Company> companies = new ArrayList<>();
 	private final List<Document> documents = new ArrayList<>();
-	private final List<Company> idmCompanies = new ArrayList<>();;
+	private final List<Company> idmCompanies = new ArrayList<>();
+	
+	public boolean generateId = false;
 
 	// Deterministische Zähler für alle EntityTypes
 	private final Map<EntityType<?>, AtomicLong> idSequences = new ConcurrentHashMap<>();
@@ -103,7 +105,8 @@ public class TestDataSeeder implements GraphFetchingTestConstants {
 		// Zentrale, vorhersehbare Sequenz-ID zuweisen
 		AtomicLong sequence = idSequences.computeIfAbsent(idType, t -> new AtomicLong(1));
 		long id = sequence.getAndIncrement();
-		entity.setId(id);
+		if (generateId)
+			entity.setId(id);
 		entity.setGlobalId(type.getTypeSignature() + "@" + String.valueOf(id));
 		entity.setPartition(ACCESS_ID_TEST);
 		return entity;

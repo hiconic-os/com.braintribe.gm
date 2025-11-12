@@ -1,19 +1,17 @@
 package com.braintribe.gm.graphfetching.api;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.InferableGraphNode;
 import com.braintribe.gm.graphfetching.api.node.ReachableNodeBuilder;
-import com.braintribe.gm.graphfetching.processing.fetch.FetchProcessing;
+import com.braintribe.gm.graphfetching.processing.FetchBuilderImpl;
 import com.braintribe.gm.graphfetching.processing.fetch.LocalFetching;
 import com.braintribe.gm.graphfetching.processing.node.ConfigurableEntityGraphNode;
 import com.braintribe.gm.graphfetching.processing.node.ConfigurableInferableGraphNode;
 import com.braintribe.gm.graphfetching.processing.node.GraphPrototypePai;
 import com.braintribe.gm.graphfetching.processing.node.ReachableNodeCollector;
-import com.braintribe.gm.graphfetching.processing.util.FetchingTools;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
@@ -103,7 +101,6 @@ public interface Fetching {
 	}
 
 	static <E extends GenericEntity> List<E> fetchFromLocal(EntityGraphNode node, Collection<? extends E> entities) {
-		@SuppressWarnings("unchecked")
 		List<E> fetched = (List<E>) new LocalFetching().fetch(node, entities);
 		return fetched;
 	}
@@ -120,18 +117,7 @@ public interface Fetching {
 	 * @return detached, deep-fetched entities
 	 */
 	static <E extends GenericEntity> List<E> fetchDetached(PersistenceGmSession session, EntityGraphNode node, Collection<? extends E> entities) {
-		List<E> detachedEntities = new ArrayList<>();
-
-		for (E entity : entities) {
-			E detachedEntity = FetchingTools.cloneDetachment(entity);
-			detachedEntities.add(detachedEntity);
-		}
-
-		try (FetchProcessing processing = new FetchProcessing(session)) {
-			processing.fetch(node, detachedEntities);
-
-			return detachedEntities;
-		}
+		return build(session, node).fetchDetached(entities);
 	}
 
 	/**
@@ -146,19 +132,10 @@ public interface Fetching {
 	 *            The root entities to populate
 	 */
 	static void fetch(PersistenceGmSession session, EntityGraphNode node, Collection<? extends GenericEntity> entities) {
-
-		if (entities.isEmpty())
-			return;
-
-		GenericEntity entity = entities.iterator().next();
-
-		if (entity.session() == session) {
-			List<GenericEntity> detachedEntities = fetchDetached(session, node, entities);
-			session.merge().adoptUnexposed(true).suspendHistory(true).doFor(detachedEntities);
-		} else {
-			try (FetchProcessing processing = new FetchProcessing(session)) {
-				processing.fetch(node, entities);
-			}
-		}
+		build(session, node).fetch(entities);
+	}
+	
+	static FetchBuilder build(PersistenceGmSession session, EntityGraphNode node) {
+		return new FetchBuilderImpl(session, node);
 	}
 }

@@ -7,27 +7,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.ScalarCollectionPropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.query.FetchJoin;
+import com.braintribe.gm.graphfetching.api.query.FetchQuery;
+import com.braintribe.gm.graphfetching.api.query.FetchResults;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
-import com.braintribe.model.generic.reflection.EssentialCollectionTypes;
 import com.braintribe.model.generic.reflection.LinearCollectionType;
 import com.braintribe.model.generic.reflection.Property;
-import com.braintribe.model.generic.reflection.TypeCode;
-import com.braintribe.model.generic.value.Variable;
-import com.braintribe.model.processing.query.building.SelectQueries;
-import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
-import com.braintribe.model.query.From;
-import com.braintribe.model.query.Join;
-import com.braintribe.model.query.SelectQuery;
-import com.braintribe.model.query.conditions.Condition;
-import com.braintribe.model.query.functions.ListIndex;
-import com.braintribe.model.record.ListRecord;
 import com.braintribe.utils.lcd.CollectionTools2;
 
 /**
@@ -50,8 +43,8 @@ public class ToManyFetching {
 
 	static class NodePostProcessing {
 		public EntityGraphNode node;
-		public Map<Object, GenericEntity> toOnes = new LinkedHashMap<Object, GenericEntity>();
-		public Map<Object, GenericEntity> toManies = new LinkedHashMap<Object, GenericEntity>();
+		public Map<Object, GenericEntity> toOnes = new ConcurrentHashMap<>();
+		public Map<Object, GenericEntity> toManies = new ConcurrentHashMap<>();
 		public boolean covariant;
 
 		public NodePostProcessing(EntityGraphNode node, boolean covariant) {
@@ -150,7 +143,6 @@ public class ToManyFetching {
 	 */
 	public static <E> void fetch(FetchContext context, EntityType<?> type, FetchTask fetchTask, LinearCollectionType collectionType,
 			Property property, Function<E, E> visitor) {
-		PersistenceGmSession session = context.session();
 		Map<Object, GenericEntity> entityIndex = fetchTask.entities;
 
 		Set<Object> allIds = entityIndex.keySet();
@@ -160,108 +152,38 @@ public class ToManyFetching {
 			property.set(entity, collectionType.createPlain());
 		}
 
-		SelectQuery query = ToManyQueries.joinQuery(type, property);
+		FetchQuery fetchQuery = context.queryFactory().createQuery(type);
+		FetchJoin join = fetchQuery.from().join(property);
+		join.orderByIfRequired();
 
 		long queryNanoStart = System.nanoTime();
 
-		List<ListRecord> collectedListRecords = new ArrayList<>();
-
 		context.processParallel(idBulks, ids -> {
-			List<ListRecord> results = session.queryDetached().select(query).setVariable("ids", ids).list();
+			FetchResults results = fetchQuery.fetchFor(ids);
 
-			synchronized (collectedListRecords) {
-				collectedListRecords.addAll(results);
+			Object curId = null;
+			Collection<E> curCollection = null;
+			
+			while (results.next()) {
+				Object id = results.get(0);
+				E element = (E) results.get(1);
+
+				if (!id.equals(curId)) {
+					curId = id;
+					GenericEntity entity = entityIndex.get(id);
+					curCollection = property.get(entity);
+				}
+
+				if (visitor != null)
+					element = visitor.apply(element);
+
+				curCollection.add(element);
 			}
 		});
 
 		long queryDuration = System.nanoTime() - queryNanoStart;
 
-		long wiringNanoStart = System.nanoTime();
-
-		for (ListRecord record : collectedListRecords) {
-			Object id = record.get(0);
-			E element = (E) record.get(1);
-
-			Object curId = null;
-			Collection<E> curCollection = null;
-
-			if (!id.equals(curId)) {
-				curId = id;
-				GenericEntity entity = entityIndex.get(id);
-				curCollection = property.get(entity);
-			}
-
-			if (visitor != null)
-				element = visitor.apply(element);
-
-			curCollection.add(element);
-		}
-
-		long wiringDurationTotal = System.nanoTime() - wiringNanoStart;
-
-		// long nanosTotal = 0;
-		// long wiringNanosTotal = 0;
-		//
-		// for (Set<Object> ids : idBulks) {
-		//
-		// long nanoStart = System.nanoTime();
-		// List<ListRecord> results = session.queryDetached().select(query).setVariable("ids", ids).list();
-		// nanosTotal += System.nanoTime() - nanoStart;
-		//
-		// long wiringNanoStart = System.nanoTime();
-		// Object curId = null;
-		// Collection<E> curCollection = null;
-		//
-		// for (ListRecord record : results) {
-		// Object id = record.get(0);
-		// E element = (E) record.get(1);
-		//
-		// if (!id.equals(curId)) {
-		// curId = id;
-		// GenericEntity entity = entityIndex.get(id);
-		// curCollection = property.get(entity);
-		// }
-		//
-		// if (visitor != null)
-		// element = visitor.apply(element);
-		//
-		// curCollection.add(element);
-		// }
-		//
-		// wiringNanosTotal += System.nanoTime() - wiringNanoStart;
-		// }
-
-		if (logger.isTraceEnabled()) {
-			logger.trace("consumed " + Duration.ofNanos(queryDuration).toMillis() + " ms for querying " + allIds.size() + " entities in "
-					+ idBulks.size() + " batches with: " + query.stringify());
-			logger.trace("consumed " + Duration.ofNanos(wiringDurationTotal).toMillis() + " ms for wiring " + allIds.size() + " entities in "
-					+ idBulks.size() + " batches with: " + query.stringify());
-		}
-	}
-
-	/**
-	 * Helper that composes a select query for joining to-many targets efficiently. Handles lists with ordering.
-	 */
-	private static class ToManyQueries extends SelectQueries {
-		public static SelectQuery joinQuery(EntityType<?> refereeType, Property property) {
-			From referee = source(refereeType);
-			Join refered = referee.join(property.getName());
-
-			Variable idsVar = Variable.T.create();
-			idsVar.setName("ids");
-			idsVar.setTypeSignature(EssentialCollectionTypes.TYPE_SET.getTypeSignature());
-			Condition condition = in(property(referee, GenericEntity.id), idsVar);
-
-			SelectQuery query = from(referee).where(condition) //
-					.select(property(referee, GenericEntity.id), refered);
-
-			if (property.getType().getTypeCode() == TypeCode.listType) {
-				ListIndex listIndex = ListIndex.T.create();
-				listIndex.setJoin(refered);
-				query.orderBy(listIndex);
-			}
-
-			return query;
-		}
+		logger.trace(() -> "consumed " + Duration.ofNanos(queryDuration).toMillis() + " ms for querying " + allIds.size() + " entities in "
+				+ idBulks.size() + " batches with: " + fetchQuery.stringify());
 	}
 }

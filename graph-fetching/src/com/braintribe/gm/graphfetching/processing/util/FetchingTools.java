@@ -21,4 +21,11 @@ public interface FetchingTools {
 		
 		return clonedEntity;
 	}
+	
+	public static void absentifyNonScalarProperties(GenericEntity entity) {
+		EntityType<?> entityType = entity.entityType();
+		for (Property property: entityType.getProperties()) {
+			property.setAbsenceInformation(entity, GMF.absenceInformation());
+		}
+	}
 }

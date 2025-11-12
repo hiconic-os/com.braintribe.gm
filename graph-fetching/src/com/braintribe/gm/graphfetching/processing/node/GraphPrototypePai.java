@@ -1,6 +1,8 @@
 package com.braintribe.gm.graphfetching.processing.node;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
@@ -15,6 +17,8 @@ import com.braintribe.model.generic.reflection.ListType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.PropertyAccessInterceptor;
 import com.braintribe.model.generic.reflection.SetType;
+import com.braintribe.model.generic.reflection.VdHolder;
+import com.braintribe.model.generic.value.Escape;
 
 public class GraphPrototypePai extends PropertyAccessInterceptor {
 	
@@ -24,9 +28,32 @@ public class GraphPrototypePai extends PropertyAccessInterceptor {
 		next = FieldAccessingPropertyAccessInterceptor.INSTANCE;
 	}
 	
+	private List<GenericEntity> getEntityPropertyMultiplex(Property property, GenericEntity entity) {
+		Escape escape = (Escape) next.getProperty(property, entity, true);
+		
+		if (escape != null)
+			return (List<GenericEntity>) escape.getValue();
+
+		escape = Escape.T.create();
+		final List<GenericEntity> entities = new ArrayList<>();
+		escape.setValue(entities);
+		next.setProperty(property, entity, escape, true);
+		return entities;
+	}
+	
 	@Override
 	public Object setProperty(Property property, GenericEntity entity, Object value, boolean isVd) {
-		return super.setProperty(property, entity, value, isVd);
+		if (!property.getType().isEntity()) 
+			return next.setProperty(property, entity, value, isVd);
+		
+		final List<GenericEntity> entities = getEntityPropertyMultiplex(property, entity);
+		
+		entities.add((GenericEntity)value);
+		
+		if (entities.size() == 1)
+			return null;
+		
+		return entities.get(entities.size() - 2);
 	}
 
 	private Object createDefault(GenericModelType type) {
@@ -51,16 +78,33 @@ public class GraphPrototypePai extends PropertyAccessInterceptor {
 	
 	@Override
 	public Object getProperty(Property property, GenericEntity entity, boolean isVd) {
-		Object value = super.getProperty(property, entity, isVd);
-		if (value != null)
-			return value;
+		if (isVd)
+			return next.getProperty(property, entity, isVd);
+		
+		GenericModelType propertyType = property.getType();
+		if (propertyType.isEntity()) {
+			List<GenericEntity> entities = getEntityPropertyMultiplex(property, entity);
+			
+			if (!entities.isEmpty())
+				return entities.get(0);
+			
+			GenericEntity e = createDefaultEntity((EntityType<?>)propertyType);
+			
+			entities.add(e);
+			return e;
+		}
+		else {
+			Object value = super.getProperty(property, entity, isVd);
+			if (value != null)
+				return value;
 
-		GenericModelType type = property.getType();
-		value = createDefault(type);
-		
-		super.setProperty(property, entity, value, isVd);
-		
-		return value;
+			GenericModelType type = property.getType();
+			value = createDefault(type);
+			
+			super.setProperty(property, entity, value, isVd);
+			
+			return value;
+		}
 	}
 	
 	public static EntityGraphNode convert(GenericEntity entity) {
@@ -88,8 +132,18 @@ public class GraphPrototypePai extends PropertyAccessInterceptor {
 			
 				case entityType: {
 					Object value = property.getDirectUnsafe(entity);
-					if (value != null)
-						node.add(toEntityPropertyGraphNode(property, (GenericEntity)value));
+					
+					if (value != null) {
+						Escape escape = (Escape)VdHolder.getValueDescriptorIfPossible(value);
+						
+						if (escape != null) {
+							List<GenericEntity> entities = (List<GenericEntity>) escape.getValue();
+							for (GenericEntity e: entities)
+								node.add(toEntityPropertyGraphNode(property, e));
+						}
+						else
+							node.add(toEntityPropertyGraphNode(property, (GenericEntity)value));
+					}
 					break;
 				}
 				

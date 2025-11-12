@@ -21,6 +21,8 @@ import com.braintribe.exception.Exceptions;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.FetchQualification;
 import com.braintribe.gm.graphfetching.api.node.PropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.query.FetchQueryFactory;
+import com.braintribe.gm.graphfetching.processing.query.GmSessionFetchQueryFactory;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
@@ -39,10 +41,16 @@ public class FetchProcessing implements FetchContext {
 	private PersistenceGmSession session;
 	private Map<Pair<EntityType<?>, Object>, EntityIdm> index = new HashMap<>();
 	private ExecutorService threadPool;
+	private final FetchQueryFactory queryFactory;
 
 	public FetchProcessing(PersistenceGmSession session) {
+		this(session, new GmSessionFetchQueryFactory(session));
+	}
+	
+	public FetchProcessing(PersistenceGmSession session, FetchQueryFactory fetchQueryFactory) {
 		this.session = session;
 		threadPool = Executors.newFixedThreadPool(10);
+		this.queryFactory = fetchQueryFactory;
 	}
 
 	@Override
@@ -152,7 +160,7 @@ public class FetchProcessing implements FetchContext {
 	 * Handles deep to-one fetching with follow-up to-many fetches on descendants.
 	 */
 	private void processToOneTask(FetchTask task) {
-		ToOneRecursiveFetching toOneFetching = new ToOneRecursiveFetching(task.node);
+		ToOneRecursiveFetching toOneFetching = new ToOneRecursiveFetching(this, task.node);
 		toOneFetching.fetch(this, task);
 	}
 
@@ -197,5 +205,10 @@ public class FetchProcessing implements FetchContext {
 		if (threadPool != null) {
 			threadPool.shutdown();
 		}
+	}
+
+	@Override
+	public FetchQueryFactory queryFactory() {
+		return queryFactory;
 	}
 }
