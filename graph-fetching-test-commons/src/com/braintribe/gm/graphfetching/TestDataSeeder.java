@@ -46,18 +46,19 @@ public class TestDataSeeder implements GraphFetchingTestConstants {
 	private final List<Document> documents = new ArrayList<>();
 	private final List<Company> idmCompanies = new ArrayList<>();
 	
-	public boolean generateId = false;
+	private final boolean generateId;
 
 	// Deterministische Zähler für alle EntityTypes
 	private final Map<EntityType<?>, AtomicLong> idSequences = new ConcurrentHashMap<>();
 
 	// Mit Session (Persistenz)
-	public TestDataSeeder(PersistenceGmSession session) {
-		this(session, 42L);
+	public TestDataSeeder(PersistenceGmSession session, boolean generateId) {
+		this(session, 42L, generateId);
 	}
-	public TestDataSeeder(PersistenceGmSession session, long seed) {
+	public TestDataSeeder(PersistenceGmSession session, long seed, boolean generateId) {
 		this.session = session;
 		this.seed = seed;
+		this.generateId = generateId;
 		this.countryRandom = new Random(seed + 1);
 		this.cityRandom = new Random(seed + 2);
 		this.addressRandom = new Random(seed + 3);
@@ -67,7 +68,8 @@ public class TestDataSeeder implements GraphFetchingTestConstants {
 		seed();
 	}
 	// Ohne Session (nur transient)
-	public TestDataSeeder() {
+	public TestDataSeeder(boolean generateId) {
+		this.generateId = generateId;
 		this.seed = 42L;
 		this.session = null;
 		this.countryRandom = new Random(seed + 1);
@@ -78,7 +80,8 @@ public class TestDataSeeder implements GraphFetchingTestConstants {
 		this.documentRandom = new Random(seed + 6);
 		seed();
 	}
-	public TestDataSeeder(long seed) {
+	public TestDataSeeder(long seed, boolean generateId) {
+		this.generateId = generateId;
 		this.session = null;
 		this.seed = seed;
 		this.countryRandom = new Random(seed + 1);

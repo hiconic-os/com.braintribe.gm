@@ -6,8 +6,8 @@ import com.braintribe.testing.tools.gm.GmTestTools;
 public class GraphFetchingTest extends AbstractGraphFetchingTest {
 	
 	@Override
-	protected void configure(TestDataSeeder seeder) {
-		seeder.generateId = true;
+	protected boolean generateIds() {
+		return true;
 	}
 	
 	@Override

@@ -163,16 +163,15 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 			context.access = buildAccess();
 			
 			PersistenceGmSession session = GmTestTools.newSession(context.access);
-			seeder = new TestDataSeeder(session);
-			configure(seeder);
+			seeder = new TestDataSeeder(session, generateIds());
 			session.commit();
 
 			return context;
         });
     }
 	
-	protected void configure(TestDataSeeder seeder) {
-		
+	protected boolean generateIds() {
+		return false;
 	}
 	
 	@Before
