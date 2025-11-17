@@ -14,7 +14,7 @@ public class GmSessionFetchQueryFactory implements FetchQueryFactory {
 	}
 	
 	@Override
-	public FetchQuery createQuery(EntityType<?> entityType) {
+	public FetchQuery createQuery(EntityType<?> entityType, String defaultPartition) {
 		return new GmSessionFetchQuery(session, entityType);
 	}
 }

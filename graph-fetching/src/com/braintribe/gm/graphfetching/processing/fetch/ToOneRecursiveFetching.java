@@ -128,7 +128,7 @@ public class ToOneRecursiveFetching {
 	public ToOneRecursiveFetching(FetchContext context, EntityGraphNode node) {
 		CyclicRecurrenceCheck check = new CyclicRecurrenceCheck();
 		
-		fetchQuery = context.queryFactory().createQuery(node.entityType());
+		fetchQuery = context.queryFactory().createQuery(node.entityType(), context.session().getAccessId());
 		
 		FetchSource from = fetchQuery.from();
 		ExistingEntityMapping entityMapping = new ExistingEntityMapping(node, from);
@@ -142,7 +142,7 @@ public class ToOneRecursiveFetching {
 		Set<Object> allIds = task.entities.keySet();
 
 		// query joined entities in bulks
-		List<Set<Object>> idBulks = CollectionTools2.splitToSets(allIds, FetchProcessing.BULK_SIZE);
+		List<Set<Object>> idBulks = CollectionTools2.splitToSets(allIds, context.bulkSize());
 
 		long nanoStart = System.nanoTime();
 		

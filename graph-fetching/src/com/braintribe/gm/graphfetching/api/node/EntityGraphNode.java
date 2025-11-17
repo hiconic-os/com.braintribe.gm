@@ -41,4 +41,6 @@ public interface EntityGraphNode extends TypedGraphNode  {
     FetchQualification toOneQualification();
     
     FetchQualification toManyQualification();
+    
+    List<EntityGraphNode> covariants();
 }

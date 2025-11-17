@@ -3,6 +3,7 @@ package com.braintribe.gm.graphfetching.processing;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 import com.braintribe.gm.graphfetching.api.FetchBuilder;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
@@ -16,6 +17,9 @@ public class FetchBuilderImpl implements FetchBuilder {
 	private PersistenceGmSession session;
 	private EntityGraphNode node;
 	private FetchQueryFactory queryFactory;
+	private ExecutorService executor;
+	private int bulkSize = 100;
+	private int maxParallelBulks = 10;
 	
 	public FetchBuilderImpl(PersistenceGmSession session, EntityGraphNode node) {
 		super();
@@ -25,6 +29,24 @@ public class FetchBuilderImpl implements FetchBuilder {
 	@Override
 	public FetchBuilder queryFactory(FetchQueryFactory queryFactory) {
 		this.queryFactory = queryFactory;
+		return this;
+	}
+	
+	@Override
+	public FetchBuilder bulkSize(int bulkSize) {
+		this.bulkSize  = bulkSize;
+		return this;
+	}
+	
+	@Override
+	public FetchBuilder maxParallelBulks(int maxParallelBulks) {
+		this.maxParallelBulks  = maxParallelBulks;
+		return this;
+	}
+	
+	@Override
+	public FetchBuilder executor(ExecutorService executor) {
+		this.executor = executor;
 		return this;
 	}
 	
@@ -62,10 +84,19 @@ public class FetchBuilderImpl implements FetchBuilder {
 	}
 	
 	private FetchProcessing fetchProcessing() {
+		final FetchProcessing fetchProcessing;
 		if (queryFactory != null)
-			return new FetchProcessing(session, queryFactory);
+			fetchProcessing = new FetchProcessing(session, queryFactory);
 		else
-			return new FetchProcessing(session);
+			fetchProcessing = new FetchProcessing(session);
+		
+		if (executor != null)
+			fetchProcessing.setExecutorService(executor);
+		
+		fetchProcessing.setBulkSize(bulkSize);
+		fetchProcessing.setMaxParallelBulks(maxParallelBulks);
+		
+		return fetchProcessing;
 			
 	}
 }

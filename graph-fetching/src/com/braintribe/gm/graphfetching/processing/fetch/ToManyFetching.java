@@ -18,6 +18,7 @@ import com.braintribe.gm.graphfetching.api.query.FetchQuery;
 import com.braintribe.gm.graphfetching.api.query.FetchResults;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GenericEntity;
+import com.braintribe.model.generic.reflection.CollectionType;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.LinearCollectionType;
 import com.braintribe.model.generic.reflection.Property;
@@ -141,18 +142,18 @@ public class ToManyFetching {
 	/**
 	 * Bulk fetching for each collection property in the graph; assigns collections back to owning entities.
 	 */
-	public static <E> void fetch(FetchContext context, EntityType<?> type, FetchTask fetchTask, LinearCollectionType collectionType,
+	public static <E> void fetch(FetchContext context, EntityType<?> type, FetchTask fetchTask, CollectionType collectionType,
 			Property property, Function<E, E> visitor) {
 		Map<Object, GenericEntity> entityIndex = fetchTask.entities;
 
 		Set<Object> allIds = entityIndex.keySet();
-		List<Set<Object>> idBulks = CollectionTools2.splitToSets(allIds, FetchProcessing.BULK_SIZE);
+		List<Set<Object>> idBulks = CollectionTools2.splitToSets(allIds, context.bulkSize());
 
 		for (GenericEntity entity : fetchTask.entities.values()) {
 			property.set(entity, collectionType.createPlain());
 		}
 
-		FetchQuery fetchQuery = context.queryFactory().createQuery(type);
+		FetchQuery fetchQuery = context.queryFactory().createQuery(type, context.session().getAccessId());
 		FetchJoin join = fetchQuery.from().join(property);
 		join.orderByIfRequired();
 

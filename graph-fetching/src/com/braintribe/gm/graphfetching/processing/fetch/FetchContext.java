@@ -1,6 +1,7 @@
 package com.braintribe.gm.graphfetching.processing.fetch;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -19,7 +20,11 @@ public interface FetchContext extends AutoCloseable {
 	PersistenceGmSession session();
 	void enqueueToOneIfRequired(EntityGraphNode node, Map<Object, GenericEntity> entities);
 	void enqueueToManyIfRequired(EntityGraphNode node, Map<Object, GenericEntity> entities);
+	void enqueueToOneIfRequired(EntityGraphNode node, Map<Object, GenericEntity> entities, List<EntityGraphNode> covariants);
+	void enqueueToManyIfRequired(EntityGraphNode node, Map<Object, GenericEntity> entities, List<EntityGraphNode> covariants);
 	FetchQueryFactory queryFactory();
 
 	<T> void processParallel(Collection<T> tasks, Consumer<T> processor);
+
+	int bulkSize();
 }

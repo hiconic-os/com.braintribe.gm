@@ -1,6 +1,6 @@
 package com.braintribe.gm.graphfetching.api.node;
 
-import com.braintribe.model.generic.reflection.LinearCollectionType;
+import com.braintribe.model.generic.reflection.CollectionType;
 
 /**
  * Represents a collection-valued property node (e.g. Set<X>, List<Y>) in a fetch graph.
@@ -11,5 +11,5 @@ public interface CollectionPropertyGraphNode extends PropertyGraphNode {
      * @return the modelled collection type for this property (list, set, etc.)
      */
     @Override
-    LinearCollectionType type();
+    CollectionType type();
 }

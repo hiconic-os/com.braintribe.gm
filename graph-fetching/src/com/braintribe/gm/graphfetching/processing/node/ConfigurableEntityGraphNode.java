@@ -2,7 +2,9 @@ package com.braintribe.gm.graphfetching.processing.node;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
@@ -38,6 +40,7 @@ public class ConfigurableEntityGraphNode extends BaseTypedGraphNode implements E
 	}
 	
 	private void infer(List<InferableGraphNode> subNodes) {
+		Map<Property, ConfigurableEntityPropertyGraphNode> propertyEntityNode = new IdentityHashMap<>();
 		for (InferableGraphNode node: subNodes) {
 			String propertyName = node.name();
 			
