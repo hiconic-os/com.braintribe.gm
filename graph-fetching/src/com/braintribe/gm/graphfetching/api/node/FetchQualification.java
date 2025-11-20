@@ -3,10 +3,10 @@ package com.braintribe.gm.graphfetching.api.node;
 import com.braintribe.gm.graphfetching.processing.fetch.FetchType;
 
 public class FetchQualification {
-	public final EntityGraphNode node;
+	public final AbstractEntityGraphNode node;
 	public final FetchType fetchType;
 	
-	public FetchQualification(EntityGraphNode node, FetchType fetchType) {
+	public FetchQualification(AbstractEntityGraphNode node, FetchType fetchType) {
 		super();
 		this.node = node;
 		this.fetchType = fetchType;

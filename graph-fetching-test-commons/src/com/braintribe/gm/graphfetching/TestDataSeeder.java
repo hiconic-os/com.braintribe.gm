@@ -6,11 +6,8 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 import com.braintribe.gm.graphfetching.test.model.Address;
 import com.braintribe.gm.graphfetching.test.model.City;
@@ -21,11 +18,9 @@ import com.braintribe.gm.graphfetching.test.model.Gender;
 import com.braintribe.gm.graphfetching.test.model.Person;
 import com.braintribe.gm.graphfetching.test.model.SignableDocument;
 import com.braintribe.gm.graphfetching.test.model.Signature;
-import com.braintribe.model.generic.GenericEntity;
-import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
 
-public class TestDataSeeder implements GraphFetchingTestConstants {
+public class TestDataSeeder extends AbstractDataGenerator {
 
 	private final PersistenceGmSession session;
 	// Isolierte Random-Quellen je Bedarf
@@ -46,19 +41,14 @@ public class TestDataSeeder implements GraphFetchingTestConstants {
 	private final List<Document> documents = new ArrayList<>();
 	private final List<Company> idmCompanies = new ArrayList<>();
 	
-	private final boolean generateId;
-
-	// Deterministische Zähler für alle EntityTypes
-	private final Map<EntityType<?>, AtomicLong> idSequences = new ConcurrentHashMap<>();
-
 	// Mit Session (Persistenz)
 	public TestDataSeeder(PersistenceGmSession session, boolean generateId) {
 		this(session, 42L, generateId);
 	}
 	public TestDataSeeder(PersistenceGmSession session, long seed, boolean generateId) {
+		super(session, generateId);
 		this.session = session;
 		this.seed = seed;
-		this.generateId = generateId;
 		this.countryRandom = new Random(seed + 1);
 		this.cityRandom = new Random(seed + 2);
 		this.addressRandom = new Random(seed + 3);
@@ -69,7 +59,7 @@ public class TestDataSeeder implements GraphFetchingTestConstants {
 	}
 	// Ohne Session (nur transient)
 	public TestDataSeeder(boolean generateId) {
-		this.generateId = generateId;
+		super(null, generateId);
 		this.seed = 42L;
 		this.session = null;
 		this.countryRandom = new Random(seed + 1);
@@ -81,7 +71,7 @@ public class TestDataSeeder implements GraphFetchingTestConstants {
 		seed();
 	}
 	public TestDataSeeder(long seed, boolean generateId) {
-		this.generateId = generateId;
+		super(null, generateId);
 		this.session = null;
 		this.seed = seed;
 		this.countryRandom = new Random(seed + 1);
@@ -91,28 +81,6 @@ public class TestDataSeeder implements GraphFetchingTestConstants {
 		this.companyRandom = new Random(seed + 5);
 		this.documentRandom = new Random(seed + 6);
 		seed();
-	}
-
-	// Die zentrale generische create-Methode
-	public <T extends GenericEntity> T create(EntityType<T> type) {
-		return create(type, type);
-	}
-	
-	public <T extends GenericEntity> T create(EntityType<T> type, EntityType<? super T> idType) {
-		T entity;
-		if (session != null) {
-			entity = session.create(type);
-		} else {
-			entity = type.create();
-		}
-		// Zentrale, vorhersehbare Sequenz-ID zuweisen
-		AtomicLong sequence = idSequences.computeIfAbsent(idType, t -> new AtomicLong(1));
-		long id = sequence.getAndIncrement();
-		if (generateId)
-			entity.setId(id);
-		entity.setGlobalId(type.getTypeSignature() + "@" + String.valueOf(id));
-		entity.setPartition(ACCESS_ID_TEST);
-		return entity;
 	}
 
 	public void seed() {

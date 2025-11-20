@@ -2,7 +2,7 @@ package com.braintribe.gm.graphfetching.processing.node;
 
 import java.util.List;
 
-import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
+import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.InferableGraphNode;
 import com.braintribe.model.generic.reflection.EntityType;
@@ -10,7 +10,7 @@ import com.braintribe.model.generic.reflection.Property;
 
 public class ConfigurableEntityPropertyGraphNode extends ConfigurableEntityRelatedPropertyGraphNode implements EntityPropertyGraphNode {
 
-	public ConfigurableEntityPropertyGraphNode(Property property, EntityGraphNode entityNode) {
+	public ConfigurableEntityPropertyGraphNode(Property property, AbstractEntityGraphNode entityNode) {
 		super(property, entityNode);
 	}
 	

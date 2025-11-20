@@ -3,14 +3,17 @@ package com.braintribe.gm.graphfetching.processing.node;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
+import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityRelatedPropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.node.PolymorphicEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.PropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.ScalarCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.TypedGraphNode;
 import com.braintribe.model.generic.reflection.EntityType;
+import com.braintribe.model.generic.reflection.Property;
 
 public abstract class BaseTypedGraphNode implements TypedGraphNode {
 	private static class NodeVisiting {
@@ -42,33 +45,36 @@ public abstract class BaseTypedGraphNode implements TypedGraphNode {
 		return sb.toString();
 	}
 	
-	private void stringify(TypedGraphNode node, StringBuilder sb, int depth, NodeIdm idm) {
+	
+	private void stringify(PropertyGraphNode propertyNode, AbstractEntityGraphNode node, StringBuilder sb, int depth, NodeIdm idm) {
+		if (node instanceof EntityGraphNode) {
+			stringify(propertyNode, (EntityGraphNode)node, sb, depth, idm);
+		}
+		else if (node instanceof PolymorphicEntityGraphNode) {
+			stringify(propertyNode, (PolymorphicEntityGraphNode)node, sb, depth, idm);
+		}
+	}
+	
+	private void stringify(PropertyGraphNode propertyNode, PolymorphicEntityGraphNode node, StringBuilder sb, int depth, NodeIdm idm) {
+		for (EntityGraphNode entityNode: node.entityNodes()) {
+			stringify(propertyNode, entityNode, sb, depth, idm);
+		}
+	}
+	
+	private void stringify(PropertyGraphNode propertyNode, EntityGraphNode entityNode, StringBuilder sb, int depth, NodeIdm idm) {
 		appendIndent(depth, sb);
 		
-		sb.append(node.name());
-		
-		EntityGraphNode entityNode = null;
-		
-		if (node instanceof PropertyGraphNode) {
-			PropertyGraphNode propertyNode = (PropertyGraphNode)node;
-			
-			if (propertyNode.condensedPropertyType() != node.condensedType()) {
-				EntityType<?> entityType = (EntityType<?>)node.condensedType();
-				sb.append(" as ");
-				sb.append(entityType.getShortName());
-			}
-			
-			if (node instanceof EntityRelatedPropertyGraphNode) {
-				entityNode = ((EntityRelatedPropertyGraphNode)node).entityNode();
-			}
-		}
-		else if (node instanceof EntityGraphNode) {
-			entityNode = (EntityGraphNode)node;
-		}
+		EntityType<?> actualEntityType = entityNode.entityType();
 
-		if (entityNode == null) {
-			sb.append('\n');
-			return;
+		if (propertyNode != null) {
+			sb.append(propertyNode.name());
+			if (propertyNode.condensedPropertyType() != actualEntityType) {
+				sb.append(" as ");
+				sb.append(actualEntityType.getShortName());
+			}
+		}
+		else {
+			sb.append(actualEntityType.getShortName());
 		}
 		
 		NodeVisiting visit = idm.visit(entityNode);
@@ -83,16 +89,58 @@ public abstract class BaseTypedGraphNode implements TypedGraphNode {
 		
 		depth++;
 		
-		for (EntityPropertyGraphNode subNode: entityNode.entityProperties()) {
+		for (EntityPropertyGraphNode subNode: entityNode.entityProperties().values()) {
 			stringify(subNode, sb, depth, idm);
 		}
 
-		for (EntityCollectionPropertyGraphNode subNode: entityNode.entityCollectionProperties()) {
+		for (EntityCollectionPropertyGraphNode subNode: entityNode.entityCollectionProperties().values()) {
 			stringify(subNode, sb, depth, idm);
 		}
 		
-		for (ScalarCollectionPropertyGraphNode subNode: entityNode.scalarCollectionProperties()) {
+		for (ScalarCollectionPropertyGraphNode subNode: entityNode.scalarCollectionProperties().values()) {
 			stringify(subNode, sb, depth, idm);
+		}
+
+	}
+	
+	private void stringify(PropertyGraphNode propertyNode, StringBuilder sb, int depth, NodeIdm idm) {
+		Property property = propertyNode.property();
+		
+		if (propertyNode instanceof EntityRelatedPropertyGraphNode) {
+			EntityRelatedPropertyGraphNode entityRelatedNode = (EntityRelatedPropertyGraphNode)propertyNode;
+			stringify(entityRelatedNode, sb, depth, idm);
+		}
+		else {
+			stringify(property, sb, depth, idm);
+		}
+	}
+	
+	private void stringify(EntityRelatedPropertyGraphNode entityRelatedNode, StringBuilder sb, int depth, NodeIdm idm) {
+		stringify(entityRelatedNode, entityRelatedNode.entityNode(), sb, depth, idm);
+	}
+	
+	private void stringify(ScalarCollectionPropertyGraphNode scalarCollectionNode, StringBuilder sb, int depth, NodeIdm idm) {
+		stringify(scalarCollectionNode.property(), sb, depth, idm);
+	}
+	
+	private void stringify(Property property, StringBuilder sb, int depth, NodeIdm idm) {
+		appendIndent(depth, sb);
+		sb.append(property.getName());
+		sb.append('\n');
+	}
+	
+	private void stringify(TypedGraphNode node, StringBuilder sb, int depth, NodeIdm idm) {
+		if (node instanceof PropertyGraphNode) {
+			PropertyGraphNode propertyNode = (PropertyGraphNode)node;
+			stringify(propertyNode, sb, depth, idm);
+		}
+		else if (node instanceof PolymorphicEntityGraphNode) {
+			PolymorphicEntityGraphNode polymorphicEntityNode = (PolymorphicEntityGraphNode)node;
+			stringify(null, polymorphicEntityNode, sb, depth, idm);
+		}
+		else if (node instanceof EntityGraphNode) {
+			EntityGraphNode entityNode = (EntityGraphNode)node;
+			stringify(null, entityNode, sb, depth, idm);
 		}
 	}
 	

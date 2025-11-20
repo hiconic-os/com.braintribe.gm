@@ -3,15 +3,18 @@ package com.braintribe.gm.graphfetching.processing.fetch;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
+import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
+import com.braintribe.gm.graphfetching.api.node.PolymorphicEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.ScalarCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.query.FetchJoin;
 import com.braintribe.gm.graphfetching.api.query.FetchQuery;
@@ -32,93 +35,132 @@ public class ToManyFetching {
 	private static final Logger logger = Logger.getLogger(ToManyFetching.class);
 
 	static class EntityMapping {
-		public List<EntityGraphNode> exactNodes = new ArrayList<>();
-		public List<EntityGraphNode> covariantNodes = new ArrayList<>();
+		public List<EntityGraphNode> exactTypeNodes = new ArrayList<>();
+		public List<EntityGraphNode> subTypeNodes = new ArrayList<>();
 		public Property property;
+		public PolymorphicEntityGraphNode possiblePolyNode;
 
-		public EntityMapping(Property property) {
+		public EntityMapping(Property property, PolymorphicEntityGraphNode polymorphicNode) {
 			super();
 			this.property = property;
+			this.possiblePolyNode = polymorphicNode;
 		}
 	}
+	
+	enum PostOp { none, mark, enqueue } 
 
 	static class NodePostProcessing {
-		public EntityGraphNode node;
-		public Map<Object, GenericEntity> toOnes = new ConcurrentHashMap<>();
-		public Map<Object, GenericEntity> toManies = new ConcurrentHashMap<>();
-		public boolean covariant;
+		public final AbstractEntityGraphNode node;
+		public final Map<Object, GenericEntity> toOnes = new ConcurrentHashMap<>();
+		public final Map<Object, GenericEntity> toManies = new ConcurrentHashMap<>();
+		public final boolean isSubTypeNode;
+		private final PostOp toOneOp;
+		private final PostOp toManyOp;
 
-		public NodePostProcessing(EntityGraphNode node, boolean covariant) {
+		public NodePostProcessing(AbstractEntityGraphNode node, boolean isSubTypeNode, PostOp toOneOp, PostOp toManyOp) {
 			super();
 			this.node = node;
-			this.covariant = covariant;
+			this.isSubTypeNode = isSubTypeNode;
+			this.toOneOp = toOneOp;
+			this.toManyOp = toManyOp;
+		}
+		
+		public void process(EntityIdm entityIdm) {
+			GenericEntity e = entityIdm.entity;
+			if (isSubTypeNode && !node.entityType().isInstance(e))
+				return;
+
+			if (toOneOp != PostOp.none)
+				if (entityIdm.addHandled(node.toOneQualification()))
+					if (toOneOp == PostOp.enqueue)
+						toOnes.put(e.getId(), e);
+
+			if (toManyOp != PostOp.none)
+				if (entityIdm.addHandled(node.toManyQualification()))
+					if (toManyOp == PostOp.enqueue)
+						toManies.put(e.getId(), e);
+		}
+		
+		@Override
+		public String toString() {
+			return node.entityType().getShortName() + "[toOneOp=" +  toOneOp + ", toManyOp=" + toManyOp + "]";  
 		}
 	}
 
-	private static Map<Property, EntityMapping> buildMappings(List<EntityCollectionPropertyGraphNode> nodes) {
-		Map<Property, EntityMapping> mappings = new LinkedHashMap<>();
-
-		for (EntityCollectionPropertyGraphNode node : nodes) {
-			EntityGraphNode entityNode = node.entityNode();
-			EntityMapping mapping = mappings.computeIfAbsent(node.property(), EntityMapping::new);
-
-			if (entityNode.entityType() == node.condensedPropertyType()) {
-				mapping.exactNodes.add(entityNode);
-			} else {
-				mapping.covariantNodes.add(entityNode);
+	private static List<EntityMapping> buildMappings(Collection<EntityCollectionPropertyGraphNode> nodes) {
+		List<EntityMapping> mappings = new ArrayList<ToManyFetching.EntityMapping>(nodes.size());
+		for (EntityCollectionPropertyGraphNode collectionNode : nodes) {
+			AbstractEntityGraphNode abstractEntityNode = collectionNode.entityNode();
+			PolymorphicEntityGraphNode possiblePolyNode = abstractEntityNode.isPolymorphic();
+			
+			EntityMapping mapping = new EntityMapping(collectionNode.property(), possiblePolyNode);
+			
+			for (EntityGraphNode entityNode: abstractEntityNode.entityNodes()) {
+				if (entityNode.entityType() == collectionNode.condensedPropertyType()) {
+					mapping.exactTypeNodes.add(entityNode);
+				} else {
+					mapping.subTypeNodes.add(entityNode);
+				}
 			}
+			
+			mappings.add(mapping);
 		}
 
 		return mappings;
 	}
 
-	private static List<NodePostProcessing> buildPostProcessings(EntityMapping mapping) {
+	private static List<NodePostProcessing> buildPostProcessings(EntityMapping mapping, boolean supportsSubTypeJoin) {
+		PolymorphicEntityGraphNode polymorphicNode = mapping.possiblePolyNode;
+		boolean polymorphic = polymorphicNode != null;
+		
 		List<NodePostProcessing> postProcessings = new ArrayList<>();
-		for (EntityGraphNode exactNode : mapping.exactNodes) {
-			postProcessings.add(new NodePostProcessing(exactNode, false));
-		}
 
-		for (EntityGraphNode covariantNode : mapping.covariantNodes) {
-			postProcessings.add(new NodePostProcessing(covariantNode, true));
+		if (polymorphic) {
+			PostOp subTypeToOneOp = supportsSubTypeJoin? PostOp.mark: PostOp.none;
+			
+			postProcessings.add(new NodePostProcessing(polymorphicNode, false, PostOp.enqueue, PostOp.enqueue));
+			buildSpecificPostProcessings(postProcessings, mapping.exactTypeNodes, false, PostOp.mark, PostOp.mark);
+			buildSpecificPostProcessings(postProcessings, mapping.subTypeNodes, true, subTypeToOneOp, PostOp.mark);
+		}
+		else {
+			buildSpecificPostProcessings(postProcessings, mapping.exactTypeNodes, false, PostOp.enqueue, PostOp.enqueue);
+			buildSpecificPostProcessings(postProcessings, mapping.subTypeNodes, true, PostOp.enqueue, PostOp.enqueue);
 		}
 
 		return postProcessings;
 	}
 
+	private static void buildSpecificPostProcessings(List<NodePostProcessing> postProcessings,
+			List<EntityGraphNode> nodes, boolean subTypeNode, PostOp toOneOp, PostOp toManyOp) {
+		for (EntityGraphNode node : nodes) {
+			postProcessings.add(new NodePostProcessing(node, subTypeNode, toOneOp, toManyOp));
+		}
+	}
+
 	/**
 	 * Fetch all to-many properties of the given node (entity and scalar collections).
 	 */
-	public static void fetch(FetchContext context, EntityGraphNode node, FetchTask fetchTask) {
-		List<EntityCollectionPropertyGraphNode> entityCollectionProperties = node.entityCollectionProperties();
-		List<ScalarCollectionPropertyGraphNode> scalarCollectionProperties = node.scalarCollectionProperties();
-
+	public static void fetch(FetchContext context, AbstractEntityGraphNode node, FetchTask fetchTask) {
+		boolean supportsSubTypeJoin = context.queryFactory().supportsSubTypeJoin();
 		// entity collections
-		if (!entityCollectionProperties.isEmpty()) {
-			Collection<EntityMapping> mappings = buildMappings(entityCollectionProperties).values();
+		for (EntityGraphNode entityNode: node.entityNodes()) {
+			Collection<EntityCollectionPropertyGraphNode> entityCollectionProperties = entityNode.entityCollectionProperties().values();
+			if (entityCollectionProperties.isEmpty())
+				continue;
+			
+			List<EntityMapping> mappings = buildMappings(entityCollectionProperties);
 
 			for (EntityMapping mapping : mappings) {
-				List<NodePostProcessing> postProcessings = buildPostProcessings(mapping);
+				List<NodePostProcessing> postProcessings = buildPostProcessings(mapping, supportsSubTypeJoin);
 
 				Property property = mapping.property;
 
-				fetch(context, node.entityType(), fetchTask, (LinearCollectionType) property.getType(), property, (GenericEntity e) -> {
+				fetch(context, node.entityType(), entityNode.entityType(),fetchTask, (LinearCollectionType) property.getType(), property, (GenericEntity e) -> {
 					EntityIdm entityIdm = context.acquireEntity(e);
 					e = entityIdm.entity;
-
+					
 					for (NodePostProcessing postProcessing : postProcessings) {
-						EntityGraphNode entityNode = postProcessing.node;
-						if (postProcessing.covariant && !entityNode.entityType().isInstance(e))
-							continue;
-
-						if (!entityIdm.isHandled(entityNode.toOneQualification())) {
-							entityIdm.addHandled(entityNode.toOneQualification());
-							postProcessing.toOnes.put(e.getId(), e);
-						}
-
-						if (!entityIdm.isHandled(entityNode.toManyQualification())) {
-							entityIdm.addHandled(entityNode.toManyQualification());
-							postProcessing.toManies.put(e.getId(), e);
-						}
+						postProcessing.process(entityIdm);
 					}
 
 					return e;
@@ -130,11 +172,11 @@ public class ToManyFetching {
 				}
 			}
 		}
-
+		
 		// scalar collections
-		if (!scalarCollectionProperties.isEmpty()) {
-			for (ScalarCollectionPropertyGraphNode collectionNode : scalarCollectionProperties) {
-				fetch(context, node.entityType(), fetchTask, collectionNode.type(), collectionNode.property(), null);
+		for (EntityGraphNode entityNode: node.entityNodes()) {
+			for (ScalarCollectionPropertyGraphNode collectionNode : entityNode.scalarCollectionProperties().values()) {
+				fetch(context, node.entityType(), entityNode.entityType(), fetchTask, collectionNode.type(), collectionNode.property(), null);
 			}
 		}
 	}
@@ -142,16 +184,14 @@ public class ToManyFetching {
 	/**
 	 * Bulk fetching for each collection property in the graph; assigns collections back to owning entities.
 	 */
-	public static <E> void fetch(FetchContext context, EntityType<?> type, FetchTask fetchTask, CollectionType collectionType,
+	public static <E> void fetch(FetchContext context, EntityType<?> baseType, EntityType<?> type, FetchTask fetchTask, CollectionType collectionType,
 			Property property, Function<E, E> visitor) {
 		Map<Object, GenericEntity> entityIndex = fetchTask.entities;
 
-		Set<Object> allIds = entityIndex.keySet();
+		Collection<Object> allIds = extractTypeSpecificIds(entityIndex, baseType, type, //
+				e -> property.set(e, collectionType.createPlain()));
+		
 		List<Set<Object>> idBulks = CollectionTools2.splitToSets(allIds, context.bulkSize());
-
-		for (GenericEntity entity : fetchTask.entities.values()) {
-			property.set(entity, collectionType.createPlain());
-		}
 
 		FetchQuery fetchQuery = context.queryFactory().createQuery(type, context.session().getAccessId());
 		FetchJoin join = fetchQuery.from().join(property);
@@ -186,5 +226,26 @@ public class ToManyFetching {
 
 		logger.trace(() -> "consumed " + Duration.ofNanos(queryDuration).toMillis() + " ms for querying " + allIds.size() + " entities in "
 				+ idBulks.size() + " batches with: " + fetchQuery.stringify());
+	}
+
+	private static Collection<Object> extractTypeSpecificIds(Map<Object, GenericEntity> entityIndex, EntityType<?> baseType, EntityType<?> type, Consumer<GenericEntity> specificEntityVisitor) {
+		if (type == baseType) {
+			for (GenericEntity entity: entityIndex.values())
+				specificEntityVisitor.accept(entity);
+			
+			return entityIndex.keySet();
+		}
+		
+		List<Object> resultIds = new ArrayList<Object>();
+		for (Map.Entry<Object, GenericEntity> entry: entityIndex.entrySet()) {
+			GenericEntity entity = entry.getValue();
+			
+			if (type.isInstance(entity)) {
+				specificEntityVisitor.accept(entity);
+				resultIds.add(entry.getKey());
+			}
+		}
+		
+		return resultIds;
 	}
 }

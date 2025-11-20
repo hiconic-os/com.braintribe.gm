@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -30,6 +31,7 @@ import com.braintribe.gm.graphfetching.api.Fetching;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.test.model.Company;
 import com.braintribe.gm.graphfetching.test.model.Person;
+import com.braintribe.gm.graphfetching.test.model.data.DataManagement;
 import com.braintribe.model.access.IncrementalAccess;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
@@ -63,6 +65,7 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 	protected static GmMetaModel model = GMF.getTypeReflection().getModel(_GraphFetchingTestModel_.name).getMetaModel();
 
 	private static TestDataSeeder seeder;
+	private static DataSourceDataGenerator dataGenerator;
 
 	private void configureLogging() {
 		LogManager.getLogManager().reset();
@@ -165,6 +168,9 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 			PersistenceGmSession session = GmTestTools.newSession(context.access);
 			seeder = new TestDataSeeder(session, generateIds());
 			session.commit();
+			
+			dataGenerator = new DataSourceDataGenerator(session, generateIds());
+			session.commit();
 
 			return context;
         });
@@ -189,6 +195,30 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 
 	protected PersistenceGmSession newSession() {
 		return GmTestTools.newSession(persistenceContext.access);
+	}
+	
+	@Test
+	public void testPolymorphism() {
+		PersistenceGmSession session = newSession(); 
+
+		BasicModelOracle oracle = new BasicModelOracle(model);
+		EntityGraphNode graphNode = Fetching.reachable(DataManagement.T).covariance(oracle).build();
+		
+		System.out.println(graphNode.stringify());
+
+		DataManagement dataManagement = dataGenerator.getDataManagement();
+		
+		List<DataManagement> expectedData = Collections.singletonList(dataManagement);
+		
+		List<DataManagement> actualData = fetchBuilder(session, graphNode).fetchDetached(expectedData);
+		
+		AssemblyComparisonResult comparisonResult = AssemblyComparison.build() //
+				.useGlobalId()
+				.enableTracking() //
+				.compare(expectedData, actualData);
+
+		Assertions.assertThat(comparisonResult.equal())//
+				.describedAs(() -> comparisonResult.mismatchDescription() + " @ " + stringify(comparisonResult.firstMismatchPath())).isTrue();
 	}
 	
 	@Test

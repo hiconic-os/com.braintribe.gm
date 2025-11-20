@@ -19,9 +19,9 @@ import java.util.function.Consumer;
 import com.braintribe.common.attribute.AttributeContext;
 import com.braintribe.common.lcd.Pair;
 import com.braintribe.exception.Exceptions;
+import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.FetchQualification;
-import com.braintribe.gm.graphfetching.api.node.PropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.query.FetchQueryFactory;
 import com.braintribe.gm.graphfetching.processing.query.GmSessionFetchQueryFactory;
 import com.braintribe.gm.graphfetching.processing.util.FetchingTools;
@@ -123,33 +123,19 @@ public class FetchProcessing implements FetchContext {
 	}
 
 	@Override
-	public void enqueueToOneIfRequired(EntityGraphNode node, Map<Object, GenericEntity> entities) {
+	public void enqueueToOneIfRequired(AbstractEntityGraphNode node, Map<Object, GenericEntity> entities) {
 		if (node.hasEntityProperties() && !entities.isEmpty()) {
 			taskQueue.offer(new FetchTask(node, FetchType.TO_ONE, entities));
 		}
 	}
 
 	@Override
-	public void enqueueToManyIfRequired(EntityGraphNode node, Map<Object, GenericEntity> entities) {
+	public void enqueueToManyIfRequired(AbstractEntityGraphNode node, Map<Object, GenericEntity> entities) {
 		if (node.hasCollectionProperties() && !entities.isEmpty()) {
 			taskQueue.offer(new FetchTask(node, FetchType.TO_MANY, entities));
 		}
 	}
 	
-	@Override
-	public void enqueueToManyIfRequired(EntityGraphNode node, Map<Object, GenericEntity> entities, List<EntityGraphNode> covariants) {
-		if (node.hasCollectionProperties() && !entities.isEmpty()) {
-			taskQueue.offer(new FetchTask(node, FetchType.TO_MANY, entities, covariants));
-		}
-	}
-	
-	@Override
-	public void enqueueToOneIfRequired(EntityGraphNode node, Map<Object, GenericEntity> entities, List<EntityGraphNode> covariants) {
-		if (node.hasEntityProperties() && !entities.isEmpty()) {
-			taskQueue.offer(new FetchTask(node, FetchType.TO_ONE, entities, covariants));
-		}
-	}
-
 	private void process() {
 		while (true) {
 			FetchTask task = taskQueue.poll();
@@ -181,11 +167,7 @@ public class FetchProcessing implements FetchContext {
 				+ " entities of node: " + getNodeDescription(task.node));
 	}
 
-	private static String getNodeDescription(EntityGraphNode node) {
-		if (node instanceof PropertyGraphNode) {
-			PropertyGraphNode pgn = (PropertyGraphNode) node;
-			return pgn.property().getDeclaringType().getShortName() + "." + pgn.property().getName() + " as " + node.entityType().getShortName();
-		}
+	private static String getNodeDescription(AbstractEntityGraphNode node) {
 		return node.entityType().getShortName();
 	}
 

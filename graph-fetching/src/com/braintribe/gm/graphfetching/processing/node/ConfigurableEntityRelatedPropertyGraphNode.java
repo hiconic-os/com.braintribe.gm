@@ -1,5 +1,6 @@
 package com.braintribe.gm.graphfetching.processing.node;
 
+import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityRelatedPropertyGraphNode;
 import com.braintribe.model.generic.reflection.EntityType;
@@ -7,15 +8,15 @@ import com.braintribe.model.generic.reflection.Property;
 
 public class ConfigurableEntityRelatedPropertyGraphNode extends ConfigurablePropertyGraphNode implements EntityRelatedPropertyGraphNode {
 
-	private EntityGraphNode entityNode;
+	private AbstractEntityGraphNode entityNode;
 
-	public ConfigurableEntityRelatedPropertyGraphNode(Property property, EntityGraphNode entityNode) {
+	public ConfigurableEntityRelatedPropertyGraphNode(Property property, AbstractEntityGraphNode entityNode) {
 		super(property);
 		this.entityNode = entityNode;
 	}
 
 	@Override
-	public EntityGraphNode entityNode() {
+	public AbstractEntityGraphNode entityNode() {
 		return entityNode;
 	}
 	

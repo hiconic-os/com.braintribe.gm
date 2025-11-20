@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
@@ -22,7 +23,7 @@ public class LocalFetching {
 	private Queue<Runnable> taskQueue = new LinkedList<>();
 	private Map<GenericEntity, DetachedEntity> detachedEntities = new IdentityHashMap<>();
 	
-	public List<GenericEntity> fetch(EntityGraphNode node, Collection<? extends GenericEntity> entities) {
+	public List<GenericEntity> fetch(AbstractEntityGraphNode node, Collection<? extends GenericEntity> entities) {
 		List<GenericEntity> clonedEntities = new ArrayList<>(entities.size());
 		
 		for (GenericEntity entity: entities) {
@@ -45,6 +46,16 @@ public class LocalFetching {
 		}
 	}
 	
+	private GenericEntity process(AbstractEntityGraphNode node, GenericEntity entity) {
+		GenericEntity clonedEntity = null;
+		
+		for (EntityGraphNode entityNode: node.entityNodes())
+			clonedEntity = process(entityNode, entity);
+			
+			
+		return clonedEntity;
+	}
+	
 	private GenericEntity process(EntityGraphNode node, GenericEntity entity) {
 		DetachedEntity detachedEntity = acquireDetached(entity);
 		
@@ -56,7 +67,7 @@ public class LocalFetching {
 		
 		detachedEntity.nodes.add(node);
 		
-		for (EntityPropertyGraphNode entityPropertyNode: node.entityProperties()) {
+		for (EntityPropertyGraphNode entityPropertyNode: node.entityProperties().values()) {
 			Property property = entityPropertyNode.property();
 			GenericEntity otherEntity = property.get(entity);
 			
@@ -68,7 +79,7 @@ public class LocalFetching {
 			}
 		}
 		
-		for (EntityCollectionPropertyGraphNode entityCollectionPropertyNode: node.entityCollectionProperties()) {
+		for (EntityCollectionPropertyGraphNode entityCollectionPropertyNode: node.entityCollectionProperties().values()) {
 			Property property = entityCollectionPropertyNode.property();
 			
 			Collection<GenericEntity> otherEntities = property.get(entity);
@@ -85,7 +96,7 @@ public class LocalFetching {
 			}
 		}
 		
-		for (ScalarCollectionPropertyGraphNode scalarCollectionPropertyNode: node.scalarCollectionProperties()) {
+		for (ScalarCollectionPropertyGraphNode scalarCollectionPropertyNode: node.scalarCollectionProperties().values()) {
 			Property property = scalarCollectionPropertyNode.property();
 			
 			Collection<Object> otherElements = property.get(entity);

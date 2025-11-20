@@ -159,12 +159,11 @@ public class GraphPrototypePai extends PropertyAccessInterceptor {
 						node.add(new ConfigurableScalarCollectionPropertyGraphNode(property));
 					}
 					else {
-						Collection<?> collection = (Collection<?>)value;
-						if (collection.isEmpty())
-							break;
+						Collection<? extends GenericEntity> collection = (Collection<? extends GenericEntity>)value;
 						
-						GenericEntity entityElement = (GenericEntity)collection.iterator().next();
-						node.add(toEntityCollectionGraphNode(property, entityElement));
+						for (GenericEntity entityElement: collection) {
+							node.add(toEntityCollectionGraphNode(property, entityElement));	
+						}
 					}
 					
 					break;

@@ -13,6 +13,7 @@ import com.braintribe.common.lcd.Pair;
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.node.PolymorphicEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.ReachableNodeBuilder;
 import com.braintribe.model.generic.reflection.CollectionType;
 import com.braintribe.model.generic.reflection.EntityType;
@@ -32,6 +33,7 @@ public class ReachableNodeCollector {
 		EntityType<?> entityType;
 		Predicate<EntityType<?>> typeExclusion = t -> false;
 		Map<Pair<EntityType<?>, EntityType<?>>, EntityGraphNode> visitedEntityNodes = new HashMap<>();
+		Map<EntityType<?>, PolymorphicEntityGraphNode> visitedPolymorphicEntityNodes = new HashMap<>();
 
 		public CollectContext(EntityType<?> entityType) {
 			this.entityType = entityType;
@@ -72,6 +74,27 @@ public class ReachableNodeCollector {
 		return covariantProperties;
 	}
 
+	private static PolymorphicEntityGraphNode polymorphicEntityGraphNode(CollectContext context, EntityType<?> entityType) {
+		PolymorphicEntityGraphNode polymorphicEntityNode = context.visitedPolymorphicEntityNodes.get(entityType);
+		
+		if (polymorphicEntityNode != null)
+			return polymorphicEntityNode;
+		
+		ConfigurablePolymorphicEntityGraphNode configurablePolymorphicEntityNode = new ConfigurablePolymorphicEntityGraphNode(entityType);
+		
+		configurablePolymorphicEntityNode.addEntityNode(entityGraphNode(context, entityType, entityType));
+		
+		Collection<? extends EntityType<?>> covariantTypes = context.covariance.apply(entityType);
+		
+		for (EntityType<?> covariantEntityType: covariantTypes) {
+			EntityGraphNode covariantEntityNode = entityGraphNode(context, entityType, covariantEntityType);
+			configurablePolymorphicEntityNode.addEntityNode(covariantEntityNode);
+		}
+		
+		return configurablePolymorphicEntityNode;
+
+	}
+	
 	private static EntityGraphNode entityGraphNode(CollectContext context, EntityType<?> baseType, EntityType<?> entityType) {
 		Pair<EntityType<?>, EntityType<?>> visitedKey = Pair.of(baseType, entityType);
 		
@@ -80,8 +103,8 @@ public class ReachableNodeCollector {
 		if (entityNode != null)
 			return entityNode;
 		
-		ConfigurableEntityGraphNode configurableEntityGraphNode = new ConfigurableEntityGraphNode(entityType);
-		context.visitedEntityNodes.put(visitedKey, configurableEntityGraphNode);
+		ConfigurableEntityGraphNode configurableEntityNode = new ConfigurableEntityGraphNode(entityType);
+		context.visitedEntityNodes.put(visitedKey, configurableEntityNode);
 		
 		Collection<Property> properties = getProperties(baseType, entityType);
 		for (Property property : properties) {
@@ -95,14 +118,8 @@ public class ReachableNodeCollector {
 				if (context.typeExclusion.test(propertyEntityType)) {
 					continue;
 				}
-
-				configurableEntityGraphNode.add(entityPropertyGraphNode(context, propertyEntityType, propertyEntityType, property));
-
-				Collection<? extends EntityType<?>> covariantTypes = context.covariance.apply(propertyEntityType);
-
-				for (EntityType<?> covariantType : covariantTypes) {
-					configurableEntityGraphNode.add(entityPropertyGraphNode(context, propertyEntityType, covariantType, property));
-				}
+				
+				configurableEntityNode.add(entityPropertyGraphNode(context, propertyEntityType, property));
 
 			} else if (propertyType.isCollection()) {
 
@@ -119,18 +136,10 @@ public class ReachableNodeCollector {
 								continue;
 							}
 
-							configurableEntityGraphNode
-									.add(entityCollectionPropertyGraphNode(context, elementEntityType, elementEntityType, property));
-
-							Collection<? extends EntityType<?>> covariantTypes = context.covariance.apply(elementEntityType);
-
-							for (EntityType<?> covariantType : covariantTypes) {
-								configurableEntityGraphNode
-										.add(entityCollectionPropertyGraphNode(context, elementEntityType, covariantType, property));
-							}
-
+							configurableEntityNode
+									.add(entityCollectionPropertyGraphNode(context, elementEntityType, property));
 						} else {
-							configurableEntityGraphNode.add(new ConfigurableScalarCollectionPropertyGraphNode(property));
+							configurableEntityNode.add(new ConfigurableScalarCollectionPropertyGraphNode(property));
 						}
 						break;
 					case map:
@@ -139,24 +148,22 @@ public class ReachableNodeCollector {
 						break;
 
 				}
-
 			}
-
 		}
 		
-		return configurableEntityGraphNode;
+		return configurableEntityNode;
 	}
 	
-	private static EntityPropertyGraphNode entityPropertyGraphNode(CollectContext context, EntityType<?> baseType, EntityType<?> entityType,
+	private static EntityPropertyGraphNode entityPropertyGraphNode(CollectContext context, EntityType<?> entityType,
 			Property property) {
-		EntityGraphNode entityNode = entityGraphNode(context, baseType, entityType);
-		return new ConfigurableEntityPropertyGraphNode(property, entityNode);
+		PolymorphicEntityGraphNode polymorphicEntityNode = polymorphicEntityGraphNode(context, entityType);
+		return new ConfigurableEntityPropertyGraphNode(property, polymorphicEntityNode);
 	}
 
-	private static EntityCollectionPropertyGraphNode entityCollectionPropertyGraphNode(CollectContext context, EntityType<?> baseType,
+	private static EntityCollectionPropertyGraphNode entityCollectionPropertyGraphNode(CollectContext context,
 			EntityType<?> entityType, Property property) {
 
-		EntityGraphNode entityNode = entityGraphNode(context, baseType, entityType);
-		return new ConfigurableEntityCollectionPropertyGraphNode(property, entityNode);	
+		PolymorphicEntityGraphNode polymorphicEntityNode = polymorphicEntityGraphNode(context, entityType);
+		return new ConfigurableEntityCollectionPropertyGraphNode(property, polymorphicEntityNode);	
 	}
 }
