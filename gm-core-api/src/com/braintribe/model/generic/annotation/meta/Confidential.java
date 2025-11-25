@@ -21,6 +21,14 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import com.braintribe.model.generic.reflection.Property;
+
+/**
+ * Annotates a property as "confidential", which among other things means it won't be written out with the default {@link #toString()} implementation
+ * for entities. This is important to prevent unintended security leaks when logging.
+ * <p>
+ * This information is reflected on the property with its method {@link Property#isConfidential()}.
+ */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @Documented

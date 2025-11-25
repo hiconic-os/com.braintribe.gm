@@ -16,6 +16,7 @@
 package com.braintribe.model.securityservice.credentials;
 
 import com.braintribe.model.generic.annotation.Abstract;
+import com.braintribe.model.generic.annotation.meta.Confidential;
 import com.braintribe.model.generic.annotation.meta.Mandatory;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
@@ -26,6 +27,7 @@ public interface TokenCredentials extends Credentials {
 	EntityType<TokenCredentials> T = EntityTypes.T(TokenCredentials.class);
 
 	@Mandatory
+	@Confidential
 	String getToken();
 	void setToken(String token);
 
