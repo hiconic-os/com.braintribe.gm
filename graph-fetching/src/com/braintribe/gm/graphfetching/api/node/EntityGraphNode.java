@@ -24,6 +24,12 @@ public interface EntityGraphNode extends AbstractEntityGraphNode  {
      * @return Collection properties where elements are themselves entities
      */
     Map<Property, EntityCollectionPropertyGraphNode> entityCollectionProperties();
+    
+    /**
+     * @return Map properties of various KEY:VALUE combinations of scalar and entity
+     */
+    Map<Property, MapPropertyGraphNode> mapProperties();
+    
     /**
      * @return The entity type this node represents
      */

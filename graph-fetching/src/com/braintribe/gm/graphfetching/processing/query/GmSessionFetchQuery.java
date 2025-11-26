@@ -37,7 +37,7 @@ public class GmSessionFetchQuery implements FetchQuery {
 		selections = query.getSelections();
 
 		int pos = select(SelectQueries.property(gmFrom, GenericEntity.id));
-		from = new GmSessionFetchSource(this, gmFrom, pos);
+		from = new GmSessionFetchSource(this, entityType, gmFrom, pos);
 	}
 	
 	public int select(Object select) {

@@ -3,8 +3,10 @@ package com.braintribe.gm.graphfetching.processing.node;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.InferableGraphNode;
+import com.braintribe.gm.graphfetching.api.node.KeyValueType;
 import com.braintribe.gm.graphfetching.api.node.MapPropertyGraphNode;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
@@ -12,8 +14,9 @@ import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.model.generic.reflection.Property;
 
 public class ConfigurableMapPropertyGraphNode extends ConfigurablePropertyGraphNode implements MapPropertyGraphNode {
-	private List<EntityGraphNode> keyNodes = new ArrayList<>();
-	private List<EntityGraphNode> valueNodes = new ArrayList<>();
+	private AbstractEntityGraphNode keyNode;
+	private AbstractEntityGraphNode valueNode;
+	private KeyValueType keyValueType;
 
 	public ConfigurableMapPropertyGraphNode(Property property) {
 		super(property);
@@ -30,21 +33,57 @@ public class ConfigurableMapPropertyGraphNode extends ConfigurablePropertyGraphN
 		EntityType<?> inferedKeyEntityType = keyType.isEntity()? (EntityType<?>)keyType: null;
 		EntityType<?> inferedValueEntityType = valueType.isEntity()? (EntityType<?>)valueType: null;
 		
+		if (inferedKeyEntityType != null)
+			if (inferedValueEntityType != null)
+				keyValueType = KeyValueType.ENTITY_ENTITY;
+			else
+				keyValueType = KeyValueType.ENTITY_SCALAR;
+		else
+			if (inferedValueEntityType != null)
+				keyValueType = KeyValueType.SCALAR_ENTITY;
+			else
+				keyValueType = KeyValueType.SCALAR_SCALAR;
+			
+
+		List<ConfigurableEntityGraphNode> keyNodes = new ArrayList<>();
+		List<ConfigurableEntityGraphNode> valueNodes = new ArrayList<>();
+		
 		for (InferableGraphNode node: subNodes) {
 			switch (node.name()) {
 				case "KEY":
 					for (InferableGraphNode keyNode: node.subNodes())
-						addKeyNode(createEntityGraphNode(inferedKeyEntityType, keyNode));
+						keyNodes.add(createEntityGraphNode(inferedKeyEntityType, keyNode));
 					break;
 				case "VALUE":
 					for (InferableGraphNode valueNode: node.subNodes())
-						addValueNode(createEntityGraphNode(inferedValueEntityType, valueNode));
+						valueNodes.add(createEntityGraphNode(inferedValueEntityType, valueNode));
 					break;
 				default:
-					addValueNode(createEntityGraphNode(inferedValueEntityType, node));
+					valueNodes.add(createEntityGraphNode(inferedValueEntityType, node));
 					break;
 			}
 		}
+		
+		keyNode = buildEntityNodeOptional(inferedKeyEntityType, keyNodes);
+		valueNode = buildEntityNodeOptional(inferedValueEntityType, valueNodes);
+	}
+	
+	private AbstractEntityGraphNode buildEntityNodeOptional(EntityType<?> baseType, List<ConfigurableEntityGraphNode> nodes) {
+		switch (nodes.size()) {
+		case 0: return null;
+		case 1: return nodes.iterator().next();
+		default:
+			ConfigurablePolymorphicEntityGraphNode polyNode = new ConfigurablePolymorphicEntityGraphNode(baseType);
+			for (EntityGraphNode node: nodes) 
+				polyNode.addEntityNode(node);
+			
+			return polyNode;
+		}
+	}
+	
+	@Override
+	public KeyValueType keyValueType() {
+		return keyValueType;
 	}
 	
 	private ConfigurableEntityGraphNode createEntityGraphNode(EntityType<?> inferedType, InferableGraphNode node) {
@@ -57,27 +96,26 @@ public class ConfigurableMapPropertyGraphNode extends ConfigurablePropertyGraphN
 		return new ConfigurableEntityGraphNode(entityType, node.subNodes());
 	}
 
-	public void addKeyNode(EntityGraphNode node) {
-		keyNodes.add(node);
-	}
-	
-	public void addValueNode(EntityGraphNode node) {
-		valueNodes.add(node);
-	}
-	
 	@Override
 	public MapType type() {
 		return (MapType)super.type();
 	}
+	
+	public void setKeyNode(AbstractEntityGraphNode keyNode) {
+		this.keyNode = keyNode;
+	}
+	
+	public void setValueNode(AbstractEntityGraphNode valueNode) {
+		this.valueNode = valueNode;
+	}
 
 	@Override
-	public List<EntityGraphNode> keyNodes() {
-		return keyNodes;
+	public AbstractEntityGraphNode keyNode() {
+		return keyNode;
 	}
 	
 	@Override
-	public List<EntityGraphNode> valueNodes() {
-		return valueNodes;
+	public AbstractEntityGraphNode valueNode() {
+		return valueNode;
 	}
-
 }

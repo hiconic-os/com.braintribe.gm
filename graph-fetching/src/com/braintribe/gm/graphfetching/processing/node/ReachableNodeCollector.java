@@ -19,6 +19,7 @@ import com.braintribe.model.generic.reflection.CollectionType;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.LinearCollectionType;
+import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.processing.meta.oracle.ModelOracle;
 
@@ -127,7 +128,7 @@ public class ReachableNodeCollector {
 
 				switch (collectionType.getCollectionKind()) {
 					case list:
-					case set:
+					case set: {
 						LinearCollectionType linearCollectionType = (LinearCollectionType) collectionType;
 						GenericModelType elementType = linearCollectionType.getCollectionElementType();
 						if (elementType.isEntity()) {
@@ -142,8 +143,32 @@ public class ReachableNodeCollector {
 							configurableEntityNode.add(new ConfigurableScalarCollectionPropertyGraphNode(property));
 						}
 						break;
-					case map:
+					}
+					case map: {
+						MapType mapType = (MapType) collectionType;
+						GenericModelType keyType = mapType.getKeyType();
+						GenericModelType valueType = mapType.getValueType();
+						
+						ConfigurableMapPropertyGraphNode mapNode = new ConfigurableMapPropertyGraphNode(property);
+						
+						if (keyType.isEntity()) {
+							EntityType<?> keyEntityType = (EntityType<?>) keyType;
+							if (!context.typeExclusion.test(keyEntityType)) {
+								mapNode.setKeyNode(polymorphicEntityGraphNode(context, keyEntityType));
+							}
+						}
+						
+						if (valueType.isEntity()) {
+							EntityType<?> valueEntityType = (EntityType<?>) valueType;
+							if (!context.typeExclusion.test(valueEntityType)) {
+								mapNode.setKeyNode(polymorphicEntityGraphNode(context, valueEntityType));
+							}
+						}
+						
+						configurableEntityNode.add(mapNode);
+						
 						break;
+					}
 					default:
 						break;
 

@@ -11,6 +11,9 @@ public interface FetchBuilder {
 	FetchBuilder queryFactory(FetchQueryFactory queryFactory);
 	FetchBuilder executor(ExecutorService executor);
 	FetchBuilder bulkSize(int bulkSize);
+	FetchBuilder toOneScalarThreshold(int threshold);
+	FetchBuilder joinProbabilityThreshold(double threshold);
+	FetchBuilder joinProbabilityDefault(double probability);
 	FetchBuilder maxParallelBulks(int maxParallelBulks);
 	
 	<E extends GenericEntity> List<E> fetchDetached(Collection<? extends E> entities);

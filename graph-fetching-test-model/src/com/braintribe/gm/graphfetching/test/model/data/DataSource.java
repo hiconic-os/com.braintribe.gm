@@ -9,8 +9,11 @@ public interface DataSource extends GenericEntity {
 	EntityType<DataSource> T = EntityTypes.T(DataSource.class);
 
 	String info = "info";
+	String cacheable = "cacheable";
 	
 	SourceInfo getInfo();
 	void setInfo(SourceInfo info);
 	
+	boolean getCacheable();
+	void setCacheable(boolean cacheable);
 }

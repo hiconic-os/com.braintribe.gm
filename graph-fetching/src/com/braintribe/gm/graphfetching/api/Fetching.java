@@ -10,6 +10,7 @@ import com.braintribe.gm.graphfetching.processing.FetchBuilderImpl;
 import com.braintribe.gm.graphfetching.processing.fetch.LocalFetching;
 import com.braintribe.gm.graphfetching.processing.node.ConfigurableEntityGraphNode;
 import com.braintribe.gm.graphfetching.processing.node.ConfigurableInferableGraphNode;
+import com.braintribe.gm.graphfetching.processing.node.GraphPrototypeNodeCollector;
 import com.braintribe.gm.graphfetching.processing.node.GraphPrototypePai;
 import com.braintribe.gm.graphfetching.processing.node.ReachableNodeCollector;
 import com.braintribe.model.generic.GenericEntity;
@@ -97,7 +98,8 @@ public interface Fetching {
 	 * @return a new EntityGraphNode representing the root of the fetch graph
 	 */
 	static EntityGraphNode rootNode(GenericEntity selectPrototype) {
-		return GraphPrototypePai.convert(selectPrototype);
+		return new GraphPrototypeNodeCollector().toEntityNode(selectPrototype);
+		//return GraphPrototypePai.convert(selectPrototype);
 	}
 
 	static <E extends GenericEntity> List<E> fetchFromLocal(EntityGraphNode node, Collection<? extends E> entities) {

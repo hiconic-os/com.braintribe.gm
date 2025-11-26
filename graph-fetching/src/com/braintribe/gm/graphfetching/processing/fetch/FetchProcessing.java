@@ -48,6 +48,9 @@ public class FetchProcessing implements FetchContext {
 	private int maxParallelBulks = 10;
 	private Lazy<ExecutorService> defaultExecutorLazy = new Lazy<>(() -> Executors.newFixedThreadPool(maxParallelBulks), s -> s.shutdown());
 	private int bulkSize = DEFAULT_BULK_SIZE;
+	private int toOneScalarStopThreshold = 500;
+	private double joinProbabiltyThreshold = 0.05;
+	private double joinProbabilityDefault = 0.5;
 
 	public FetchProcessing(PersistenceGmSession session) {
 		this(session, new GmSessionFetchQueryFactory(session));
@@ -65,6 +68,21 @@ public class FetchProcessing implements FetchContext {
 	@Override
 	public int bulkSize() {
 		return bulkSize;
+	}
+	
+	@Override
+	public int toOneSelectCountStopThreshold() {
+		return toOneScalarStopThreshold;
+	}
+	
+	@Override
+	public double defaultJoinProbability() {
+		return joinProbabilityDefault ;
+	}
+	
+	@Override
+	public double joinProbabiltyThreshold() {
+		return joinProbabiltyThreshold;
 	}
 	
 	@Override
@@ -258,5 +276,17 @@ public class FetchProcessing implements FetchContext {
 
 	public void setMaxParallelBulks(int maxParallelBulks) {
 		this.maxParallelBulks = maxParallelBulks;
+	}
+
+	public void setJoinProbabilityDefault(double joinProbabilityDefault) {
+		this.joinProbabilityDefault = joinProbabilityDefault;
+	}
+
+	public void setJoinProbabilityThreshold(double joinProbabilityThreshold) {
+		this.joinProbabiltyThreshold = joinProbabilityThreshold;
+	}
+
+	public void setToOneScalarThreshold(int toOneScalarThreshold) {
+		this.toOneScalarStopThreshold = toOneScalarThreshold;
 	}
 }

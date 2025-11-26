@@ -20,6 +20,9 @@ public class FetchBuilderImpl implements FetchBuilder {
 	private ExecutorService executor;
 	private int bulkSize = 100;
 	private int maxParallelBulks = 10;
+	private double joinProbabilityThreshold = 0.05;
+	private double joinProbabilityDefault = 0.5;
+	private int toOneScalarThreshold = 500;
 	
 	public FetchBuilderImpl(PersistenceGmSession session, EntityGraphNode node) {
 		super();
@@ -35,6 +38,24 @@ public class FetchBuilderImpl implements FetchBuilder {
 	@Override
 	public FetchBuilder bulkSize(int bulkSize) {
 		this.bulkSize  = bulkSize;
+		return this;
+	}
+	
+	@Override
+	public FetchBuilder toOneScalarThreshold(int threshold) {
+		toOneScalarThreshold = threshold;
+		return this;
+	}
+	
+	@Override
+	public FetchBuilder joinProbabilityDefault(double probability) {
+		joinProbabilityDefault = probability;
+		return this;
+	}
+	
+	@Override
+	public FetchBuilder joinProbabilityThreshold(double threshold) {
+		joinProbabilityThreshold = threshold;
 		return this;
 	}
 	
@@ -95,6 +116,9 @@ public class FetchBuilderImpl implements FetchBuilder {
 		
 		fetchProcessing.setBulkSize(bulkSize);
 		fetchProcessing.setMaxParallelBulks(maxParallelBulks);
+		fetchProcessing.setJoinProbabilityDefault(joinProbabilityDefault);
+		fetchProcessing.setJoinProbabilityThreshold(joinProbabilityThreshold);
+		fetchProcessing.setToOneScalarThreshold(toOneScalarThreshold);
 		
 		return fetchProcessing;
 			

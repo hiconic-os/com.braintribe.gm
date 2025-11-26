@@ -1,14 +1,14 @@
 package com.braintribe.gm.graphfetching.processing.fetch;
 
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.braintribe.gm.graphfetching.api.node.FetchQualification;
 import com.braintribe.model.generic.GenericEntity;
 
 public class EntityIdm {
     public final GenericEntity entity;
-    private final Set<FetchQualification> handledQualifications = new HashSet<>(5);
+    private final Set<FetchQualification> handledQualifications = ConcurrentHashMap.newKeySet(5);
 
     public EntityIdm(GenericEntity entity) {
         this.entity = entity;

@@ -7,6 +7,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 
+import com.braintribe.gm.graphfetching.test.model.data.ChunkQuality;
 import com.braintribe.gm.graphfetching.test.model.data.ChunkedSource;
 import com.braintribe.gm.graphfetching.test.model.data.CreationInfo;
 import com.braintribe.gm.graphfetching.test.model.data.DataManagement;
@@ -17,11 +18,14 @@ import com.braintribe.gm.graphfetching.test.model.data.FileSource;
 import com.braintribe.gm.graphfetching.test.model.data.InmemorySource;
 import com.braintribe.gm.graphfetching.test.model.data.SourceInfo;
 import com.braintribe.gm.graphfetching.test.model.data.StringEncodedBinaryData;
+import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
 
 public class DataSourceDataGenerator extends AbstractDataGenerator {
 	
+	private static String[] tags = {"important", "obsolete", "priviledged"};
 	private static String[] users = {"John", "Jack", "Jim"};
+	private static String[] extensions = {"txt", "jpg", "pdf", "html"};
 	private static Date[] dates = {
 			createDate(1976, 1, 14),
 			createDate(1975, 7, 6),
@@ -30,6 +34,8 @@ public class DataSourceDataGenerator extends AbstractDataGenerator {
 	};
 	
 	private DataManagement dataManagement;
+	private int fileSourceCounter = 0;
+	private int resourceCounter = 0;
 
 	public DataSourceDataGenerator(PersistenceGmSession session, boolean generateId) {
 		super(session, generateId);
@@ -81,17 +87,36 @@ public class DataSourceDataGenerator extends AbstractDataGenerator {
 		creationInfo.setCreatedBy(users[creationInfo.getGlobalId().hashCode() % users.length]);
 		creationInfo.setCreatedAt(dates[creationInfo.getGlobalId().hashCode() % dates.length]);
 		DataResource dataResource = create(DataResource.T);
-		dataResource.setName("resource-" + dataResource.getGlobalId());
+		
+		String name = "resource-" + dataResource.getGlobalId();
+		
+		dataResource.setName(name);
 		dataResource.setCreationInfo(creationInfo);
 		dataResource.setSource(dataSource);
+		
+		for (int i = 0; i < 5; i++) {
+			String altName = name + "-" + i;
+			dataResource.getAltNames().add(altName);
+		}
+		
+		int tagCount = resourceCounter++ % 3;
+		
+		for (int i = 0; i < tagCount; i++) {
+			dataResource.getTags().add(tags[i]);
+		}
+		
 		return dataResource;
 	}
 	
 	public FileSource createFileSource() {
 		FileReference reference = create(FileReference.T);
-		reference.setName("name-" + reference.getGlobalId() + ".txt");
+		
+		int num = fileSourceCounter++;
+		String extension = extensions[num % extensions.length];
+		reference.setName("name-" + reference.getGlobalId() + "." + extension);
 		reference.setPath("/foo/bar/" + reference.getGlobalId());
 		FileSource fileSource = create(FileSource.T, DataSource.T);
+		fileSource.setExtension(extension);
 		fileSource.setReference(reference);
 		fillDataSource(fileSource);
 		return fileSource;
@@ -101,8 +126,10 @@ public class DataSourceDataGenerator extends AbstractDataGenerator {
 		SourceInfo sourceInfo = create(SourceInfo.T);
 		String hash = String.valueOf(sourceInfo.getGlobalId().hashCode());
 		sourceInfo.setHash(hash);
-		sourceInfo.setSize(hash.length());
+		int length = hash.length();
+		sourceInfo.setSize(length);
 		dataSource.setInfo(sourceInfo);
+		dataSource.setCacheable(length % 2 == 0);
 	}
 	
 	public InmemorySource createInmemorySource() {
@@ -111,6 +138,7 @@ public class DataSourceDataGenerator extends AbstractDataGenerator {
 		binaryData.setData(data);
 		binaryData.setEncoding("Base64");
 		InmemorySource inmemorySource = create(InmemorySource.T, DataSource.T);
+		inmemorySource.setLarge(data.length() % 2 == 0); 
 		inmemorySource.setBinaryData(binaryData);
 		fillDataSource(inmemorySource);
 		
@@ -120,9 +148,19 @@ public class DataSourceDataGenerator extends AbstractDataGenerator {
 	public ChunkedSource createChunkedSource(DataSource... sources) {
 		ChunkedSource chunkedSource = create(ChunkedSource.T, DataSource.T);
 		
+		EntityType<?> uniType = null;
+		ChunkQuality quality = ChunkQuality.uniform;
+		
 		for (DataSource source: sources) {
+			if (uniType == null)
+				uniType = source.entityType();
+			else if (uniType != source.entityType())
+				quality = ChunkQuality.mixed;
+			
 			chunkedSource.getChunks().add(source);
 		}
+		
+		chunkedSource.setChunkQuality(quality);
 		
 		fillDataSource(chunkedSource);
 		

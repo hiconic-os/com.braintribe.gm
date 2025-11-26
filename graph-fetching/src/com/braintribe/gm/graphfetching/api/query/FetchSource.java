@@ -7,6 +7,7 @@ public interface FetchSource {
 	int pos();
 	FetchJoin leftJoin(Property property);
 	FetchJoin join(Property property);
+	int scalarCount();
 	
 	/** 
 	 * Casts the this source to a polymorphic subtype if the querying supports this feature otherwise null 

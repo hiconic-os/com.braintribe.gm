@@ -43,6 +43,8 @@ public class ToOneRecursiveFetching {
 		public final List<EntityGraphNode> joinableNodes = new ArrayList<>();
 		public final List<EntityGraphNode> nonJoinableSubTypeNodes = new ArrayList<>();
 		public PolymorphicEntityGraphNode possiblePolyNode;
+		public double probability;
+		public int polymorphicCount = 0; 
 
 		public EntityMapping(FetchSource source) {
 			super();
@@ -88,12 +90,17 @@ public class ToOneRecursiveFetching {
 		public ExistingEntityMapping(AbstractEntityGraphNode node, FetchSource source) {
 			super(source);
 			this.node = node;
-
+			this.probability = 1;
+			
 			EntityType<?> baseType = node.entityType();
-
-			for (EntityGraphNode entityNode : node.entityNodes()) {
-				if (supportsSubTypeJoin || entityNode.entityType() == baseType)
+			
+			for (EntityGraphNode entityNode: node.entityNodes()) {
+				boolean polymorphic = entityNode.entityType() == baseType;
+				if (supportsSubTypeJoin || polymorphic) {
 					addJoinable(entityNode);
+					if (polymorphic)
+						polymorphicCount++;
+				}
 				else
 					addNonJoinable(entityNode);
 			}
@@ -109,8 +116,9 @@ public class ToOneRecursiveFetching {
 
 		private EntityType<?> entityType;
 
-		public FetchedEntityMapping(Property property, FetchSource source) {
+		public FetchedEntityMapping(Property property, FetchSource source, double probability) {
 			super(source);
+			this.probability = probability;
 			this.property = property;
 			this.entityType = (EntityType<?>) property.getType();
 		}
@@ -130,17 +138,24 @@ public class ToOneRecursiveFetching {
 	private final boolean supportsSubTypeJoin;
 	private final AbstractEntityGraphNode rootNode;
 	private final ExistingEntityMapping rootMapping;
+	private int selectCount = 0;
+	private int selectCountStopThreshold;
+	private double defaultJoinProbability;
+	private double joinProbabilityThreshold;
 
 	public ToOneRecursiveFetching(FetchContext context, AbstractEntityGraphNode node) {
+		selectCountStopThreshold = context.toOneSelectCountStopThreshold();
+		defaultJoinProbability = context.defaultJoinProbability();
+		joinProbabilityThreshold = context.joinProbabiltyThreshold();
 		rootNode = node;
 		CyclicRecurrenceCheck check = new CyclicRecurrenceCheck();
 
 		FetchQueryFactory queryFactory = context.queryFactory();
 
 		supportsSubTypeJoin = queryFactory.supportsSubTypeJoin();
-
-		fetchQuery = queryFactory.createQuery(node.entityType(), context.session().getAccessId());
-
+		
+		fetchQuery = queryFactory.createQueryToOneOnly(node.entityType(), context.session().getAccessId());
+		
 		FetchSource from = fetchQuery.from();
 		rootMapping = new ExistingEntityMapping(node, from);
 
@@ -184,8 +199,9 @@ public class ToOneRecursiveFetching {
 		long nanoStart = System.nanoTime();
 
 		context.processParallel(idBulks, ids -> {
-			FetchResults results = fetchQuery.fetchFor(ids);
-			wiringContext.handleRows(results);
+			try (FetchResults results = fetchQuery.fetchFor(ids)) {
+				wiringContext.handleRows(results);
+			}
 		});
 
 		Duration duration = Duration.ofNanos(System.nanoTime() - nanoStart);
@@ -370,6 +386,13 @@ public class ToOneRecursiveFetching {
 	 */
 	private void registerMappingWithJoins(EntityMapping refererMapping, CyclicRecurrenceCheck check) {
 		mappings.add(refererMapping);
+		
+		if (selectCount >= selectCountStopThreshold || refererMapping.probability < joinProbabilityThreshold) {
+			refererMapping.setRecursionStop(true);
+			return;
+		}
+		
+		selectCount += refererMapping.source().scalarCount();
 
 		boolean mappingsSizeExceeded = mappings.size() > 20;
 		boolean recursionStop = check.add(refererMapping.property) || mappingsSizeExceeded;
@@ -381,7 +404,13 @@ public class ToOneRecursiveFetching {
 				return;
 
 			List<FetchedEntityMapping> newMappings = new ArrayList<>(refererMapping.joinableNodes.size());
-
+			
+			double localProbability = defaultJoinProbability;
+			
+			if (refererMapping.polymorphicCount > 0) {
+				localProbability /= refererMapping.polymorphicCount;
+			}
+			
 			for (EntityGraphNode joinableNode : refererMapping.joinableNodes) {
 				boolean subTypeJoin = refererMapping.entityType() != joinableNode.entityType();
 
@@ -395,16 +424,20 @@ public class ToOneRecursiveFetching {
 						fetchSource = fetchSource.as(joinableNode.entityType());
 
 					FetchSource join = fetchSource.leftJoin(property);
-					FetchedEntityMapping fetchedMapping = new FetchedEntityMapping(property, join);
-
+					FetchedEntityMapping fetchedMapping = new FetchedEntityMapping(property, join, refererMapping.probability * localProbability);
+					
 					AbstractEntityGraphNode abstractEntityNode = propertyNode.entityNode();
 
 					fetchedMapping.possiblePolyNode = abstractEntityNode.isPolymorphic();
+					
+					for (EntityGraphNode entityNode: abstractEntityNode.entityNodes()) {
+						boolean polymorphic = entityNode.entityType() == property.getType();
 
-					for (EntityGraphNode entityNode : abstractEntityNode.entityNodes()) {
 						// are only base type properties joinable or also polymorphic ones?
-						if (supportsSubTypeJoin || entityNode.entityType() == property.getType()) {
+						if (supportsSubTypeJoin || polymorphic) {
 							fetchedMapping.addJoinable(entityNode);
+							if (polymorphic)
+								fetchedMapping.polymorphicCount++;
 							refererMapping.wirings().add(fetchedMapping);
 						} else {
 							fetchedMapping.addNonJoinable(entityNode);

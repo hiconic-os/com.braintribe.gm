@@ -11,7 +11,7 @@ public class GmSessionFetchJoin extends GmSessionFetchSource implements FetchJoi
 	private Property property;
 
 	public GmSessionFetchJoin(Property property, GmSessionFetchQuery query, Join source, int pos) {
-		super(query, source, pos);
+		super(query, property.getType(), source, pos);
 		this.property = property;
 	}
 

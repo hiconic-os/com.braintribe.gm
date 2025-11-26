@@ -18,6 +18,7 @@ import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.LinearCollectionType;
+import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.VdHolder;
 import com.braintribe.model.generic.value.Escape;
@@ -123,6 +124,34 @@ public class GraphPrototypeNodeCollector {
 					
 					break;
 				}
+				
+				case mapType:
+					Object value = property.getDirectUnsafe(entity);
+					if (value == null)
+						break;
+					
+					Map<?, ?> map = (Map<?, ?>)value;
+					
+					MapType mapType = (MapType)propertyType;
+					GenericModelType keyType = mapType.getKeyType();
+					GenericModelType valueType = mapType.getValueType();
+					
+					ConfigurableMapPropertyGraphNode propertyNode = new ConfigurableMapPropertyGraphNode(property);
+					
+					if (keyType.isEntity()) {
+						EntityType<?> keyEntityType = (EntityType<?>)keyType;
+						Collection<? extends GenericEntity> entities = (Collection<? extends GenericEntity>) map.keySet();
+						propertyNode.setKeyNode(toEntityNode(keyEntityType, entities));
+					}
+					
+					if (valueType.isEntity()) {
+						EntityType<?> valueEntityType = (EntityType<?>)valueType;
+						Collection<? extends GenericEntity> entities = (Collection<? extends GenericEntity>) map.values();
+						propertyNode.setValueNode(toEntityNode(valueEntityType, entities));
+					}
+
+					node.add(propertyNode);
+					break;
 				
 				default:
 					break;

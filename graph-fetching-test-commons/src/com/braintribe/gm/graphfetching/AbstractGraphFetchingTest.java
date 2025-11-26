@@ -198,6 +198,28 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 	}
 	
 	@Test
+	public void graphNodeCreation() {
+		DataManagement dm = Fetching.graphPrototype(DataManagement.T);
+		dm.getLableRatings();
+		dm.getSourceHashes();
+		dm.getSourceOccurrences();
+		dm.getResourcesByName();
+		
+		EntityGraphNode rootNode = Fetching.rootNode(dm);
+		
+		System.out.println(rootNode.stringify());
+		
+		EntityGraphNode rootNode2 = Fetching.rootNode(DataManagement.T,
+			Fetching.node(DataManagement.lableRatings),
+			Fetching.node(DataManagement.sourceHashes),
+			Fetching.node(DataManagement.sourceOccurrences),
+			Fetching.node(DataManagement.resourcesByName)
+		);
+		
+		System.out.println(rootNode2.stringify());
+	}
+	
+	@Test
 	public void testPolymorphism() {
 		PersistenceGmSession session = newSession(); 
 

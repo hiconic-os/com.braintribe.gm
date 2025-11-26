@@ -10,8 +10,11 @@ public interface ChunkedSource extends DataSource {
 	EntityType<ChunkedSource> T = EntityTypes.T(ChunkedSource.class);
 
 	String chunks = "chunks";
+	String chunkQuality = "chunkQuality";
 	
 	List<DataSource> getChunks();
 	void setChunks(List<DataSource> chunks);
 	
+	ChunkQuality getChunkQuality();
+	void setChunkQuality(ChunkQuality chunkQuality);
 }

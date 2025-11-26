@@ -25,6 +25,9 @@ public interface FetchingTools {
 	public static void absentifyNonScalarProperties(GenericEntity entity) {
 		EntityType<?> entityType = entity.entityType();
 		for (Property property: entityType.getProperties()) {
+			if (property.getType().isScalar() || property.isIdentifier())
+				continue;
+			
 			property.setAbsenceInformation(entity, GMF.absenceInformation());
 		}
 	}

@@ -24,4 +24,10 @@ public interface FetchContext extends AutoCloseable {
 	<T> void processParallel(Collection<T> tasks, Consumer<T> processor);
 
 	int bulkSize();
+
+	int toOneSelectCountStopThreshold();
+	
+	double defaultJoinProbability();
+
+	double joinProbabiltyThreshold();
 }

@@ -8,11 +8,14 @@ import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNod
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityRelatedPropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.node.MapPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.PolymorphicEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.PropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.ScalarCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.TypedGraphNode;
 import com.braintribe.model.generic.reflection.EntityType;
+import com.braintribe.model.generic.reflection.GenericModelType;
+import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.model.generic.reflection.Property;
 
 public abstract class BaseTypedGraphNode implements TypedGraphNode {
@@ -55,6 +58,21 @@ public abstract class BaseTypedGraphNode implements TypedGraphNode {
 		}
 	}
 	
+	private void stringify(String field, GenericModelType fieldType, AbstractEntityGraphNode node, StringBuilder sb, int depth, NodeIdm idm) {
+		if (node instanceof EntityGraphNode) {
+			stringify(field, fieldType, (EntityGraphNode)node, sb, depth, idm);
+		}
+		else if (node instanceof PolymorphicEntityGraphNode) {
+			stringify(field, fieldType, (PolymorphicEntityGraphNode)node, sb, depth, idm);
+		}
+	}
+	
+	private void stringify(String field, GenericModelType fieldType, PolymorphicEntityGraphNode node, StringBuilder sb, int depth, NodeIdm idm) {
+		for (EntityGraphNode entityNode: node.entityNodes()) {
+			stringify(field, fieldType, entityNode, sb, depth, idm);
+		}
+	}
+	
 	private void stringify(PropertyGraphNode propertyNode, PolymorphicEntityGraphNode node, StringBuilder sb, int depth, NodeIdm idm) {
 		for (EntityGraphNode entityNode: node.entityNodes()) {
 			stringify(propertyNode, entityNode, sb, depth, idm);
@@ -62,13 +80,22 @@ public abstract class BaseTypedGraphNode implements TypedGraphNode {
 	}
 	
 	private void stringify(PropertyGraphNode propertyNode, EntityGraphNode entityNode, StringBuilder sb, int depth, NodeIdm idm) {
+		if (propertyNode != null) {
+			stringify(propertyNode.name(), propertyNode.condensedPropertyType(), entityNode, sb, depth, idm);
+		}
+		else {
+			stringify(null, null, entityNode, sb, depth, idm);
+		}
+	}
+	
+	private void stringify(String field, GenericModelType fieldType, EntityGraphNode entityNode, StringBuilder sb, int depth, NodeIdm idm) {
 		appendIndent(depth, sb);
 		
 		EntityType<?> actualEntityType = entityNode.entityType();
 
-		if (propertyNode != null) {
-			sb.append(propertyNode.name());
-			if (propertyNode.condensedPropertyType() != actualEntityType) {
+		if (field != null) {
+			sb.append(field);
+			if (fieldType != actualEntityType) {
 				sb.append(" as ");
 				sb.append(actualEntityType.getShortName());
 			}
@@ -97,6 +124,10 @@ public abstract class BaseTypedGraphNode implements TypedGraphNode {
 			stringify(subNode, sb, depth, idm);
 		}
 		
+		for (MapPropertyGraphNode subNode: entityNode.mapProperties().values()) {
+			stringify(subNode, sb, depth, idm);
+		}
+		
 		for (ScalarCollectionPropertyGraphNode subNode: entityNode.scalarCollectionProperties().values()) {
 			stringify(subNode, sb, depth, idm);
 		}
@@ -109,6 +140,19 @@ public abstract class BaseTypedGraphNode implements TypedGraphNode {
 		if (propertyNode instanceof EntityRelatedPropertyGraphNode) {
 			EntityRelatedPropertyGraphNode entityRelatedNode = (EntityRelatedPropertyGraphNode)propertyNode;
 			stringify(entityRelatedNode, sb, depth, idm);
+		}
+		else if (propertyNode instanceof MapPropertyGraphNode) {
+			MapPropertyGraphNode mapPropertyNode = (MapPropertyGraphNode)propertyNode;
+			
+			MapType mapType = (MapType) property.getType();
+			stringify(property, sb, depth, idm);
+			AbstractEntityGraphNode keyEntityNode = mapPropertyNode.keyNode();
+			AbstractEntityGraphNode valueEntityNode = mapPropertyNode.valueNode();
+			
+			if (keyEntityNode != null)
+				stringify("KEY", mapType.getKeyType(), keyEntityNode, sb, depth + 1, idm);
+			if (valueEntityNode != null)
+				stringify("VAL", mapType.getValueType(), valueEntityNode, sb, depth + 1, idm);
 		}
 		else {
 			stringify(property, sb, depth, idm);

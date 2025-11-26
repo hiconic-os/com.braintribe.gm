@@ -12,10 +12,12 @@ import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.node.MapPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.ScalarCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.processing.util.FetchingTools;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.LinearCollectionType;
+import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.model.generic.reflection.Property;
 
 public class LocalFetching {
@@ -92,6 +94,34 @@ public class LocalFetching {
 				taskQueue.offer(() -> {
 					GenericEntity otherDetachedEntity = process(entityCollectionPropertyNode.entityNode(), otherEntity);
 					clonedCollection.add(otherDetachedEntity);
+				});
+			}
+		}
+		
+		for (MapPropertyGraphNode mapPropertyNode: node.mapProperties().values()) {
+			Property property = mapPropertyNode.property();
+			
+			Map<?, ?> otherMap = property.get(entity);
+			MapType mapType = mapPropertyNode.type();
+			
+			LinearCollectionType type = (LinearCollectionType) property.getType();
+			
+			Map<Object, Object> clonedCollection = mapType.createPlain();
+			property.set(clonedEntity, clonedCollection);
+			
+			AbstractEntityGraphNode keyNode = mapPropertyNode.keyNode();
+			AbstractEntityGraphNode valueNode = mapPropertyNode.valueNode();
+			
+			for (Map.Entry<?, ?> entry: otherMap.entrySet()) {
+				taskQueue.offer(() -> {
+					Object key = entry.getKey();
+					Object value = entry.getValue();
+					if (keyNode != null)
+						key = process(keyNode, (GenericEntity)key);
+					if (valueNode != null)
+						value = process(valueNode, (GenericEntity)value);
+					
+					clonedCollection.put(key, value);
 				});
 			}
 		}

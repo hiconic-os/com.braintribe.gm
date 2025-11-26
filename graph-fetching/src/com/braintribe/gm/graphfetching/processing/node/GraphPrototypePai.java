@@ -3,10 +3,12 @@ package com.braintribe.gm.graphfetching.processing.node;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
+import com.braintribe.gm.graphfetching.processing.util.PrototypeMap;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.collection.LinearCollectionBase;
 import com.braintribe.model.generic.enhance.FieldAccessingPropertyAccessInterceptor;
@@ -14,6 +16,7 @@ import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.LinearCollectionType;
 import com.braintribe.model.generic.reflection.ListType;
+import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.PropertyAccessInterceptor;
 import com.braintribe.model.generic.reflection.SetType;
@@ -43,17 +46,28 @@ public class GraphPrototypePai extends PropertyAccessInterceptor {
 	
 	@Override
 	public Object setProperty(Property property, GenericEntity entity, Object value, boolean isVd) {
-		if (!property.getType().isEntity()) 
+		switch (property.getType().getTypeCode()) {
+		case entityType:
+			final List<GenericEntity> entities = getEntityPropertyMultiplex(property, entity);
+			
+			entities.add((GenericEntity)value);
+			
+			if (entities.size() == 1)
+				return null;
+			
+			return entities.get(entities.size() - 2);
+		case mapType:
+			Map<Object, Object> map = (Map<Object,Object>)value;
+			
+			Map<Object, Object> managedMap = (Map<Object,Object>)getProperty(property, entity, isVd);
+			managedMap.clear();
+			
+			if (map != null)
+				managedMap.putAll(map);
+			return managedMap;
+		default:
 			return next.setProperty(property, entity, value, isVd);
-		
-		final List<GenericEntity> entities = getEntityPropertyMultiplex(property, entity);
-		
-		entities.add((GenericEntity)value);
-		
-		if (entities.size() == 1)
-			return null;
-		
-		return entities.get(entities.size() - 2);
+		}
 	}
 
 	private Object createDefault(GenericModelType type) {
@@ -61,12 +75,27 @@ public class GraphPrototypePai extends PropertyAccessInterceptor {
 			case entityType: return createDefaultEntity((EntityType<?>)type);
 			case setType: return createDefaultCollection((SetType)type);
 			case listType: return createDefaultCollection((ListType)type);
+			case mapType: return createDefaultMap((MapType)type);
 			default: return type.getDefaultValue();
 		}
 	}
 	
 	private GenericEntity createDefaultEntity(EntityType<?> type) {
 		return type.isAbstract()? null: type.create(GraphPrototypePai.INSTANCE);
+	}
+	
+	private Map<?, ?> createDefaultMap(MapType mapType) {
+		GenericModelType keyType = mapType.getKeyType();
+		GenericModelType valueType = mapType.getValueType();
+		
+		Object key = createDefault(keyType);
+		Object value = createDefault(valueType);
+		
+		PrototypeMap map = new PrototypeMap();
+		
+		map.put(key, value);
+		
+		return map;
 	}
 	
 	private Collection<?> createDefaultCollection(LinearCollectionType type) {

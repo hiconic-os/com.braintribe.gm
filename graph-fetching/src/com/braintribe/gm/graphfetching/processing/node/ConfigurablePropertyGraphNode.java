@@ -51,5 +51,4 @@ public abstract class ConfigurablePropertyGraphNode implements PropertyGraphNode
 	public String stringify() {
 		return name();
 	}
-
 }

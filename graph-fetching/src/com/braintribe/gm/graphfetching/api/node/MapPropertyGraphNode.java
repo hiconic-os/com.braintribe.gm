@@ -1,20 +1,20 @@
 package com.braintribe.gm.graphfetching.api.node;
 
-import java.util.List;
-
 import com.braintribe.model.generic.reflection.MapType;
 
 public interface MapPropertyGraphNode extends PropertyGraphNode {
 	@Override
 	MapType type();
 	
-	/**
-	 * optional entity nodes for map key in case it has EntityType
-	 */
-	List<EntityGraphNode> keyNodes();
+	KeyValueType keyValueType();
 	
 	/**
-	 * optional entity nodes for map value in case it has EntityType
+	 * optional entity node for map key in case it has EntityType
 	 */
-	List<EntityGraphNode> valueNodes();
+	AbstractEntityGraphNode keyNode();
+	
+	/**
+	 * optional entity node for map value in case it has EntityType
+	 */
+	AbstractEntityGraphNode valueNode();
 }

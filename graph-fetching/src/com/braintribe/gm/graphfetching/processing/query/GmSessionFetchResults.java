@@ -36,4 +36,9 @@ public class GmSessionFetchResults implements FetchResults {
 		
 		return (V) row.get(col);
 	}
+	
+	@Override
+	public void close() {
+		// nothing do do here;
+	}
 }
