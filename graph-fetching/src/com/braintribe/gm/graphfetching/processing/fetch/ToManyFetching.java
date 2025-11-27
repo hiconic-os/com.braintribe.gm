@@ -274,7 +274,7 @@ public class ToManyFetching {
 			Function<GenericEntity, GenericEntity> valueVisitor = plan.valueVisitor();
 			
 			fetch(context, node.entityType(), plan.entityNode.entityType(),fetchTask, plan.collectionType, 
-					property, valueVisitor, keyVisitor);
+					property, keyVisitor, valueVisitor);
 			
 			plan.postProcess();
 		}

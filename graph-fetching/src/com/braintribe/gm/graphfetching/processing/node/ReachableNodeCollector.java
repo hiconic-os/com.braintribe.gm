@@ -41,12 +41,12 @@ public class ReachableNodeCollector {
 		}
 
 		@Override
-		public ReachableNodeBuilder covariance(Function<EntityType<?>, Collection<? extends EntityType<?>>> covariance) {
+		public ReachableNodeBuilder polymorphy(Function<EntityType<?>, Collection<? extends EntityType<?>>> covariance) {
 			this.covariance = covariance;
 			return this;
 		}
 		@Override
-		public ReachableNodeBuilder covariance(ModelOracle modelOracle) {
+		public ReachableNodeBuilder polymorphy(ModelOracle modelOracle) {
 			this.covariance = t -> modelOracle.getEntityTypeOracle(t).getSubTypes().transitive().onlyInstantiable().asTypes();
 			return this;
 		}
@@ -161,7 +161,7 @@ public class ReachableNodeCollector {
 						if (valueType.isEntity()) {
 							EntityType<?> valueEntityType = (EntityType<?>) valueType;
 							if (!context.typeExclusion.test(valueEntityType)) {
-								mapNode.setKeyNode(polymorphicEntityGraphNode(context, valueEntityType));
+								mapNode.setValueNode(polymorphicEntityGraphNode(context, valueEntityType));
 							}
 						}
 						

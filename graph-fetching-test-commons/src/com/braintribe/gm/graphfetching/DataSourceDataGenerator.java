@@ -63,8 +63,19 @@ public class DataSourceDataGenerator extends AbstractDataGenerator {
 		
 		List<DataResource> resources = new ArrayList<>();
 		
-		for (DataSource source: sources) 
-			resources.add(createDataResource(source));
+		for (DataSource source: sources) {
+			DataResource dataResource = createDataResource(source);
+			resources.add(dataResource);
+			management.getSourceOccurrences().put(source, dataResource);
+			management.getSourceHashes().put(source, source.getInfo().getHash());
+			
+			for (int i = 0; i < tags.length; i++)
+				management.getLableRatings().put(tags[i], (double)(i % 5));
+			
+			management.getResourcesByName().put(dataResource.getName(), dataResource);
+		}
+		
+		
 		
 		sources.add(createFileSource());
 		

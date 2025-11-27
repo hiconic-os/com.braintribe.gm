@@ -224,7 +224,7 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 		PersistenceGmSession session = newSession(); 
 
 		BasicModelOracle oracle = new BasicModelOracle(model);
-		EntityGraphNode graphNode = Fetching.reachable(DataManagement.T).covariance(oracle).build();
+		EntityGraphNode graphNode = Fetching.reachable(DataManagement.T).polymorphy(oracle).build();
 		
 		System.out.println(graphNode.stringify());
 
@@ -248,7 +248,7 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 		PersistenceGmSession session = newSession(); 
 
 		BasicModelOracle oracle = new BasicModelOracle(model);
-		EntityGraphNode graphNode = Fetching.reachable(Company.T).covariance(oracle).build();
+		EntityGraphNode graphNode = Fetching.reachable(Company.T).polymorphy(oracle).build();
 
 		System.out.println(graphNode.stringify());
 

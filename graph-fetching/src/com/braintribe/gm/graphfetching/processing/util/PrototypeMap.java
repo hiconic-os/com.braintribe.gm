@@ -128,6 +128,4 @@ public class PrototypeMap implements Map<Object, Object> {
 			throw new UnsupportedOperationException("PrototypMap Entry does not allow value change");
 		}
 	}
-
-	
 }

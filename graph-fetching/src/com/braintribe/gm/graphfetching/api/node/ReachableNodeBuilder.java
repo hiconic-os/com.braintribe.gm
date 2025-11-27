@@ -9,8 +9,8 @@ import com.braintribe.model.processing.meta.oracle.ModelOracle;
 
 public interface ReachableNodeBuilder {
 
-	ReachableNodeBuilder covariance(Function<EntityType<?>, Collection<? extends EntityType<?>>> covariance);
-	ReachableNodeBuilder covariance(ModelOracle modelOracle);
+	ReachableNodeBuilder polymorphy(Function<EntityType<?>, Collection<? extends EntityType<?>>> covariance);
+	ReachableNodeBuilder polymorphy(ModelOracle modelOracle);
 	ReachableNodeBuilder typeExclusion(Predicate<EntityType<?>> typeExclusion);
 
 	EntityGraphNode build();

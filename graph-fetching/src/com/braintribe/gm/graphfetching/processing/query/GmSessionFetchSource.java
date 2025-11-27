@@ -6,9 +6,11 @@ import com.braintribe.model.generic.reflection.CollectionType;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.Property;
+import com.braintribe.model.generic.reflection.TypeCode;
 import com.braintribe.model.query.Join;
 import com.braintribe.model.query.JoinType;
 import com.braintribe.model.query.Source;
+import com.braintribe.model.query.functions.MapKey;
 import com.braintribe.utils.lcd.Lazy;
 
 public class GmSessionFetchSource implements FetchSource {
@@ -44,7 +46,15 @@ public class GmSessionFetchSource implements FetchSource {
 	private FetchJoin join(Property property, JoinType joinType) {
 		String propertyName = property.getName();
 		Join join = source.join(propertyName, joinType);
+
+		if (property.getType().getTypeCode() == TypeCode.mapType) {
+			MapKey mapKey = MapKey.T.create();
+			mapKey.setJoin(join);
+			query.select(mapKey);
+		}
+		
 		int pos = query.select(join);
+		
 		return new GmSessionFetchJoin(property, query, join, pos); 
 	}
 	
