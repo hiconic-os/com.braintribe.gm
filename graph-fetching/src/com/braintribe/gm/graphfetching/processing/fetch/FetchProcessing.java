@@ -3,11 +3,14 @@ package com.braintribe.gm.graphfetching.processing.fetch;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -22,6 +25,7 @@ import java.util.function.Consumer;
 
 import com.braintribe.common.attribute.AttributeContext;
 import com.braintribe.common.lcd.Pair;
+import com.braintribe.exception.CanceledException;
 import com.braintribe.exception.Exceptions;
 import com.braintribe.gm.graphfetching.api.FetchParallelization;
 import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
@@ -317,48 +321,75 @@ public class FetchProcessing implements FetchContext {
 			return;
 		
 		// don't use parallel processing if there is only one task or there is no bulk parallelization
-		if (tasks.size() == 1 || !parallelization.isBulkParallel()) {
-			for (T task: tasks)
-				processor.accept(task);
-			
+		if (tasks.size() == 1) {
+			processor.accept(tasks.iterator().next());
 			return;
 		}
 		
-		AttributeContext attributeContext = AttributeContexts.peek();
-		List<Future<?>> futures = new ArrayList<>(tasks.size());
-		
-		Semaphore sem = lazySemaphore.get();
-		
-		ExecutorService executor = getExecutorService();
-		for (T task : tasks) {
-			sem.acquireUninterruptibly();
-			futures.add(executor.submit(() -> {
-				try {
-					AttributeContexts.with(attributeContext).run(() -> {
-						processor.accept(task);
-					});
-				}
-				finally {
-					sem.release();
-				}
-			}));
+		Iterator<T> iterator = tasks.iterator();
+		final List<Future<?>> futures;
+
+		if (parallelization.isBulkParallel()) {
+			int parallelSize = tasks.size() - 1;
+			futures = new ArrayList<>(parallelSize);
+			
+			AttributeContext attributeContext = AttributeContexts.peek();
+			
+			Semaphore sem = lazySemaphore.get();
+			
+			ExecutorService executor = getExecutorService();
+			for (int i = 0; i < parallelSize; i++) {
+				T task = iterator.next();
+				sem.acquireUninterruptibly();
+				futures.add(executor.submit(() -> {
+					try {
+						AttributeContexts.with(attributeContext).run(() -> {
+							processor.accept(task);
+						});
+					}
+					finally {
+						sem.release();
+					}
+				}));
+			}
 		}
+		else {
+			futures = Collections.emptyList();
+		}
+		
+		// synchronous part
+		while (iterator.hasNext()) {
+			T task = iterator.next();
+			
+			CompletableFuture<Void> future = new CompletableFuture<>();
+			
+			try {
+				processor.accept(task);
+				future.complete(null);
+			}
+			catch (Exception e) {
+				future.completeExceptionally(e);
+			}
+			
+			futures.add(future);
+		}
+		
 		for (Future<?> future : futures) {
 			try {
 				future.get();
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
-				return;
+				throw new CanceledException(e);
 			} catch (ExecutionException e) {
 				try {
 					futures.forEach(f -> f.cancel(true));
 				} catch (Exception ignore) {
 					// Ignore
 				}
+				
 				throw Exceptions.unchecked(e.getCause());
 			}
 		}
-
 	}
 
 	@Override
