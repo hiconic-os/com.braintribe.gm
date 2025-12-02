@@ -16,6 +16,7 @@ public interface FetchBuilder {
 	FetchBuilder joinProbabilityDefault(double probability);
 	FetchBuilder maxParallel(int maxParallel);
 	FetchBuilder parallelization(FetchParallelization parallelization);
+	FetchBuilder polymorphicJoin(boolean polymorphicJoin);
 	
 	<E extends GenericEntity> List<E> fetchDetached(Collection<? extends E> entities);
 	

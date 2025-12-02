@@ -30,4 +30,6 @@ public interface FetchContext extends AutoCloseable {
 	double defaultJoinProbability();
 
 	double joinProbabiltyThreshold();
+	
+	boolean polymorphicJoin();
 }

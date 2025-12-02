@@ -152,7 +152,7 @@ public class ToOneRecursiveFetching {
 
 		FetchQueryFactory queryFactory = context.queryFactory();
 
-		supportsSubTypeJoin = queryFactory.supportsSubTypeJoin();
+		supportsSubTypeJoin = queryFactory.supportsSubTypeJoin() && context.polymorphicJoin();
 		
 		fetchQuery = queryFactory.createQueryToOneOnly(node.entityType(), context.session().getAccessId());
 		

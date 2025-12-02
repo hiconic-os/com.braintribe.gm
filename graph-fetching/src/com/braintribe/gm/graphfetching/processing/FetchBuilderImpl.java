@@ -25,6 +25,7 @@ public class FetchBuilderImpl implements FetchBuilder {
 	private double joinProbabilityDefault = 0.5;
 	private int toOneScalarThreshold = 500;
 	private FetchParallelization parallelization = FetchParallelization.FETCH_AND_BULK;
+	private boolean polymorphicJoin = false;
 	
 	public FetchBuilderImpl(PersistenceGmSession session, EntityGraphNode node) {
 		super();
@@ -70,6 +71,12 @@ public class FetchBuilderImpl implements FetchBuilder {
 	@Override
 	public FetchBuilder parallelization(FetchParallelization parallelization) {
 		this.parallelization = parallelization;
+		return this;
+	}
+	
+	@Override
+	public FetchBuilder polymorphicJoin(boolean polymorphicJoin) {
+		this.polymorphicJoin = polymorphicJoin;
 		return this;
 	}
 	
@@ -128,6 +135,7 @@ public class FetchBuilderImpl implements FetchBuilder {
 		fetchProcessing.setJoinProbabilityThreshold(joinProbabilityThreshold);
 		fetchProcessing.setToOneScalarThreshold(toOneScalarThreshold);
 		fetchProcessing.setParallelization(parallelization);
+		fetchProcessing.setPolymorphicJoin(polymorphicJoin);
 		
 		return fetchProcessing;
 			

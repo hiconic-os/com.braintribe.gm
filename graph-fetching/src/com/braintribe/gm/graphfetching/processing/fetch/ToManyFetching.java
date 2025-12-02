@@ -67,7 +67,7 @@ public class ToManyFetching {
 	}
 
 	static class EntityMapping {
-		private boolean supportsSubTypeJoin;
+		private boolean polymorphicJoin;
 
 		public List<EntityGraphNode> exactTypeNodes = new ArrayList<>();
 		public List<EntityGraphNode> subTypeNodes = new ArrayList<>();
@@ -81,7 +81,7 @@ public class ToManyFetching {
 			this.context = context;
 			this.property = property;
 			this.possiblePolyNode = polymorphicNode;
-			this.supportsSubTypeJoin = supportsSubTypeJoin;
+			this.polymorphicJoin = supportsSubTypeJoin;
 		}
 		
 		public void initPostProcessings() {
@@ -91,7 +91,7 @@ public class ToManyFetching {
 			postProcessings = new ArrayList<>();
 
 			if (polymorphic) {
-				PostOp subTypeToOneOp = supportsSubTypeJoin? PostOp.mark: PostOp.none;
+				PostOp subTypeToOneOp = polymorphicJoin? PostOp.mark: PostOp.none;
 				
 				postProcessings.add(new NodePostProcessing(polymorphicNode, false, PostOp.enqueue, PostOp.enqueue));
 				buildSpecificPostProcessings(postProcessings, exactTypeNodes, false, PostOp.mark, PostOp.mark);
@@ -234,27 +234,6 @@ public class ToManyFetching {
 		return mapping;
 	}
 	
-	private static List<NodePostProcessing> buildPostProcessings(EntityMapping mapping, boolean supportsSubTypeJoin) {
-		PolymorphicEntityGraphNode polymorphicNode = mapping.possiblePolyNode;
-		boolean polymorphic = polymorphicNode != null;
-		
-		List<NodePostProcessing> postProcessings = new ArrayList<>();
-
-		if (polymorphic) {
-			PostOp subTypeToOneOp = supportsSubTypeJoin? PostOp.mark: PostOp.none;
-			
-			postProcessings.add(new NodePostProcessing(polymorphicNode, false, PostOp.enqueue, PostOp.enqueue));
-			buildSpecificPostProcessings(postProcessings, mapping.exactTypeNodes, false, PostOp.mark, PostOp.mark);
-			buildSpecificPostProcessings(postProcessings, mapping.subTypeNodes, true, subTypeToOneOp, PostOp.mark);
-		}
-		else {
-			buildSpecificPostProcessings(postProcessings, mapping.exactTypeNodes, false, PostOp.enqueue, PostOp.enqueue);
-			buildSpecificPostProcessings(postProcessings, mapping.subTypeNodes, true, PostOp.enqueue, PostOp.enqueue);
-		}
-
-		return postProcessings;
-	}
-
 	private static void buildSpecificPostProcessings(List<NodePostProcessing> postProcessings,
 			List<EntityGraphNode> nodes, boolean subTypeNode, PostOp toOneOp, PostOp toManyOp) {
 		for (EntityGraphNode node : nodes) {
@@ -266,7 +245,7 @@ public class ToManyFetching {
 	 * Fetch all to-many properties of the given node (entity and scalar collections).
 	 */
 	public static void fetch(FetchContext context, AbstractEntityGraphNode node, FetchTask fetchTask) {
-		boolean supportsSubTypeJoin = context.queryFactory().supportsSubTypeJoin();
+		boolean supportsSubTypeJoin = context.queryFactory().supportsSubTypeJoin() && context.polymorphicJoin();
 		
 		List<CollectionFetchPlan> plans = buildPlans(context, node, supportsSubTypeJoin);
 		
