@@ -9,6 +9,10 @@ public interface InmemorySource extends DataSource {
 
 	String binaryData = "binaryData";
 	String large = "large";
+	String code = "code";
+	
+	String getCode();
+	void setCode(String code);
 	
 	StringEncodedBinaryData getBinaryData();
 	void setBinaryData(StringEncodedBinaryData binaryData);

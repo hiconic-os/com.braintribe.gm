@@ -129,6 +129,7 @@ public class DataSourceDataGenerator extends AbstractDataGenerator {
 		FileSource fileSource = create(FileSource.T, DataSource.T);
 		fileSource.setExtension(extension);
 		fileSource.setReference(reference);
+		fileSource.setCode("file");
 		fillDataSource(fileSource);
 		return fileSource;
 	}
@@ -151,6 +152,7 @@ public class DataSourceDataGenerator extends AbstractDataGenerator {
 		InmemorySource inmemorySource = create(InmemorySource.T, DataSource.T);
 		inmemorySource.setLarge(data.length() % 2 == 0); 
 		inmemorySource.setBinaryData(binaryData);
+		inmemorySource.setCode("in-memory");
 		fillDataSource(inmemorySource);
 		
 		return inmemorySource;

@@ -9,7 +9,11 @@ public interface FileSource extends DataSource {
 
 	String reference = "reference";
 	String extension = "extension";
+	String code = "code";
 	
+	String getCode();
+	void setCode(String code);
+
 	FileReference getReference();
 	void setReference(FileReference reference);
 	

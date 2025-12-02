@@ -83,6 +83,8 @@ public class ReachableNodeCollector {
 		
 		ConfigurablePolymorphicEntityGraphNode configurablePolymorphicEntityNode = new ConfigurablePolymorphicEntityGraphNode(entityType);
 		
+		context.visitedPolymorphicEntityNodes.put(entityType, configurablePolymorphicEntityNode);
+		
 		configurablePolymorphicEntityNode.addEntityNode(entityGraphNode(context, entityType, entityType));
 		
 		Collection<? extends EntityType<?>> covariantTypes = context.covariance.apply(entityType);

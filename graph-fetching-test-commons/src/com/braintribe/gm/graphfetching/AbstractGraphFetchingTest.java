@@ -232,15 +232,20 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 		
 		List<DataManagement> expectedData = Collections.singletonList(dataManagement);
 		
-		List<DataManagement> actualData = fetchBuilder(session, graphNode).fetchDetached(expectedData);
-		
-		AssemblyComparisonResult comparisonResult = AssemblyComparison.build() //
-				.useGlobalId()
-				.enableTracking() //
-				.compare(expectedData, actualData);
-
-		Assertions.assertThat(comparisonResult.equal())//
-				.describedAs(() -> comparisonResult.mismatchDescription() + " @ " + stringify(comparisonResult.firstMismatchPath())).isTrue();
+		for (int i = 0; i < 10; i++) {
+			List<DataManagement> actualData = fetchBuilder(session, graphNode).fetchDetached(expectedData);
+			
+			AssemblyComparisonResult comparisonResult = AssemblyComparison.build() //
+					.useGlobalId()
+					.enableTracking() //
+					.compare(expectedData, actualData);
+			
+			if (!comparisonResult.equal())
+				System.out.println("fail");
+	
+			Assertions.assertThat(comparisonResult.equal())//
+					.describedAs(() -> comparisonResult.mismatchDescription() + " @ " + stringify(comparisonResult.firstMismatchPath())).isTrue();
+		}
 	}
 	
 	@Test

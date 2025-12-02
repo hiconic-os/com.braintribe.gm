@@ -3,6 +3,7 @@ package com.braintribe.gm.graphfetching.processing.fetch;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -10,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import com.braintribe.common.lcd.Pair;
 import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
@@ -286,9 +288,15 @@ public class ToManyFetching {
 	public static <E, K> void fetch(FetchContext context, EntityType<?> baseType, EntityType<?> type, FetchTask fetchTask, CollectionType collectionType,
 			Property property, Function<K, K> keyVisitor, Function<E, E> valueVisitor) {
 		Map<Object, GenericEntity> entityIndex = fetchTask.entities;
-
+		
+		Map<Object, Object> collections = new HashMap<>();
+		
 		Collection<Object> allIds = extractTypeSpecificIds(entityIndex, baseType, type, //
-				e -> property.set(e, collectionType.createPlain()));
+				e -> {
+					Object collection = collectionType.createPlain();
+					property.set(e, collection);
+					collections.put(e.getId(), collection);
+				});
 		
 		List<Set<Object>> idBulks = CollectionTools2.splitToSets(allIds, context.bulkSize());
 
@@ -298,10 +306,9 @@ public class ToManyFetching {
 
 		long queryNanoStart = System.nanoTime();
 		
-		CollectionAdder collectionAdder = createCollectionAdder(collectionType, keyVisitor, valueVisitor);
-
 		context.processParallel(idBulks, ids -> {
 			try (FetchResults results = fetchQuery.fetchFor(ids)) {
+				CollectionAdder collectionAdder = createCollectionAdder(collectionType, keyVisitor, valueVisitor);
 				Object curId = null;
 				
 				while (results.next()) {
@@ -309,8 +316,8 @@ public class ToManyFetching {
 	
 					if (!id.equals(curId)) {
 						curId = id;
-						GenericEntity entity = entityIndex.get(id);
-						collectionAdder.setCollection(property.get(entity));
+						Object collection = collections.get(id);
+						collectionAdder.setCollection(collection);
 					}
 
 					collectionAdder.addAndNotify(results);
@@ -369,6 +376,10 @@ public class ToManyFetching {
 			if (v != null && valueVisitor != null)
 				v = valueVisitor.apply(v);
 
+			if (collection instanceof List<?> && collection.contains(v))
+				System.out.println("now");
+				
+			
 			collection.add(v);
 		}
 	}

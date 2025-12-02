@@ -1,0 +1,918 @@
+package com.braintribe.gm.graphfetching.processing.fetch;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
+import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
+import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
+import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.node.FetchQualification;
+import com.braintribe.gm.graphfetching.api.node.MapPropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.node.PolymorphicEntityGraphNode;
+import com.braintribe.gm.graphfetching.api.node.ScalarCollectionPropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.query.FetchJoin;
+import com.braintribe.gm.graphfetching.api.query.FetchQuery;
+import com.braintribe.gm.graphfetching.api.query.FetchQueryFactory;
+import com.braintribe.gm.graphfetching.api.query.FetchResults;
+import com.braintribe.gm.graphfetching.api.query.FetchSource;
+import com.braintribe.logging.Logger;
+import com.braintribe.model.generic.GenericEntity;
+import com.braintribe.model.generic.reflection.CollectionType;
+import com.braintribe.model.generic.reflection.EntityType;
+import com.braintribe.model.generic.reflection.GenericModelType;
+import com.braintribe.model.generic.reflection.MapType;
+import com.braintribe.model.generic.reflection.Property;
+import com.braintribe.utils.lcd.CollectionTools2;
+
+
+public class FetchPlan {
+	private static Logger logger = Logger.getLogger(FetchPlan.class);
+	
+	interface RowWirerer {
+		void wireRow(FetchResults results, GenericEntity entity);
+		
+		static RowWirerer[] create(List<? extends EntityMapping> wirings) {
+			int wirererCount = wirings.size();
+			RowWirerer wirerers[] = new RowWirerer[wirererCount];
+			for (int i = 0; i < wirererCount; i++) {
+				EntityMapping wiring = wirings.get(i);
+				wirerers[i] = wiring.createRowWirerer();
+			}
+			
+			return wirerers;
+		}
+	}
+
+	// select c.id, e, a, c from Company c join c.employees e join e.address a join a.city c
+	
+	private enum MappingType { ENTITY_ID, ENTITY, SCALAR } 
+
+	private abstract class EntityMapping {
+		protected int pos;
+		protected FetchSource source;
+		protected boolean recursionStop = false;
+		public Property property;
+		public final List<EntityGraphNode> joinableNodes = new ArrayList<>();
+		public final List<EntityGraphNode> nonJoinableSubTypeNodes = new ArrayList<>();
+		public PolymorphicEntityGraphNode possiblePolyNode;
+		public double probability;
+		public int polymorphicCount = 0;
+		public MappingType mappingType; 
+
+		public EntityMapping(FetchSource source, MappingType mappingType) {
+			super();
+			this.mappingType = mappingType;
+			this.pos = source.pos();
+			this.source = source;
+		}
+
+		public void addJoinable(EntityGraphNode subNode) {
+			joinableNodes.add(subNode);
+		}
+
+		public void addNonJoinable(EntityGraphNode subNode) {
+			nonJoinableSubTypeNodes.add(subNode);
+		}
+
+		public int pos() {
+			return pos;
+		}
+
+		public boolean isRecursionStop() {
+			return recursionStop;
+		}
+
+		public void setRecursionStop(boolean recursionStop) {
+			this.recursionStop = recursionStop;
+		}
+
+		public FetchSource source() {
+			return source;
+		}
+
+		public abstract List<? extends EntityMapping> wirings();
+
+		public abstract EntityType<?> entityType();
+		
+		public abstract RowWirerer createRowWirerer();
+	}
+	
+	private abstract class HasToOneWirings extends EntityMapping {
+		protected List<ToOneEntityMapping> wirings = new ArrayList<>();
+		
+		public HasToOneWirings(FetchSource source, MappingType mappingType) {
+			super(source, mappingType);
+		}
+
+		@Override
+		public List<ToOneEntityMapping> wirings() {
+			return wirings;
+		}
+	}
+	
+	private abstract class HasAbstractWirings extends EntityMapping {
+		protected List<EntityMapping> wirings = new ArrayList<>();
+		
+		public HasAbstractWirings(FetchSource source, MappingType mappingType) {
+			super(source, mappingType);
+		}
+		
+		@Override
+		public List<EntityMapping> wirings() {
+			return wirings;
+		}
+	}
+	
+	private class ExistingEntityMapping extends HasAbstractWirings {
+
+		private AbstractEntityGraphNode node;
+
+		public ExistingEntityMapping(AbstractEntityGraphNode node, FetchSource source) {
+			super(source, MappingType.ENTITY_ID);
+			this.node = node;
+			this.probability = 1;
+			
+			EntityType<?> baseType = node.entityType();
+			
+			for (EntityGraphNode entityNode: node.entityNodes()) {
+				boolean polymorphic = entityNode.entityType() == baseType;
+				if (supportsSubTypeJoin || polymorphic) {
+					addJoinable(entityNode);
+					if (polymorphic)
+						polymorphicCount++;
+				}
+				else
+					addNonJoinable(entityNode);
+			}
+		}
+		
+		@Override
+		public RowWirerer createRowWirerer() {
+			RowWirerer wirerers[] = RowWirerer.create(wirings);
+			
+			return (results, owner) -> {
+				GenericEntity entity = results.get(0);
+				for (RowWirerer wirerer: wirerers)
+					wirerer.wireRow(results, entity);
+			};
+		}
+
+		@Override
+		public EntityType<?> entityType() {
+			return node.entityType();
+		}
+	}
+	
+	private class KeyEntityMapping extends HasToOneWirings {
+
+		private EntityType<?> entityType;
+
+		public KeyEntityMapping(FetchSource source, EntityType<?> entityType) {
+			super(source, MappingType.ENTITY);
+			this.entityType = entityType;
+			this.probability = 1;
+		}
+
+		@Override
+		public EntityType<?> entityType() {
+			return entityType;
+		}
+
+		@Override
+		public RowWirerer createRowWirerer() {
+			throw new UnsupportedOperationException();
+		}
+		
+	}
+	
+	private class ToManyEntityMapping extends HasToOneWirings {
+		private EntityType<?> entityType;
+		private boolean map;
+		private EntityMapping keyMapping;
+
+		public ToManyEntityMapping(Property property, GenericModelType keyType, GenericModelType valueType, FetchSource source) {
+			super(source, valueType.isScalar()? MappingType.SCALAR: MappingType.ENTITY);
+			this.probability = 1;
+			this.property = property;
+			
+			if (keyType != null && keyType.isEntity()) {
+				this.keyMapping = new KeyEntityMapping(source, (EntityType<?>)keyType);
+			}
+			
+			if (valueType != null && valueType.isEntity())
+				this.entityType = (EntityType<?>) valueType;
+			
+			this.map = keyType != null;
+		}
+
+		@Override
+		public EntityType<?> entityType() {
+			return entityType;
+		}
+		
+		@Override
+		public RowWirerer createRowWirerer() {
+			if (map) {
+				return new MapAdder(property, pos, pos + 1, keyMapping.wirings(), wirings());
+			}
+			else {
+				return new LinearCollectionAdder(property, pos, wirings());
+			}
+		}
+		
+		public EntityMapping keyMapping() {
+			return keyMapping;
+		}
+	}
+	
+	private class ToOneEntityMapping extends HasToOneWirings implements RowWirerer {
+		private EntityType<?> entityType;
+
+		public ToOneEntityMapping(Property property, FetchSource source, double probability) {
+			super(source, MappingType.ENTITY);
+			this.probability = probability;
+			this.property = property;
+			this.entityType = (EntityType<?>) property.getType();
+		}
+
+		public Property property() {
+			return property;
+		}
+
+		@Override
+		public EntityType<?> entityType() {
+			return entityType;
+		}
+		
+		@Override
+		public RowWirerer createRowWirerer() {
+			return this;
+		}
+		
+		@Override
+		public void wireRow(FetchResults results, GenericEntity owner) {
+			Property property = this.property;
+			
+			Object v = results.get(pos);
+			
+			if (v != null || property.getDeclaringType().isInstance(owner))
+				property.set(owner, v);
+			
+			
+			if (v != null && property.getType().isEntity()) {
+				GenericEntity entity = (GenericEntity)v;
+				for (ToOneEntityMapping wiring : wirings()) {
+					wiring.wireRow(results, entity);
+				}
+			}
+		}
+	}
+	
+	private class MappingWithQuery {
+		final FetchQuery query;
+		final FetchSource from;
+		
+		ExistingEntityMapping rootMapping;
+		int selectCount = 0;
+		
+		private CyclicRecurrenceCheck check = new CyclicRecurrenceCheck();
+		
+		public MappingWithQuery() {
+			query = queryFactory.createQuery(rootNode.entityType(), defaultPartition);
+			from = query.from();
+		}
+
+		/**
+		 * Resolves/assigns entity/graph nodes recursively; creates mappings for joined properties.
+		 */
+		private void registerMappingWithJoins(HasToOneWirings refererMapping) {
+			if (selectCount >= selectCountStopThreshold || refererMapping.probability < joinProbabilityThreshold) {
+				refererMapping.setRecursionStop(true);
+				return;
+			}
+			
+			selectCount += refererMapping.source().scalarCount();
+
+			boolean recursionStop = check.add(refererMapping.property);
+
+			try {
+				refererMapping.setRecursionStop(recursionStop);
+
+				if (recursionStop)
+					return;
+
+				List<ToOneEntityMapping> newMappings = new ArrayList<>(refererMapping.joinableNodes.size());
+				
+				double localProbability = defaultJoinProbability;
+				
+				if (refererMapping.polymorphicCount > 0) {
+					localProbability /= refererMapping.polymorphicCount;
+				}
+				
+				for (EntityGraphNode joinableNode : refererMapping.joinableNodes) {
+					boolean subTypeJoin = refererMapping.entityType() != joinableNode.entityType();
+
+					for (EntityPropertyGraphNode propertyNode : joinableNode.entityProperties().values()) {
+						Property property = propertyNode.property();
+
+						FetchSource fetchSource = refererMapping.source();
+
+						// cast if necessary
+						if (subTypeJoin)
+							fetchSource = fetchSource.as(joinableNode.entityType());
+
+						FetchSource join = fetchSource.leftJoin(property);
+						ToOneEntityMapping fetchedMapping = new ToOneEntityMapping(property, join, refererMapping.probability * localProbability);
+						
+						AbstractEntityGraphNode abstractEntityNode = propertyNode.entityNode();
+
+						fetchedMapping.possiblePolyNode = abstractEntityNode.isPolymorphic();
+						
+						for (EntityGraphNode entityNode: abstractEntityNode.entityNodes()) {
+							boolean polymorphic = entityNode.entityType() == property.getType();
+
+							// are only base type properties joinable or also polymorphic ones?
+							if (supportsSubTypeJoin || polymorphic) {
+								fetchedMapping.addJoinable(entityNode);
+								if (polymorphic)
+									fetchedMapping.polymorphicCount++;
+								refererMapping.wirings().add(fetchedMapping);
+							} else {
+								fetchedMapping.addNonJoinable(entityNode);
+							}
+						}
+
+						newMappings.add(fetchedMapping);
+					}
+				}
+
+				// register next level
+				for (ToOneEntityMapping fetchedMapping : newMappings) {
+					registerMappingWithJoins(fetchedMapping);
+				}
+			} finally {
+				check.remove(refererMapping.property);
+			}
+		}
+	}
+
+	private final boolean supportsSubTypeJoin;
+	private final AbstractEntityGraphNode rootNode;
+	private int selectCountStopThreshold;
+	private double defaultJoinProbability;
+	private double joinProbabilityThreshold;
+	
+	private final List<MappingWithQuery> mappings = new ArrayList<>();
+	private FetchQueryFactory queryFactory;
+	private String defaultPartition;
+
+	public FetchPlan(FetchContext context, FetchQualification fetchQualification) {
+		selectCountStopThreshold = context.toOneSelectCountStopThreshold();
+		defaultJoinProbability = context.defaultJoinProbability();
+		joinProbabilityThreshold = context.joinProbabiltyThreshold();
+		rootNode = fetchQualification.node;
+		defaultPartition = context.session().getAccessId();
+		CyclicRecurrenceCheck check = new CyclicRecurrenceCheck();
+
+		queryFactory = context.queryFactory();
+
+		supportsSubTypeJoin = queryFactory.supportsSubTypeJoin();
+		
+		if (fetchQualification.fetchType == FetchType.TO_ONE) {
+			MappingWithQuery mapping = new MappingWithQuery();
+			mapping.rootMapping = new ExistingEntityMapping(fetchQualification.node, mapping.query.from());
+			mapping.registerMappingWithJoins(mapping.rootMapping);
+			mappings.add(mapping);
+		}
+		else {
+			initCollectionMappings();
+		}
+	}
+	
+	private void initCollectionMappings() {
+		
+		for (EntityGraphNode entityNode: rootNode.entityNodes()) {
+			for (ScalarCollectionPropertyGraphNode scalarCollectionNode :entityNode.scalarCollectionProperties().values()) {
+				
+				CollectionType collectionType = scalarCollectionNode.type();
+				
+				MappingWithQuery mapping = new MappingWithQuery();
+				
+				Property property = scalarCollectionNode.property();
+				
+				ExistingEntityMapping rootMapping = new ExistingEntityMapping(rootNode, mapping.query.from());
+				
+				ToManyEntityMapping toManyMapping = new ToManyEntityMapping(property, null, collectionType.getCollectionElementType(), rootMapping.source());
+				
+				rootMapping.wirings().add(toManyMapping);
+
+				mappings.add(mapping);
+			}
+			
+			for (EntityCollectionPropertyGraphNode entityCollectionNode: entityNode.entityCollectionProperties().values()) {
+				EntityType<?> baseType = (EntityType<?>) entityCollectionNode.condensedPropertyType();
+				Property property = entityCollectionNode.property();
+
+				MappingWithQuery mapping = new MappingWithQuery();
+				
+				CollectionType collectionType = entityCollectionNode.type();
+				
+				ExistingEntityMapping rootMapping = new ExistingEntityMapping(rootNode, mapping.query.from());
+				
+				ToManyEntityMapping toManyMapping = new ToManyEntityMapping(property, null, collectionType.getCollectionElementType(), rootMapping.source());
+				mapping.registerMappingWithJoins(toManyMapping);
+				
+				rootMapping.wirings().add(toManyMapping);
+				
+				mappings.add(mapping);
+			}
+			
+			for (MapPropertyGraphNode mapNode: entityNode.mapProperties().values()) {
+				MapType mapType = mapNode.type();
+				Property property = mapNode.property();
+				
+				MappingWithQuery mapping = new MappingWithQuery();
+				
+				GenericModelType keyType = mapType.getKeyType();
+				GenericModelType valueType = mapType.getValueType();
+				
+				ExistingEntityMapping rootMapping = new ExistingEntityMapping(rootNode, mapping.query.from());
+				
+				ToManyEntityMapping toManyMapping = new ToManyEntityMapping(property, keyType, valueType, rootMapping.source());
+				EntityMapping keyMapping = toManyMapping.keyMapping();
+				if (keyMapping != null);
+					mapping.registerMappingWithJoins(keyMapping);
+					
+				mapping.registerMappingWithJoins(toManyMapping);
+				
+				rootMapping.wirings().add(toManyMapping);
+				
+				mappings.add(mapping);
+			}
+		}
+	}
+
+	private void fetch(FetchTask task) {
+		for (MappingWithQuery mapping: mappings) {
+			fetch(mapping, task);
+		}
+	}
+	
+	private void fetch(MappingWithQuery mapping, FetchTask task) {
+	}
+	
+	public void fetch(FetchContext context, FetchTask task) {
+		// if there is no sub type joining we need to enqueue subtype nodes specifically for TO_ONE
+		if (!supportsSubTypeJoin) {
+			for (EntityGraphNode entityNode : rootNode.entityNodes()) {
+				EntityType<?> entityType = entityNode.entityType();
+				if (entityType == rootNode.entityType())
+					continue;
+
+				// enqueue non joinable for TO_ONE
+				Map<Object, GenericEntity> enqueuedEntities = new LinkedHashMap<>();
+				for (GenericEntity entity : task.entities.values()) {
+					if (!entityType.isInstance(entity))
+						continue;
+
+					EntityIdm entityIdm = context.acquireEntity(entity);
+					if (entityIdm.addHandled(entityNode.toOneQualification())) {
+						enqueuedEntities.put(entity.getId(), entity);
+					}
+				}
+				context.enqueueToOneIfRequired(entityNode, enqueuedEntities);
+			}
+		}
+
+		if (mappings.size() == 1) {
+			return;
+		}
+
+		ResultWiringContext wiringContext = new ResultWiringContext(context, task.entities);
+
+		Set<Object> allIds = task.entities.keySet();
+
+		// query joined entities in bulks
+		List<Set<Object>> idBulks = CollectionTools2.splitToSets(allIds, context.bulkSize());
+
+		long nanoStart = System.nanoTime();
+
+		context.processParallel(idBulks, ids -> {
+			try (FetchResults results = fetchQuery.fetchFor(ids)) {
+				wiringContext.handleRows(results);
+			}
+		});
+
+		Duration duration = Duration.ofNanos(System.nanoTime() - nanoStart);
+		logger.trace(() -> "consumed " + duration.toMillis() + " ms for querying " + allIds.size() + " entities in " + idBulks.size()
+				+ " batches with: " + fetchQuery.stringify());
+
+		for (Map.Entry<AbstractEntityGraphNode, Map<Object, GenericEntity>> entry : wiringContext.postProcessing.toManies.entrySet()) {
+			context.enqueueToManyIfRequired(entry.getKey(), entry.getValue());
+		}
+
+		for (Map.Entry<AbstractEntityGraphNode, Map<Object, GenericEntity>> entry : wiringContext.postProcessing.toOnes.entrySet()) {
+			context.enqueueToOneIfRequired(entry.getKey(), entry.getValue());
+		}
+	}
+
+	/**
+	 * This method handles the following cases in the following ways:
+	 * 
+	 * <h1>1. no poly node</h2>
+	 * 
+	 * <p>
+	 * <b>Note:</b> In that case there would be either exactly one joinable node or exactly one non-joinable subtype node as there is only one entity
+	 * node attachable to the property node
+	 * </p>
+	 * 
+	 * <ul>
+	 * <li>enqueue TO_MANY for joinable nodes
+	 * <li>enqueue TO_MANY for non-joinable subtype nodes
+	 * <li>enqueue TO_ONE for non-joinable subtype nodes
+	 * </ul>
+	 * <h1>2. poly node with non-joinable nodes</h1>
+	 * 
+	 * <p>
+	 * <b>Note:</b> In that case there can be multiple joinable nodes and multiple non-joinable subtype nodes as a poly node can hold many entity
+	 * nodes of both kinds
+	 * </p>
+	 * <ul>
+	 * <li>mark TO_ONE for the poly node
+	 * <li>enqueue TO_MANY for poly node
+	 * <li>mark TO_MANY for joinable nodes
+	 * <li>mark TO_MANY for non-joinable subtype nodes
+	 * <li>enqueue TO_ONE for non-joinable subtype nodes
+	 * </ul>
+	 * 
+	 * <h1>2. poly node without non-joinable nodes</h2>
+	 * 
+	 * <p>
+	 * <b>Note:</b> In that case there can be multiple joinable nodes and no non-joinable subtype nodes as the cast support can join all types
+	 * </p>
+	 * 
+	 * <ul>
+	 * <li>enqueue TO_ONE for the poly node
+	 * <li>enqueue TO_MANY for the poly node
+	 * <li>mark TO_ONE for joinable nodes
+	 * <li>mark TO_MANY for joinable nodes
+	 * </ul>
+	 */
+
+	private List<NodePostProcessing> buildNodePostProcessings(PostProcessing postProcessing, EntityMapping mapping) {
+		List<NodePostProcessing> processings = new ArrayList<>();
+
+		final boolean toOneRecursionStop = mapping.isRecursionStop();
+
+		final boolean withPolyNode = mapping.possiblePolyNode != null;
+		final boolean withNonJoinableNodes = !mapping.nonJoinableSubTypeNodes.isEmpty();
+
+		final boolean enqueuePolyToOne;
+		final boolean enqueuePolyToMany;
+		final boolean enqueueJoinableToOne;
+		final boolean enqueueJoinableToMany;
+		final boolean enqueueNonJoinableToOne;
+		final boolean enqueueNonJoinableToMany;
+
+		if (!withPolyNode) {
+			enqueuePolyToOne = false;
+			enqueuePolyToMany = false;
+			enqueueJoinableToOne = toOneRecursionStop;
+			enqueueJoinableToMany = true;
+			enqueueNonJoinableToOne = true;
+			enqueueNonJoinableToMany = true;
+		} else if (withNonJoinableNodes) {
+			enqueuePolyToOne = false;
+			enqueuePolyToMany = true;
+			enqueueJoinableToOne = toOneRecursionStop;
+			enqueueJoinableToMany = false;
+			enqueueNonJoinableToOne = true;
+			enqueueNonJoinableToMany = false;
+		} else {
+			enqueuePolyToOne = toOneRecursionStop;
+			enqueuePolyToMany = true;
+			enqueueJoinableToOne = false;
+			enqueueJoinableToMany = false;
+			enqueueNonJoinableToOne = false;
+			enqueueNonJoinableToMany = false;
+		}
+
+		if (withPolyNode)
+			processings.add(new NodePostProcessing(postProcessing, mapping.possiblePolyNode, enqueuePolyToOne, enqueuePolyToMany, false));
+
+		for (EntityGraphNode node : mapping.joinableNodes) {
+			boolean subTypeNode = mapping.property.getType() != node.entityType();
+			processings.add(new NodePostProcessing(postProcessing, node, enqueueJoinableToOne, enqueueJoinableToMany, subTypeNode));
+		}
+
+		for (EntityGraphNode node : mapping.nonJoinableSubTypeNodes)
+			processings.add(new NodePostProcessing(postProcessing, node, enqueueNonJoinableToOne, enqueueNonJoinableToMany, true));
+
+		return processings;
+	}
+
+	private static class PostProcessing {
+		private Map<AbstractEntityGraphNode, Map<Object, GenericEntity>> toManies = new LinkedHashMap<>();
+		private Map<AbstractEntityGraphNode, Map<Object, GenericEntity>> toOnes = new LinkedHashMap<>();
+
+		public Map<Object, GenericEntity> acquireToManies(AbstractEntityGraphNode node) {
+			return toManies.computeIfAbsent(node, k -> new ConcurrentHashMap<>());
+		}
+		public Map<Object, GenericEntity> acquireToOnes(AbstractEntityGraphNode node) {
+			return toOnes.computeIfAbsent(node, k -> new ConcurrentHashMap<>());
+		}
+	}
+
+	private static class NodePostProcessing {
+		private final Map<Object, GenericEntity> toManies;
+		private final Map<Object, GenericEntity> toOnes;
+		private final AbstractEntityGraphNode node;
+		private final boolean isSubTypeNode;
+		private final boolean enqueueToMany;
+		private final boolean enqueueToOne;
+
+		public NodePostProcessing(PostProcessing postProcessing, AbstractEntityGraphNode node, boolean enqueueToOne, boolean enqueueToMany,
+				boolean isSubTypeNode) {
+			super();
+			this.node = node;
+			this.enqueueToOne = enqueueToOne;
+			this.enqueueToMany = enqueueToMany;
+			this.isSubTypeNode = isSubTypeNode;
+			this.toOnes = postProcessing.acquireToOnes(node);
+			this.toManies = postProcessing.acquireToManies(node);
+		}
+
+		public void handle(EntityIdm entityIdm) {
+			GenericEntity entity = entityIdm.entity;
+
+			if (isSubTypeNode && !node.entityType().isInstance(entity))
+				return;
+
+			if (entityIdm.addHandled(node.toOneQualification()) && enqueueToOne)
+				toOnes.put(entity.getId(), entity);
+
+			if (entityIdm.addHandled(node.toManyQualification()) && enqueueToMany)
+				toManies.put(entity.getId(), entity);
+		}
+	}
+
+	private static class CyclicRecurrenceCheck {
+		private Map<Property, AtomicInteger> recurrences = new IdentityHashMap<>();
+		private int limit = 3;
+
+		public boolean add(Property property) {
+			AtomicInteger counter = recurrences.computeIfAbsent(property, k -> new AtomicInteger(0));
+
+			counter.incrementAndGet();
+
+			return counter.get() > limit;
+		}
+
+		public void remove(Property property) {
+			recurrences.compute(property, (n, c) -> {
+				if (c == null || c.get() == 0)
+					throw new IllegalStateException("unexpected remove");
+
+				int counter = c.decrementAndGet();
+
+				return counter == 0 ? null : c;
+			});
+		}
+	}
+
+
+	private static class MappingWithPostProcessing {
+		public final EntityMapping mapping;
+		public final List<NodePostProcessing> postProcessings;
+
+		public MappingWithPostProcessing(EntityMapping mapping, List<NodePostProcessing> postProcessings) {
+			super();
+			this.mapping = mapping;
+			this.postProcessings = postProcessings;
+		}
+	}
+
+	private class ResultWiringContext {
+		public final FetchContext fetchContext;
+		public Map<Object, GenericEntity> existingEntitiesById = new HashMap<Object, GenericEntity>();
+		public final PostProcessing postProcessing = new PostProcessing();
+		private List<MappingWithPostProcessing> postProcessings = new ArrayList<>();
+
+		public ResultWiringContext(FetchContext fetchContext, EntityMapping rootMapping, Map<Object, GenericEntity> existingEntitiesById) {
+			this.fetchContext = fetchContext;
+			this.existingEntitiesById = existingEntitiesById;
+
+			for (int i = 1; i < mappings.size(); ++i) {
+				EntityMapping mapping = mappings.get(i);
+				postProcessings.add(new MappingWithPostProcessing(mapping, buildNodePostProcessings(postProcessing, mapping)));
+			}
+		}
+
+		public void handleRows(FetchResults results) {
+			GenericEntity entities[] = new GenericEntity[mappings.size()];
+
+			while (results.next()) {
+				// fill current entities with identity managed entities
+				Object id = results.get(0);
+				GenericEntity rootEntity = existingEntitiesById.get(id);
+
+				entities[0] = rootEntity;
+
+				for (MappingWithPostProcessing entry : postProcessings) {
+					EntityMapping mapping = entry.mapping;
+					int col = mapping.pos();
+
+					GenericEntity entity = (GenericEntity) results.get(col);
+
+					if (entity == null) {
+						entities[col] = null;
+						continue;
+					}
+
+					EntityIdm entityIdm = fetchContext.acquireEntity(entity);
+					entity = entityIdm.entity;
+
+					entities[col] = entity;
+
+					for (NodePostProcessing nodePostProcessing : entry.postProcessings)
+						nodePostProcessing.handle(entityIdm);
+				}
+
+				wireRow(entities);
+			}
+		}
+
+		/**
+		 * Wires each fetched row into the actual entity instances according to the mapping tree.
+		 */
+		private void wireRow(GenericEntity entities[]) {
+			GenericEntity entity = entities[rootMapping.pos()];
+
+			wireRow(entities, rootMapping, entity);
+		}
+
+		private void wireRow(GenericEntity entities[], EntityMapping mapping, GenericEntity entity) {
+			for (ToOneEntityMapping wiring : mapping.wirings()) {
+				GenericEntity wiredEntity = entities[wiring.pos()];
+				Property property = wiring.property();
+
+				if (wiredEntity != null || property.getDeclaringType().isInstance(entity))
+					property.set(entity, wiredEntity);
+
+				if (wiredEntity != null)
+					wireRow(entities, wiring, wiredEntity);
+			}
+		}
+	}
+	
+	/**
+	 * Bulk fetching for each collection property in the graph; assigns collections back to owning entities.
+	 */
+	public static <E, K> void fetch(FetchContext context, EntityType<?> baseType, EntityType<?> type, FetchTask fetchTask, CollectionType collectionType,
+			Property property, Function<K, K> keyVisitor, Function<E, E> valueVisitor) {
+		Map<Object, GenericEntity> entityIndex = fetchTask.entities;
+
+		Collection<Object> allIds = extractTypeSpecificIds(entityIndex, baseType, type, //
+				e -> property.set(e, collectionType.createPlain()));
+		
+		List<Set<Object>> idBulks = CollectionTools2.splitToSets(allIds, context.bulkSize());
+
+		FetchQuery fetchQuery = context.queryFactory().createQuery(type, context.session().getAccessId());
+		FetchJoin join = fetchQuery.from().join(property);
+		join.orderByIfRequired();
+
+		long queryNanoStart = System.nanoTime();
+		
+		CollectionAdder collectionAdder = createCollectionAdder(collectionType, keyVisitor, valueVisitor);
+
+		context.processParallel(idBulks, ids -> {
+			try (FetchResults results = fetchQuery.fetchFor(ids)) {
+				Object curId = null;
+				
+				while (results.next()) {
+					Object id = results.get(0);
+	
+					if (!id.equals(curId)) {
+						curId = id;
+						GenericEntity entity = entityIndex.get(id);
+						collectionAdder.setCollection(property.get(entity));
+					}
+
+					collectionAdder.addAndNotify(results);
+				}
+			}
+		});
+
+		long queryDuration = System.nanoTime() - queryNanoStart;
+
+		logger.trace(() -> "consumed " + Duration.ofNanos(queryDuration).toMillis() + " ms for querying " + allIds.size() + " entities in "
+				+ idBulks.size() + " batches with: " + fetchQuery.stringify());
+	}
+	
+	private static class LinearCollectionAdder implements RowWirerer {
+		private Collection<Object> collection;
+		private GenericEntity lastEntity;
+		private Property property;
+		private int pos;
+		private RowWirerer valueWirerers[];
+
+		public LinearCollectionAdder(Property property, int pos, List<? extends EntityMapping> valueWirings) {
+			super();
+			this.property = property;
+			this.pos = pos;
+			this.valueWirerers = RowWirerer.create(valueWirings);
+		}
+
+		@Override
+		public void wireRow(FetchResults results, GenericEntity entity) {
+			if (entity != lastEntity)
+				collection = property.get(entity);
+			
+			Object v = results.get(pos);
+			
+			collection.add(v);
+			
+			if (v != null) {
+				if (valueWirerers.length > 0)
+					for (RowWirerer wirerer: valueWirerers)
+						wirerer.wireRow(results, (GenericEntity)v);
+			}
+		}
+	}
+	
+	private static class MapAdder implements RowWirerer {
+
+		private Property property;
+		private int keyPos;
+		private int valuePos;
+		private GenericEntity lastEntity;
+		private Map<Object, Object> map;
+		private RowWirerer keyWirerers[];
+		private RowWirerer valueWirerers[];
+		
+		public MapAdder(Property property, int keyPos, int valuePos, List<? extends EntityMapping> keyWirings, List<? extends EntityMapping> valueWirings) {
+			super();
+			this.property = property;
+			this.keyPos = keyPos;
+			this.valuePos = valuePos;
+			this.keyWirerers = keyWirings != null? RowWirerer.create(keyWirings): null;
+			this.valueWirerers = RowWirerer.create(valueWirings);
+		}
+
+		@Override
+		public void wireRow(FetchResults results, GenericEntity entity) {
+			if (entity != lastEntity)
+				map = property.get(entity);
+			
+			Object k = results.get(keyPos);
+			Object v = results.get(valuePos);
+			
+			map.put(k, v);
+			
+			if (v != null) {
+				if (keyWirerers != null && keyWirerers.length > 0)
+					for (RowWirerer wirerer: keyWirerers)
+						wirerer.wireRow(results, (GenericEntity)k);
+				
+				if (valueWirerers.length > 0)
+					for (RowWirerer wirerer: valueWirerers)
+						wirerer.wireRow(results, (GenericEntity)v);
+			}
+		}
+		
+	}
+
+	private static Collection<Object> extractTypeSpecificIds(Map<Object, GenericEntity> entityIndex, EntityType<?> baseType, EntityType<?> type, Consumer<GenericEntity> specificEntityVisitor) {
+		if (type == baseType) {
+			for (GenericEntity entity: entityIndex.values())
+				specificEntityVisitor.accept(entity);
+			
+			return entityIndex.keySet();
+		}
+		
+		List<Object> resultIds = new ArrayList<Object>();
+		for (Map.Entry<Object, GenericEntity> entry: entityIndex.entrySet()) {
+			GenericEntity entity = entry.getValue();
+			
+			if (type.isInstance(entity)) {
+				specificEntityVisitor.accept(entity);
+				resultIds.add(entry.getKey());
+			}
+		}
+		
+		return resultIds;
+	}
+	
+}

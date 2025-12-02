@@ -27,4 +27,31 @@ public class FetchTask {
 		this.fetchType = fetchType;
 		this.entities = entities;
 	}
+	
+	@Override
+	public String toString() {
+		StringBuilder b = new StringBuilder();
+		b.append(fetchType);
+		b.append(" ");
+		b.append(node.name());
+		if (node.isPolymorphic() != null)
+			b.append(" poly ");
+		b.append(" (");
+		int i = 0;
+		for (Object key: entities.keySet()) {
+			if (i > 0)
+				b.append(",");
+			
+			if (i == 20) {
+				b.append("...");
+				break;
+			}
+				
+			b.append(key);
+			
+			i++;
+		}
+		b.append(")");
+		return b.toString();
+	}
 }

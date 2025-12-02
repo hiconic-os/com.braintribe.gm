@@ -14,7 +14,8 @@ public interface FetchBuilder {
 	FetchBuilder toOneScalarThreshold(int threshold);
 	FetchBuilder joinProbabilityThreshold(double threshold);
 	FetchBuilder joinProbabilityDefault(double probability);
-	FetchBuilder maxParallelBulks(int maxParallelBulks);
+	FetchBuilder maxParallel(int maxParallel);
+	FetchBuilder parallelization(FetchParallelization parallelization);
 	
 	<E extends GenericEntity> List<E> fetchDetached(Collection<? extends E> entities);
 	

@@ -27,4 +27,11 @@ public class FetchQualification {
 	    FetchQualification other = (FetchQualification) obj;
 	    return fetchType == other.fetchType && node == other.node;
 	}
+
+	@Override
+	public String toString() {
+		return "FetchQualification [node=" + node + ", fetchType=" + fetchType + "]";
+	}
+	
+	
 }

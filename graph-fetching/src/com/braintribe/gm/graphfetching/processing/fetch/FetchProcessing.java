@@ -9,16 +9,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 import com.braintribe.common.attribute.AttributeContext;
 import com.braintribe.common.lcd.Pair;
 import com.braintribe.exception.Exceptions;
+import com.braintribe.gm.graphfetching.api.FetchParallelization;
 import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.FetchQualification;
@@ -40,17 +45,24 @@ public class FetchProcessing implements FetchContext {
 	protected static final int DEFAULT_BULK_SIZE = 100;
 	private static Logger logger = Logger.getLogger(FetchProcessing.class);
 	private Queue<FetchTask> taskQueue = new LinkedList<>();
-
+	
+	private AtomicInteger parallelTaskCounter = new AtomicInteger();
+	private ConcurrentLinkedQueue<Future<?>> futures = new ConcurrentLinkedQueue<>();
+	private ReentrantLock parallelDoneMonitor = new ReentrantLock();
+	private Condition parallelDoneCondition = parallelDoneMonitor.newCondition();
 	private PersistenceGmSession session;
 	private Map<Pair<EntityType<?>, Object>, EntityIdm> index = new ConcurrentHashMap<>();
 	private ExecutorService threadPool;
 	private final FetchQueryFactory queryFactory;
-	private int maxParallelBulks = 10;
-	private Lazy<ExecutorService> defaultExecutorLazy = new Lazy<>(() -> Executors.newFixedThreadPool(maxParallelBulks), s -> s.shutdown());
+	private int maxParallel = 10;
+	private Lazy<Semaphore> lazySemaphore = new Lazy<>(this::buildSemaphore);
+	private Lazy<ExecutorService> defaultExecutorLazy = new Lazy<>(() -> Executors.newFixedThreadPool(maxParallel), s -> s.shutdown());
 	private int bulkSize = DEFAULT_BULK_SIZE;
 	private int toOneScalarStopThreshold = 500;
 	private double joinProbabiltyThreshold = 0.05;
 	private double joinProbabilityDefault = 0.5;
+	private boolean multithreaded = true;
+	private FetchParallelization parallelization;
 
 	public FetchProcessing(PersistenceGmSession session) {
 		this(session, new GmSessionFetchQueryFactory(session));
@@ -104,6 +116,10 @@ public class FetchProcessing implements FetchContext {
 	public PersistenceGmSession session() {
 		return session;
 	}
+	
+	private Semaphore buildSemaphore() {
+		return new Semaphore(maxParallel);
+	}
 
 	/**
 	 * Entry point for regular fetch: wraps entity list as indexed map and processes.
@@ -143,18 +159,102 @@ public class FetchProcessing implements FetchContext {
 	@Override
 	public void enqueueToOneIfRequired(AbstractEntityGraphNode node, Map<Object, GenericEntity> entities) {
 		if (node.hasEntityProperties() && !entities.isEmpty()) {
-			taskQueue.offer(new FetchTask(node, FetchType.TO_ONE, entities));
+			enqueue(new FetchTask(node, FetchType.TO_ONE, entities));
 		}
 	}
 
 	@Override
 	public void enqueueToManyIfRequired(AbstractEntityGraphNode node, Map<Object, GenericEntity> entities) {
 		if (node.hasCollectionProperties() && !entities.isEmpty()) {
-			taskQueue.offer(new FetchTask(node, FetchType.TO_MANY, entities));
+			enqueue(new FetchTask(node, FetchType.TO_MANY, entities));
+		}
+	}
+	
+	private void enqueue(FetchTask task) {
+		if (multithreaded) {
+			parallelTaskCounter.incrementAndGet();
+			futures.add(defaultExecutorLazy.get().submit(() -> processMonitored(task)));
+		}
+		else
+			taskQueue.offer(task);
+	}
+	
+	private void processMonitored(FetchTask task) {
+		Semaphore semaphore = lazySemaphore.get();
+		try {
+			semaphore.acquire();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new RuntimeException(e);
+		}
+
+		try {
+			processTask(task);
+		}
+		finally {
+			semaphore.release();
+
+			if (parallelTaskCounter.decrementAndGet() == 0) {
+				parallelDoneMonitor.lock();
+				
+				try {
+					parallelDoneCondition.signal();
+				}
+				finally {
+					parallelDoneMonitor.unlock();
+				}
+			}
 		}
 	}
 	
 	private void process() {
+		if (parallelization.isFetchParallel())
+			processMultiThreaded();
+		else
+			processSingleThreaded();
+	}
+	
+	private void processMultiThreaded() {
+		parallelDoneMonitor.lock();
+		try {
+			try {
+				parallelDoneCondition.await();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new RuntimeException(e);
+			}
+		}
+		finally {
+			parallelDoneMonitor.unlock();
+		}
+		
+		List<Exception> exceptions = new ArrayList<>();
+		for (Future<?> future: futures) {
+			try {
+				future.get();
+			}
+			catch (Exception e) {
+				exceptions.add(e);
+			}
+		}
+		
+		if (exceptions.isEmpty())
+			return;
+		
+		RuntimeException e = new RuntimeException("Error while executing parallel fetch tasks");
+
+		if (exceptions.size() == 1) 
+			e.initCause(exceptions.get(0));
+		else {
+			for (Exception cause: exceptions) {
+				e.addSuppressed(cause);
+			}
+		}
+		
+		throw e;
+	}
+	
+	private void processSingleThreaded() {
 		while (true) {
 			FetchTask task = taskQueue.poll();
 
@@ -216,16 +316,18 @@ public class FetchProcessing implements FetchContext {
 		if (tasks.isEmpty())
 			return;
 		
-		// don't use parallel processing if there is only one task
-		if (tasks.size() == 1) {
-			processor.accept(tasks.iterator().next());
+		// don't use parallel processing if there is only one task or there is no bulk parallelization
+		if (tasks.size() == 1 || !parallelization.isBulkParallel()) {
+			for (T task: tasks)
+				processor.accept(task);
+			
 			return;
 		}
 		
 		AttributeContext attributeContext = AttributeContexts.peek();
 		List<Future<?>> futures = new ArrayList<>(tasks.size());
 		
-		Semaphore sem = new Semaphore(maxParallelBulks);
+		Semaphore sem = lazySemaphore.get();
 		
 		ExecutorService executor = getExecutorService();
 		for (T task : tasks) {
@@ -274,8 +376,8 @@ public class FetchProcessing implements FetchContext {
 		this.bulkSize = bulkSize;
 	}
 
-	public void setMaxParallelBulks(int maxParallelBulks) {
-		this.maxParallelBulks = maxParallelBulks;
+	public void setMaxParallel(int maxParallel) {
+		this.maxParallel = maxParallel;
 	}
 
 	public void setJoinProbabilityDefault(double joinProbabilityDefault) {
@@ -288,5 +390,9 @@ public class FetchProcessing implements FetchContext {
 
 	public void setToOneScalarThreshold(int toOneScalarThreshold) {
 		this.toOneScalarStopThreshold = toOneScalarThreshold;
+	}
+
+	public void setParallelization(FetchParallelization parallelization) {
+		this.parallelization = parallelization;
 	}
 }
