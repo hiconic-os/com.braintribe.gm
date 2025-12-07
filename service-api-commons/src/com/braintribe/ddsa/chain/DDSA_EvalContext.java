@@ -1,9 +1,10 @@
-package com.braintribe.model.processing.service.common.eval;
+package com.braintribe.ddsa.chain;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import com.braintribe.common.attribute.AttributeContext;
 import com.braintribe.common.attribute.AttributeContextBuilder;
@@ -23,7 +24,7 @@ import com.braintribe.model.processing.service.api.ServiceRequestContextBuilder;
 import com.braintribe.model.processing.service.api.ServiceRequestSummaryLogger;
 import com.braintribe.model.processing.service.api.aspect.EagerResponseConsumerAspect;
 import com.braintribe.model.processing.service.api.aspect.RequestEvaluationIdAspect;
-import com.braintribe.model.processing.service.common.eval.AbstractServiceRequestEvaluator.EagerResultHolder;
+import com.braintribe.model.processing.service.common.eval.AbstractServiceRequestEvaluator;
 import com.braintribe.model.processing.service.commons.ServiceRequestContexts;
 import com.braintribe.model.service.api.ServiceRequest;
 import com.braintribe.processing.async.api.AsyncCallback;
@@ -32,7 +33,8 @@ import com.braintribe.utils.collection.impl.AttributeContexts;
 /**
  * @author peter.gazdik
  */
-/* package */ class DDSA_EvalContext<T> extends AbstractEvalContext<T> {
+// Not really public, should only be used in this artifact
+public class DDSA_EvalContext<T> extends AbstractEvalContext<T> {
 
 	private static final Logger log = Logger.getLogger(DDSA_EvalContext.class);
 
@@ -111,14 +113,27 @@ import com.braintribe.utils.collection.impl.AttributeContexts;
 		return null;
 	}
 
+	// DO NOT EXTRACT METHODS!!!
+	// We want to keep the structure flat so that the stacktrace produced by DDSA is as small as possible
 	private T processSync() {
-
 		ServiceRequestContext invocationContext = prepareContext();
 
 		AttributeContexts.push(invocationContext);
 
 		try {
-			return processNormalizedWithSummary(invocationContext);
+			ServiceRequestSummaryLogger summaryLogger = invocationContext.summaryLogger();
+			if (!summaryLogger.isEnabled())
+				return processNormalized(invocationContext);
+
+			String summaryStep = request.entityType().getShortName() + " evaluation";
+
+			summaryLogger.startTimer(summaryStep);
+			try {
+				return processNormalized(invocationContext);
+			} finally {
+				summaryLogger.stopTimer(summaryStep);
+			}
+
 		} finally {
 			AttributeContexts.pop();
 		}
@@ -195,21 +210,6 @@ import com.braintribe.utils.collection.impl.AttributeContexts;
 		return (T) responseConsumer.get();
 	}
 
-	/* package */ T processNormalizedWithSummary(ServiceRequestContext context) {
-		ServiceRequestSummaryLogger summaryLogger = context.summaryLogger();
-		if (!summaryLogger.isEnabled())
-			return processNormalized(context);
-
-		String summaryStep = request.entityType().getShortName() + " evaluation";
-
-		summaryLogger.startTimer(summaryStep);
-		try {
-			return processNormalized(context);
-		} finally {
-			summaryLogger.stopTimer(summaryStep);
-		}
-	}
-
 	private <V> AsyncCallback<V> ensureCallback(AsyncCallback<V> callback) {
 		if (callback != null)
 			return callback;
@@ -222,5 +222,55 @@ import com.braintribe.utils.collection.impl.AttributeContexts;
 
 	private static Collection<Class<? extends TypeSafeAttribute<?>>> contextAttributeVetos = Arrays.asList(EagerResponseConsumerAspect.class,
 			ParentAttributeContextAspect.class);
+
+}
+
+class EagerResultHolder implements Consumer<Object>, Supplier<Object> {
+
+	Object result;
+	boolean consumed;
+	Consumer<Object> listener;
+	
+	public EagerResultHolder() {
+		super();
+	}
+
+	public void notifyActualResult(Object retVal) {
+		if (consumed)
+			return;
+		
+		synchronized(this) {
+			if (consumed)
+				return;
+			
+			consumed = true;
+			result = retVal;
+		}
+	}
+	
+	@Override
+	public void accept(Object retVal) {
+		if (consumed)
+			return;
+		
+		synchronized(this) {
+			if (consumed)
+				return;
+			
+			consumed = true;
+			result = retVal;
+			if (listener != null) 
+				listener.accept(retVal);
+		}
+	}
+
+	@Override
+	public Object get() {
+		return result;
+	}
+
+	public boolean consumed() {
+		return consumed;
+	}
 
 }

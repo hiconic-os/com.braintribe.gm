@@ -41,7 +41,6 @@ import com.braintribe.utils.collection.impl.AttributeContexts;
  * a valid match
  * 
  * @author Dirk Scheffler
- *
  */
 public class DDSA implements ServiceProcessor<ServiceRequest, Object>, ProceedContext {
 	private static final ServiceProcessor<ServiceRequest, Object> DEFAULT_PROCESSOR = (c, r) -> {
@@ -54,14 +53,6 @@ public class DDSA implements ServiceProcessor<ServiceRequest, Object>, ProceedCo
 	private ServiceRequestContext serviceRequestContext;
 
 	private ServiceProcessor<ServiceRequest, ?> processor = DEFAULT_PROCESSOR;
-
-	private static <T extends ServiceInterceptorProcessor, E extends T> List<E> appendInterceptor(List<E> list, T element) {
-		if (list == null)
-			list = new ArrayList<>();
-
-		list.add((E) element);
-		return list;
-	}
 
 	public static InterceptingServiceProcessorBuilder create() {
 		return create(DEFAULT_PROCESSOR);
@@ -91,6 +82,14 @@ public class DDSA implements ServiceProcessor<ServiceRequest, Object>, ProceedCo
 		@Override
 		public void aroundProcessWith(ServiceAroundProcessor<?, ?> aroundProcessor) {
 			chain.aroundProcessors = appendInterceptor(chain.aroundProcessors, aroundProcessor);
+		}
+
+		private <T extends ServiceInterceptorProcessor, E extends T> List<E> appendInterceptor(List<E> list, T element) {
+			if (list == null)
+				list = new ArrayList<>();
+			
+			list.add((E) element);
+			return list;
 		}
 	}
 
@@ -123,8 +122,12 @@ public class DDSA implements ServiceProcessor<ServiceRequest, Object>, ProceedCo
 	@Override
 	public Object process(ServiceRequestContext requestContext, ServiceRequest request) {
 		request = preProcess(requestContext, request);
-		Object response = aroundProcess(requestContext, request);
+
+		ServiceProcessor<ServiceRequest, ?> procOrAroundProc = procOrAroundProc(requestContext);
+		Object response = procOrAroundProc.process(requestContext, request);
+
 		response = postProcess(requestContext, response);
+
 		return response;
 	}
 
@@ -182,12 +185,8 @@ public class DDSA implements ServiceProcessor<ServiceRequest, Object>, ProceedCo
 		return request;
 	}
 
-	private Object aroundProcess(ServiceRequestContext requestContext, ServiceRequest request) {
-		if (isEmpty(aroundProcessors))
-			return processor.process(requestContext, request);
-
-		_ProceedCtx proceedContext = new _ProceedCtx(requestContext, 0);
-		return proceedContext.proceed(request);
+	private ServiceProcessor<ServiceRequest, ?> procOrAroundProc(ServiceRequestContext requestContext) {
+		return isEmpty(aroundProcessors) ?  processor: new _ProceedCtx(requestContext, 0);
 	}
 
 	@SuppressWarnings("deprecation")
@@ -218,7 +217,6 @@ public class DDSA implements ServiceProcessor<ServiceRequest, Object>, ProceedCo
 		private final ServiceRequestContext requestContext;
 
 		public _ProceedCtx(ServiceRequestContext requestContext, int index) {
-			super();
 			this.requestContext = requestContext;
 			this.index = index;
 		}

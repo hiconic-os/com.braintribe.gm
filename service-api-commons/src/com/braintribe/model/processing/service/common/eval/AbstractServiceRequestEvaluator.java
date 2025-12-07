@@ -22,6 +22,7 @@ import java.util.function.Supplier;
 
 import com.braintribe.cfg.Configurable;
 import com.braintribe.common.attribute.AttributeContextBuilder;
+import com.braintribe.ddsa.chain.DDSA_EvalContext;
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.ReasonException;
 import com.braintribe.model.generic.eval.EvalContext;
@@ -38,12 +39,12 @@ import com.braintribe.utils.lcd.NullSafe;
  */
 public abstract class AbstractServiceRequestEvaluator implements Evaluator<ServiceRequest> {
 
-	protected ServiceProcessor<ServiceRequest, Object> serviceProcessor;
-	protected ExecutorService executorService;
-	protected Evaluator<ServiceRequest> contextEvaluator = this;
-	protected Function<Reason, RuntimeException> reasonExceptionFactory = ReasonException::new;
-	protected Consumer<AttributeContextBuilder> attributesConfigurer = null;
-	
+	public ServiceProcessor<ServiceRequest, Object> serviceProcessor;
+	public ExecutorService executorService;
+	public Evaluator<ServiceRequest> contextEvaluator = this;
+	public Function<Reason, RuntimeException> reasonExceptionFactory = ReasonException::new;
+	public Consumer<AttributeContextBuilder> attributesConfigurer = null;
+
 	@Configurable
 	public void setAttributesConfigurer(Consumer<AttributeContextBuilder> attributesConfigurer) {
 		this.attributesConfigurer = attributesConfigurer;
@@ -74,56 +75,6 @@ public abstract class AbstractServiceRequestEvaluator implements Evaluator<Servi
 	public <T> EvalContext<T> eval(ServiceRequest serviceRequest) {
 		NullSafe.nonNull(serviceRequest, "serviceRequest");
 		return new DDSA_EvalContext<T>(this, serviceRequest);
-	}
-
-	public static class EagerResultHolder implements Consumer<Object>, Supplier<Object> {
-
-		Object result;
-		boolean consumed;
-		Consumer<Object> listener;
-		
-		public EagerResultHolder() {
-			super();
-		}
-
-		public void notifyActualResult(Object retVal) {
-			if (consumed)
-				return;
-			
-			synchronized(this) {
-				if (consumed)
-					return;
-				
-				consumed = true;
-				result = retVal;
-			}
-		}
-		
-		@Override
-		public void accept(Object retVal) {
-			if (consumed)
-				return;
-			
-			synchronized(this) {
-				if (consumed)
-					return;
-				
-				consumed = true;
-				result = retVal;
-				if (listener != null) 
-					listener.accept(retVal);
-			}
-		}
-
-		@Override
-		public Object get() {
-			return result;
-		}
-
-		public boolean consumed() {
-			return consumed;
-		}
-
 	}
 
 }
