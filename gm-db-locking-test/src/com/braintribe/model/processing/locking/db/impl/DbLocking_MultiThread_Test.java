@@ -51,21 +51,29 @@ public class DbLocking_MultiThread_Test extends AbstractDbLockingTestBase {
 
 	@Test(timeout = TIMEOUT_MS)
 	public void testWritesAreBlockingEachOther() {
-		cdl = new CountDownLatch(50);
+		final int COUNT = 50;
+
+		cdl = new CountDownLatch(COUNT);
 		var wasConcurrent = Box.of(Boolean.FALSE);
 
-		for (int i = 0; i < 50; i++)
+		for (int i = 0; i < COUNT; i++)
 			submit(() -> {
-				Lock writeLock = newRandomReentrantLock().writeLock();
-				writeLock.lock();
+				try {
+					Lock writeLock = newRandomReentrantLock().writeLock();
+					writeLock.lock();
 
-				active++;
-				if (active > 1)
-					wasConcurrent.value = true;
-				cdl.countDown();
-				active--;
+					active++;
+					if (active > 1)
+						wasConcurrent.value = true;
+					cdl.countDown();
+					active--;
 
-				writeLock.unlock();
+					writeLock.unlock();
+
+				} catch (Exception e) {
+					e.printStackTrace();
+					throw e;
+				}
 			});
 
 		awaitCdl();

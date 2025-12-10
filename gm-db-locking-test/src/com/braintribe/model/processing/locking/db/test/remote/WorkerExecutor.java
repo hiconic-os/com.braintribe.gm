@@ -22,10 +22,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import com.braintribe.common.db.DbVendor;
 import com.braintribe.common.db.wire.DbTestConnectionsWireModule;
 import com.braintribe.common.db.wire.contract.DbTestDataSourcesContract;
 import com.braintribe.model.processing.locking.db.impl.DbLocking;
+import com.braintribe.model.processing.locking.db.impl_weird.DbLockingRemoteTest;
 import com.braintribe.model.processing.locking.db.test.wire.contract.DbLockingTestContract;
 import com.braintribe.utils.DateTools;
 import com.braintribe.wire.api.Wire;
@@ -92,8 +92,8 @@ public class WorkerExecutor implements ThreadCompleteListener {
 				.bindContract(DbTestDataSourcesContract.class, dbResourcesContext.contract()) //
 				.build();
 
-		DbLocking locking = lockingWireContext.contract().locking(DbVendor.derby);
-		
+		DbLocking locking = lockingWireContext.contract().locking(DbLockingRemoteTest.REMOTE_TEST_DB_VENDOR);
+
 		int failProbability = Integer.parseInt(this.props.get("failProbability"));
 		int iterations = Integer.parseInt(this.props.get("iterations"));
 		long maxWait = Long.parseLong(this.props.get("maxWait"));

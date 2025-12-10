@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.processing.locking.db.impl;
+package com.braintribe.model.processing.locking.db.impl_weird;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,6 +25,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 import com.braintribe.common.db.DbVendor;
+import com.braintribe.model.processing.locking.db.impl.DbLocking;
 import com.braintribe.model.processing.locking.db.test.remote.JvmExecutor;
 import com.braintribe.model.processing.locking.db.test.remote.RemoteProcess;
 import com.braintribe.model.processing.locking.db.test.wire.contract.DbLockingTestContract;
@@ -39,20 +40,19 @@ import com.braintribe.utils.FileTools;
  * 
  * @see DbLockingTestContract
  */
-public class DbLockingRemoteTest extends AbstractDbLockingTestBase {
+public class DbLockingRemoteTest {
 
 	public static final String IDENTIFIER = "someIdentifier";
-
-	public DbLockingRemoteTest(DbVendor vendor) {
-		super(vendor);
-	}
 
 	private final static long INTERVAL = 500L;
 	private final static long LOCK_TIMEOUT = INTERVAL * 20;
 
-	// ###############################################
-	// ## . . . . . . . . . Tests . . . . . . . . . ##
-	// ###############################################
+	// ##################################################################################################################
+	//
+	// ---> NOTE: This only works with a real DB like Postgres (it also worked with derby, but who cares)
+	//
+	// ##################################################################################################################
+	public static final DbVendor REMOTE_TEST_DB_VENDOR = DbVendor.postgres;
 
 	@Test
 	@Category(VerySlow.class)
@@ -76,10 +76,10 @@ public class DbLockingRemoteTest extends AbstractDbLockingTestBase {
 			int expected = worker * iterations;
 			print("Read number: " + number + ", Expecting " + expected);
 			assertThat(number).isEqualTo(expected);
+
 		} finally {
 			FileTools.deleteFile(tempFile);
 		}
-
 	}
 
 	@Test

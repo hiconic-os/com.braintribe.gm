@@ -20,6 +20,7 @@ import static com.braintribe.utils.lcd.CollectionTools2.asList;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.HashMap;
@@ -82,6 +83,7 @@ public class DbLocking implements Locking, LifecycleAware {
 	public static final int DEFAULT_LOCK_EXPIRATION_MS = 5 * 60 * 1000;
 
 	/* package */ DataSource dataSource;
+	/* package */ JdbcDialect dialect;
 
 	private Supplier<MessagingSession> messagingSessionProvider;
 
@@ -100,9 +102,13 @@ public class DbLocking implements Locking, LifecycleAware {
 
 	private final DbLockRefresher refresher = new DbLockRefresher(this);
 
-	// @formatter:off
-	@Required     public void setDataSource(DataSource dataSource) { this.dataSource = dataSource; }
+	@Required
+	public void setDataSource(DataSource dataSource) {
+		this.dataSource = dataSource;
+		this.dialect = JdbcDialect.detectDialect(dataSource);
+	}
 
+	// @formatter:off
 	@Configurable public void setAutoUpdateSchema(boolean autoUpdateSchema) { this.autoUpdateSchema = autoUpdateSchema; }
 
 	/**
@@ -285,7 +291,7 @@ public class DbLocking implements Locking, LifecycleAware {
 			StackTraceElement stackTraceElement = Thread.currentThread().getStackTrace()[n++];
 
 			String className = stackTraceElement.getClassName();
-			if (className.startsWith(Locking.class.getName()) || className.startsWith("tribefire.proxy.deploy.Locking"))
+			if (className.startsWith(DbLocking.class.getName()) || className.startsWith(Locking.class.getName()) || className.startsWith("tribefire.proxy.deploy.Locking"))
 				continue;
 
 			int lineNumber = stackTraceElement.getLineNumber();
@@ -508,6 +514,47 @@ public class DbLocking implements Locking, LifecycleAware {
 			Timestamp currentTs = new Timestamp(current);
 			Timestamp expiresTs = new Timestamp(expires);
 
+			boolean result = tryInsert(c, currentTs, expiresTs);
+
+			if (result)
+				rwLock.created = currentTs;
+			return result;
+		}
+
+		private boolean tryInsert(Connection c, Timestamp currentTs, Timestamp expiresTs) {
+			switch (dialect.knownDbVariant()) {
+				case postgre:
+					return tryInsertPostgres(c, currentTs, expiresTs);
+				default:
+					return tryInsertStandard(c, currentTs, expiresTs);
+			}
+		}
+
+		private boolean tryInsertPostgres(Connection c, Timestamp currentTs, Timestamp expiresTs) {
+			String query = "insert into " + DB_TABLE_NAME
+					+ " (id, reentranceId, count, expires, created, caller, machine) values (?,?,?,?,?,?,?) on conflict (id) do nothing;";
+			return tryInsertWithConflictHandling(c, currentTs, expiresTs, query);
+		}
+
+		private boolean tryInsertWithConflictHandling(Connection c, Timestamp currentTs, Timestamp expiresTs, String query) {
+			Box<Integer> updated = new Box<>();
+			JdbcTools.withPreparedStatement(c, query, () -> "inserting entry for lock with id " + rwLock.id, ps -> {
+				int i = 1;
+				ps.setString(i++, rwLock.id);
+				ps.setString(i++, reentranceId);
+				ps.setInt(i++, 1); // count
+				ps.setTimestamp(i++, expiresTs);
+				ps.setTimestamp(i++, currentTs);
+				ps.setString(i++, rwLock.caller);
+				ps.setString(i++, "machine"); // TODO machine
+
+				updated.value = ps.executeUpdate();
+			});
+
+			return updated.value > 0;
+		}
+
+		private boolean tryInsertStandard(Connection c, Timestamp currentTs, Timestamp expiresTs) {
 			String query = "insert into " + DB_TABLE_NAME + " (id, reentranceId, count, expires, created, caller, machine) values (?,?,?,?,?,?,?)";
 
 			try {
@@ -524,10 +571,12 @@ public class DbLocking implements Locking, LifecycleAware {
 					ps.executeUpdate();
 				});
 
-				rwLock.created = currentTs;
 				return true;
 
 			} catch (Exception e) {
+				if (e.getCause() instanceof SQLSyntaxErrorException)
+					throw new RuntimeException(e);
+
 				// Exception is expected here if a row already exists
 				log.trace(() -> "Lock not obtained due to " + e.getClass().getSimpleName() + ""
 						+ (e.getMessage() != null ? ": " + e.getMessage() : ""));
@@ -535,7 +584,6 @@ public class DbLocking implements Locking, LifecycleAware {
 				return false;
 			}
 		}
-
 		private boolean tryIncreaseCount(Connection c) {
 			Timestamp created = queryCreatedTime(c);
 			if (!tryChangeCount(c, created, +1))
