@@ -11,6 +11,7 @@ public interface FetchBuilder {
 	FetchBuilder queryFactory(FetchQueryFactory queryFactory);
 	FetchBuilder executor(ExecutorService executor);
 	FetchBuilder bulkSize(int bulkSize);
+	FetchBuilder toOneJoinThreshold(int toOneJoinThreshold);
 	FetchBuilder toOneScalarThreshold(int threshold);
 	FetchBuilder joinProbabilityThreshold(double threshold);
 	FetchBuilder joinProbabilityDefault(double probability);

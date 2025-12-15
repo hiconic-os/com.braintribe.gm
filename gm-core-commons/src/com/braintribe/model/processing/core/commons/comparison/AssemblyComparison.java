@@ -18,10 +18,20 @@ package com.braintribe.model.processing.core.commons.comparison;
 import java.util.Comparator;
 import java.util.function.Function;
 
+import com.braintribe.model.generic.GenericEntity;
+import com.braintribe.model.generic.path.api.IListItemModelPathElement;
+import com.braintribe.model.generic.path.api.IMapKeyModelPathElement;
+import com.braintribe.model.generic.path.api.IMapValueModelPathElement;
 import com.braintribe.model.generic.path.api.IModelPathElement;
+import com.braintribe.model.generic.path.api.IPropertyModelPathElement;
+import com.braintribe.model.generic.path.api.IPropertyRelatedModelPathElement;
+import com.braintribe.model.generic.path.api.ISetItemModelPathElement;
 import com.braintribe.model.generic.reflection.CollectionType;
+import com.braintribe.model.generic.reflection.EssentialCollectionTypes;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.MapType;
+import com.braintribe.model.generic.reflection.Property;
+import com.braintribe.model.generic.reflection.SetType;
 import com.braintribe.model.processing.traversing.api.path.TraversingModelPathElement;
 
 public class AssemblyComparison {
@@ -203,6 +213,106 @@ public class AssemblyComparison {
 		}
 	}
 	
+	public String stringifyPath() {
+		return stringify(lastPathElement);
+	}
 	
+
+	private String stringify(IModelPathElement element) {
+		StringBuilder builder = new StringBuilder();
+		stringify(element, builder, 0);
+		return builder.toString();
+	}
+
+	/* Company@13.address.city.name Company@13.contracts[0].name Company@13.contracts[someString].name Company@13.contracts[someString].name
+	 * Company@13.personToAddress[Person@1].street; Company@13.personToAddress(Person@1).address; */
+
+	private void stringify(IModelPathElement element, StringBuilder builder, int depth) {
+
+		if (depth > 100) {
+			builder.append("...");
+			return;
+		}
+		
+		IModelPathElement previous = element.getPrevious();
+
+		if (previous != null)
+			stringify(previous, builder, depth + 1);
+
+		switch (element.getElementType()) {
+			case Root:
+			case EntryPoint:
+				builder.append(element.getType().getTypeSignature());
+				break;
+			case ListItem:
+				builder.append('[');
+				builder.append(((IListItemModelPathElement) element).getIndex());
+				builder.append(']');
+				break;
+			case SetItem:
+				builder.append('(');
+				ISetItemModelPathElement setElement = (ISetItemModelPathElement) element;
+				SetType setType = (SetType) getCollectionType(setElement);
+				GenericModelType setElementType = setType.getCollectionElementType();
+				builder.append(stringify(setElementType, setElement.getValue()));
+				builder.append(')');
+				break;
+			case MapKey:
+				break;
+			case MapValue:
+				IMapKeyModelPathElement mapKeyElement = (IMapKeyModelPathElement) element;
+				MapType mapType = (MapType) getCollectionType(mapKeyElement);
+				GenericModelType keyType = mapType.getKeyType();
+				builder.append('[');
+				builder.append(stringify(keyType, mapKeyElement.getValue()));
+				builder.append(']');
+				break;
+			case Property:
+				builder.append(".");
+				IPropertyModelPathElement iPropertyModelPathElement = (IPropertyModelPathElement) element;
+				builder.append(iPropertyModelPathElement.getProperty().getName());
+				Object value = iPropertyModelPathElement.getValue();
+				if (value instanceof GenericEntity) {
+					GenericEntity e = (GenericEntity)value;
+					builder.append(":");
+					builder.append(e.entityType().getShortName());
+					builder.append((Object)e.getId());
+				}
+				break;
+		}
+	}
+
+	private CollectionType getCollectionType(IPropertyRelatedModelPathElement element) {
+		Property property = element.getProperty();
+
+		if (property != null)
+			return (CollectionType) property.getType();
+
+		if (element instanceof ISetItemModelPathElement) {
+			return EssentialCollectionTypes.TYPE_SET;
+		} else if (element instanceof IMapKeyModelPathElement) {
+			return EssentialCollectionTypes.TYPE_MAP;
+		} else if (element instanceof IMapValueModelPathElement) {
+			return EssentialCollectionTypes.TYPE_MAP;
+		} else if (element instanceof IListItemModelPathElement) {
+			return EssentialCollectionTypes.TYPE_LIST;
+		}
+
+		throw new IllegalStateException("unexpected element type " + element.getType());
+	}
+
+	private String stringify(GenericModelType type, Object value) {
+		if (type.isBase())
+			type = type.getActualType(value);
+
+		if (type.isEntity()) {
+			GenericEntity entity = (GenericEntity) value;
+			return entity.entityType().getShortName() + "@" + entity.getId();
+		} else {
+			return String.valueOf(value);
+		}
+
+	}
+
 }
 

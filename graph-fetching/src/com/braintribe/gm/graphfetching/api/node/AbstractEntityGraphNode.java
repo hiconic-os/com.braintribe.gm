@@ -29,4 +29,6 @@ public interface AbstractEntityGraphNode extends TypedGraphNode {
     FetchQualification toOneQualification();
     
     FetchQualification toManyQualification();
+    
+    FetchQualification allQualification();
 }

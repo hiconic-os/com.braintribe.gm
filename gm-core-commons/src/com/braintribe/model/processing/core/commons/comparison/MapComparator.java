@@ -92,7 +92,7 @@ public class MapComparator implements Comparator<Object> {
 				GenericModelType actualKeyType = keyType.getActualType(k1);
 				GenericModelType actualValueType = valueType.getActualType(v1);
 				TraversingModelPathElement predecessor = assemblyComparison.peekElement();
-				keyElement = new TraversingMapKeyModelPathElement(predecessor, v1, actualValueType, k1, actualKeyType, e1);
+				keyElement = new TraversingMapKeyModelPathElement(predecessor, k1, actualValueType, v1, actualKeyType, e1);
 				valueElement = new TraversingMapValueModelPathElement(keyElement);
 			}
 			

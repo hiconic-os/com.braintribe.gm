@@ -5,6 +5,9 @@ import com.braintribe.model.generic.reflection.Property;
 
 public interface FetchSource {
 	int pos();
+	int selectEntityId(Property property);
+	int selectEntityId(String propertyName);
+
 	FetchJoin leftJoin(Property property);
 	FetchJoin join(Property property);
 	int scalarCount();

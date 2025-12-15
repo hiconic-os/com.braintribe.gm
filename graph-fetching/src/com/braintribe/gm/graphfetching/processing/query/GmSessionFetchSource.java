@@ -32,7 +32,19 @@ public class GmSessionFetchSource implements FetchSource {
 	public int pos() {
 		return pos;
 	}
-
+	
+	@Override
+	public int selectEntityId(Property property) {
+		// TODO: implement
+		throw new UnsupportedOperationException();
+	}
+	
+	@Override
+	public int selectEntityId(String propertyName) {
+		// TODO: implement
+		throw new UnsupportedOperationException();
+	}
+	
 	@Override
 	public FetchJoin leftJoin(Property property) {
 		return join(property, JoinType.left);

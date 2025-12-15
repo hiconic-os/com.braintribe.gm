@@ -26,12 +26,14 @@ public class FetchBuilderImpl implements FetchBuilder {
 	private int toOneScalarThreshold = 500;
 	private FetchParallelization parallelization = FetchParallelization.FETCH_AND_BULK;
 	private boolean polymorphicJoin = false;
+	private int toOneJoinThreshold = 1;
 	
 	public FetchBuilderImpl(PersistenceGmSession session, EntityGraphNode node) {
 		super();
 		this.session = session;
 		this.node = node;
 	}
+	
 	@Override
 	public FetchBuilder queryFactory(FetchQueryFactory queryFactory) {
 		this.queryFactory = queryFactory;
@@ -47,6 +49,12 @@ public class FetchBuilderImpl implements FetchBuilder {
 	@Override
 	public FetchBuilder toOneScalarThreshold(int threshold) {
 		toOneScalarThreshold = threshold;
+		return this;
+	}
+	
+	@Override
+	public FetchBuilder toOneJoinThreshold(int toOneJoinThreshold) {
+		this.toOneJoinThreshold  = toOneJoinThreshold;
 		return this;
 	}
 	
@@ -136,6 +144,7 @@ public class FetchBuilderImpl implements FetchBuilder {
 		fetchProcessing.setToOneScalarThreshold(toOneScalarThreshold);
 		fetchProcessing.setParallelization(parallelization);
 		fetchProcessing.setPolymorphicJoin(polymorphicJoin);
+		fetchProcessing.setToOneJoinThreshold(toOneJoinThreshold);
 		
 		return fetchProcessing;
 			

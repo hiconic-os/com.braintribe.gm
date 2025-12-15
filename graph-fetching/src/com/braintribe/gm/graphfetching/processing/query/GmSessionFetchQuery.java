@@ -52,6 +52,12 @@ public class GmSessionFetchQuery implements FetchQuery {
 	}
 	
 	@Override
+	public FetchSource fromHydrated() {
+		// TODO: implement
+		throw new UnsupportedOperationException();
+	}
+	
+	@Override
 	public FetchResults fetchFor(Set<Object> entityIds) {
 		List<ListRecord> records = session.queryDetached().select(query).setVariable(VAR_NAME_IDS, entityIds).list();
 		return new GmSessionFetchResults(records);

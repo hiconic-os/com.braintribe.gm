@@ -108,7 +108,7 @@ public class EntityComparator implements Comparator<GenericEntity> {
 
 			if (absent1) {
 				if (absent2) {
-					return 0;
+					continue;
 				} else {
 					assemblyComparison.setMismatchDescription(
 							"absence information mismatch on property " + property.getName() + ": " + id1 + " vs. " + id2 + ".");

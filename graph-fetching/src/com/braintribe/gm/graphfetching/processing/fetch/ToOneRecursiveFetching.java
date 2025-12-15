@@ -142,11 +142,14 @@ public class ToOneRecursiveFetching {
 	private int selectCountStopThreshold;
 	private double defaultJoinProbability;
 	private double joinProbabilityThreshold;
+	private double toOneJoinThreshold;
+	private int joinCount = 0;
 
 	public ToOneRecursiveFetching(FetchContext context, AbstractEntityGraphNode node) {
 		selectCountStopThreshold = context.toOneSelectCountStopThreshold();
 		defaultJoinProbability = context.defaultJoinProbability();
 		joinProbabilityThreshold = context.joinProbabiltyThreshold();
+		toOneJoinThreshold = context.toOneJoinThreshold();
 		rootNode = node;
 		CyclicRecurrenceCheck check = new CyclicRecurrenceCheck();
 
@@ -154,7 +157,7 @@ public class ToOneRecursiveFetching {
 
 		supportsSubTypeJoin = queryFactory.supportsSubTypeJoin() && context.polymorphicJoin();
 		
-		fetchQuery = queryFactory.createQueryToOneOnly(node.entityType(), context.session().getAccessId());
+		fetchQuery = queryFactory.createQuery(node.entityType(), context.session().getAccessId());
 		
 		FetchSource from = fetchQuery.from();
 		rootMapping = new ExistingEntityMapping(node, from);
@@ -202,19 +205,20 @@ public class ToOneRecursiveFetching {
 			try (FetchResults results = fetchQuery.fetchFor(ids)) {
 				wiringContext.handleRows(results);
 			}
+		}, () -> {
+			Duration duration = Duration.ofNanos(System.nanoTime() - nanoStart);
+			logger.trace(() -> "consumed " + duration.toMillis() + " ms for querying " + allIds.size() + " entities in " + idBulks.size()
+					+ " batches with: " + fetchQuery.stringify());
+
+			for (Map.Entry<AbstractEntityGraphNode, Map<Object, GenericEntity>> entry : wiringContext.postProcessing.toManies.entrySet()) {
+				context.enqueueToManyIfRequired(entry.getKey(), entry.getValue());
+			}
+
+			for (Map.Entry<AbstractEntityGraphNode, Map<Object, GenericEntity>> entry : wiringContext.postProcessing.toOnes.entrySet()) {
+				context.enqueueToOneIfRequired(entry.getKey(), entry.getValue());
+			}
+			
 		});
-
-		Duration duration = Duration.ofNanos(System.nanoTime() - nanoStart);
-		logger.trace(() -> "consumed " + duration.toMillis() + " ms for querying " + allIds.size() + " entities in " + idBulks.size()
-				+ " batches with: " + fetchQuery.stringify());
-
-		for (Map.Entry<AbstractEntityGraphNode, Map<Object, GenericEntity>> entry : wiringContext.postProcessing.toManies.entrySet()) {
-			context.enqueueToManyIfRequired(entry.getKey(), entry.getValue());
-		}
-
-		for (Map.Entry<AbstractEntityGraphNode, Map<Object, GenericEntity>> entry : wiringContext.postProcessing.toOnes.entrySet()) {
-			context.enqueueToOneIfRequired(entry.getKey(), entry.getValue());
-		}
 	}
 
 	/**
@@ -387,7 +391,7 @@ public class ToOneRecursiveFetching {
 	private void registerMappingWithJoins(EntityMapping refererMapping, CyclicRecurrenceCheck check) {
 		mappings.add(refererMapping);
 		
-		if (selectCount >= selectCountStopThreshold || refererMapping.probability < joinProbabilityThreshold) {
+		if (joinCount > toOneJoinThreshold || selectCount >= selectCountStopThreshold || refererMapping.probability < joinProbabilityThreshold) {
 			refererMapping.setRecursionStop(true);
 			return;
 		}
@@ -423,6 +427,7 @@ public class ToOneRecursiveFetching {
 					if (subTypeJoin)
 						fetchSource = fetchSource.as(joinableNode.entityType());
 
+					joinCount++;
 					FetchSource join = fetchSource.leftJoin(property);
 					FetchedEntityMapping fetchedMapping = new FetchedEntityMapping(property, join, refererMapping.probability * localProbability);
 					

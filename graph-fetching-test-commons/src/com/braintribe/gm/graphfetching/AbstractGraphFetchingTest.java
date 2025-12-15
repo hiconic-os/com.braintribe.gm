@@ -29,9 +29,13 @@ import com.braintribe.gm._GraphFetchingTestModel_;
 import com.braintribe.gm.graphfetching.api.FetchBuilder;
 import com.braintribe.gm.graphfetching.api.Fetching;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
+import com.braintribe.gm.graphfetching.test.gen.TechDataGenerator;
+import com.braintribe.gm.graphfetching.test.gen.TechDataGenerator.Config;
+import com.braintribe.gm.graphfetching.test.gen.TechDataGenerator.IdMode;
 import com.braintribe.gm.graphfetching.test.model.Company;
 import com.braintribe.gm.graphfetching.test.model.Person;
 import com.braintribe.gm.graphfetching.test.model.data.DataManagement;
+import com.braintribe.gm.graphfetching.test.model.tech.Entitya;
 import com.braintribe.model.access.IncrementalAccess;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
@@ -43,6 +47,7 @@ import com.braintribe.model.generic.path.api.IPropertyModelPathElement;
 import com.braintribe.model.generic.path.api.IPropertyRelatedModelPathElement;
 import com.braintribe.model.generic.path.api.ISetItemModelPathElement;
 import com.braintribe.model.generic.reflection.CollectionType;
+import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EssentialCollectionTypes;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.MapType;
@@ -53,8 +58,10 @@ import com.braintribe.model.processing.core.commons.comparison.AssemblyCompariso
 import com.braintribe.model.processing.core.commons.comparison.AssemblyComparisonResult;
 import com.braintribe.model.processing.meta.oracle.BasicModelOracle;
 import com.braintribe.model.processing.query.building.EntityQueries;
+import com.braintribe.model.processing.query.building.SelectQueries;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
 import com.braintribe.model.query.EntityQuery;
+import com.braintribe.model.query.From;
 import com.braintribe.testing.junit.assertions.assertj.core.api.Assertions;
 import com.braintribe.testing.tools.gm.GmTestTools;
 import com.braintribe.utils.paths.UniversalPath;
@@ -64,8 +71,9 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 
 	protected static GmMetaModel model = GMF.getTypeReflection().getModel(_GraphFetchingTestModel_.name).getMetaModel();
 
-	private static TestDataSeeder seeder;
-	private static DataSourceDataGenerator dataGenerator;
+	protected static TestDataSeeder seeder;
+	protected static DataSourceDataGenerator dataGenerator;
+	protected static TechDataGenerator techDataGenerator;
 
 	private void configureLogging() {
 		LogManager.getLogManager().reset();
@@ -166,18 +174,51 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 			context.access = buildAccess();
 			
 			PersistenceGmSession session = GmTestTools.newSession(context.access);
-			seeder = new TestDataSeeder(session, generateIds());
-			session.commit();
+
+			From cSource = SelectQueries.source(Company.T);
+			long cCount = session.queryDetached().select(SelectQueries.from(cSource).select(SelectQueries.count(cSource))).unique();
+			if (cCount == 0) {
+				seeder = new TestDataSeeder(session, generateIds());
+				session.commit();
+			} 
+			else {
+				seeder = new TestDataSeeder(generateIds());
+			}
+
+			From dmSource = SelectQueries.source(DataManagement.T);
+			long dmCount = session.queryDetached().select(SelectQueries.from(dmSource).select(SelectQueries.count(dmSource))).unique();
+			if (dmCount == 0) {
+				dataGenerator = new DataSourceDataGenerator(session, generateIds());
+				session.commit();
+			}
+			else {
+				dataGenerator = new DataSourceDataGenerator(null, generateIds());
+			}
+
+			From source = SelectQueries.source(Entitya.T);
+			long count = session.queryDetached().select(SelectQueries.from(source).select(SelectQueries.count(source))).unique();
 			
-			dataGenerator = new DataSourceDataGenerator(session, generateIds());
-			session.commit();
+			Config config = new Config();
+			config.setNullRateToOne(0.25);
+			config.setIdMode(IdMode.LONG);
+			config.setPartition(session.getAccessId());
+			
+			if (count == 0) {
+				techDataGenerator = new TechDataGenerator(config, session::create);
+				techDataGenerator.generateAll();
+				session.commit();
+			}
+			else {
+				techDataGenerator = new TechDataGenerator(config, EntityType::create);
+				techDataGenerator.generateAll();
+			}
 
 			return context;
         });
     }
 	
 	protected boolean generateIds() {
-		return false;
+		return true;
 	}
 	
 	@Before
@@ -352,7 +393,7 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 
 	}
 
-	private String stringify(IModelPathElement element) {
+	protected String stringify(IModelPathElement element) {
 		StringBuilder builder = new StringBuilder();
 		stringify(element, builder);
 		return builder.toString();
@@ -386,16 +427,25 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 				builder.append(stringify(setElementType, setElement.getValue()));
 				builder.append(')');
 				break;
-			case MapKey:
-				break;
-			case MapValue:
+			case MapKey: {
 				IMapKeyModelPathElement mapKeyElement = (IMapKeyModelPathElement) element;
+				MapType mapType = (MapType) getCollectionType(mapKeyElement);
+				GenericModelType keyType = mapType.getKeyType();
+				builder.append('[');
+				builder.append(stringify(keyType, mapKeyElement.getValue()));
+				builder.append("]^");
+				break;
+			}
+			case MapValue: {
+				IMapValueModelPathElement mapValueElement = (IMapValueModelPathElement) element;
+				IMapKeyModelPathElement mapKeyElement = mapValueElement.getKeyElement();
 				MapType mapType = (MapType) getCollectionType(mapKeyElement);
 				GenericModelType keyType = mapType.getKeyType();
 				builder.append('[');
 				builder.append(stringify(keyType, mapKeyElement.getValue()));
 				builder.append(']');
 				break;
+			}
 			case Property:
 				builder.append(".");
 				builder.append(((IPropertyModelPathElement) element).getProperty().getName());

@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import com.braintribe.common.lcd.Pair;
 import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
@@ -254,18 +253,17 @@ public class ToManyFetching {
 			Function<GenericEntity, GenericEntity> keyVisitor = plan.keyVisitor();
 			Function<GenericEntity, GenericEntity> valueVisitor = plan.valueVisitor();
 			
-			fetch(context, node.entityType(), plan.entityNode.entityType(),fetchTask, plan.collectionType, 
-					property, keyVisitor, valueVisitor);
-			
-			plan.postProcess();
+			fetch(context, node.entityType(), plan, fetchTask, property, keyVisitor, valueVisitor);
 		}
 	}
 
 	/**
 	 * Bulk fetching for each collection property in the graph; assigns collections back to owning entities.
 	 */
-	public static <E, K> void fetch(FetchContext context, EntityType<?> baseType, EntityType<?> type, FetchTask fetchTask, CollectionType collectionType,
+	public static <E, K> void fetch(FetchContext context, EntityType<?> baseType, CollectionFetchPlan plan, FetchTask fetchTask,
 			Property property, Function<K, K> keyVisitor, Function<E, E> valueVisitor) {
+		EntityType<?> type = plan.entityNode.entityType();
+		CollectionType collectionType = plan.collectionType;
 		Map<Object, GenericEntity> entityIndex = fetchTask.entities;
 		
 		Map<Object, Object> collections = new HashMap<>();
@@ -302,12 +300,14 @@ public class ToManyFetching {
 					collectionAdder.addAndNotify(results);
 				}
 			}
+		}, () -> {
+			long queryDuration = System.nanoTime() - queryNanoStart;
+
+			logger.trace(() -> "consumed " + Duration.ofNanos(queryDuration).toMillis() + " ms for querying " + allIds.size() + " entities in "
+					+ idBulks.size() + " batches with: " + fetchQuery.stringify());
+			
+			plan.postProcess();
 		});
-
-		long queryDuration = System.nanoTime() - queryNanoStart;
-
-		logger.trace(() -> "consumed " + Duration.ofNanos(queryDuration).toMillis() + " ms for querying " + allIds.size() + " entities in "
-				+ idBulks.size() + " batches with: " + fetchQuery.stringify());
 	}
 	
 	private static <K, V> CollectionAdder createCollectionAdder(CollectionType collectionType, Function<K, K> keyVisitor, Function<V,V> valueVisitor) {
@@ -355,10 +355,6 @@ public class ToManyFetching {
 			if (v != null && valueVisitor != null)
 				v = valueVisitor.apply(v);
 
-			if (collection instanceof List<?> && collection.contains(v))
-				System.out.println("now");
-				
-			
 			collection.add(v);
 		}
 	}
