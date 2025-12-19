@@ -291,7 +291,8 @@ public class DbLocking implements Locking, LifecycleAware {
 			StackTraceElement stackTraceElement = Thread.currentThread().getStackTrace()[n++];
 
 			String className = stackTraceElement.getClassName();
-			if (className.startsWith(DbLocking.class.getName()) || className.startsWith(Locking.class.getName()) || className.startsWith("tribefire.proxy.deploy.Locking"))
+			if (className.startsWith(DbLocking.class.getName()) || className.startsWith(Locking.class.getName())
+					|| className.startsWith("tribefire.proxy.deploy.Locking"))
 				continue;
 
 			int lineNumber = stackTraceElement.getLineNumber();
@@ -553,6 +554,19 @@ public class DbLocking implements Locking, LifecycleAware {
 
 			return updated.value > 0;
 		}
+
+		// @formatter:off
+		/* For some DBs we could do an insert without duplicate key violation this ways:
+		 *  	insert into hc_locking (id, reentranceId, count, expires, created, caller, machine)
+		 *  		select ?, ?, ?, ?, ?, ?, ?
+		 *			where not exists (select 1 from hc_locking where id = ?);
+		 *
+		 *  But it's a bit tricky, because it doesn't work out of the box, as the default isolation level for JDBC is READ_COMMITTED
+		 *	-> hence two parallel query executions both see the row with given id doesn't exist and try to insert
+		 *  -> It might work if for this query only we set the
+		 *  		connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+		 */
+		// @formatter:on
 
 		private boolean tryInsertStandard(Connection c, Timestamp currentTs, Timestamp expiresTs) {
 			String query = "insert into " + DB_TABLE_NAME + " (id, reentranceId, count, expires, created, caller, machine) values (?,?,?,?,?,?,?)";
