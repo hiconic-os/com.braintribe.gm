@@ -55,6 +55,7 @@ import com.braintribe.model.meta.data.prompt.Deprecated;
 import com.braintribe.model.meta.data.prompt.Description;
 import com.braintribe.model.meta.data.prompt.Name;
 import com.braintribe.model.meta.data.prompt.Priority;
+import com.braintribe.model.meta.data.query.Version;
 import com.braintribe.model.processing.itw.analysis.JavaTypeAnalysis;
 import com.braintribe.model.processing.itw.analysis.JavaTypeAnalysisException;
 import com.braintribe.model.processing.test.jta.model.EntityWithAnnotations;
@@ -100,6 +101,7 @@ public class JtaAnnotationProcessingTest {
 		assertPropertyMd("emphasized", Emphasized.T);
 		assertPropertyMd("colored", Color.T, "code", "#0F0");
 		assertPropertyMd("deprecated", Deprecated.T);
+		assertPropertyMd("version", Version.T);
 
 		// enumMd
 		assertEnumDescription();

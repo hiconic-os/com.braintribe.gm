@@ -23,6 +23,7 @@ import com.braintribe.model.generic.annotation.meta.Singleton;
 import com.braintribe.model.generic.annotation.meta.TimeZoneless;
 import com.braintribe.model.generic.annotation.meta.Unique;
 import com.braintribe.model.generic.annotation.meta.Unmodifiable;
+import com.braintribe.model.generic.annotation.meta.Version;
 import com.braintribe.model.generic.annotation.meta.api.MdaHandler;
 import com.braintribe.model.generic.annotation.meta.base.BasicMdaHandler;
 
@@ -56,5 +57,8 @@ public interface PredicateMdaHandlers {
 
 	MdaHandler<Unmodifiable, com.braintribe.model.meta.data.constraint.Unmodifiable> UNMODIFIABLE = new BasicMdaHandler<>( //
 			Unmodifiable.class, com.braintribe.model.meta.data.constraint.Unmodifiable.class, Unmodifiable::globalId);
+
+	MdaHandler<Version, com.braintribe.model.meta.data.query.Version> VERSION = new BasicMdaHandler<>( //
+			Version.class, com.braintribe.model.meta.data.query.Version.class, Version::globalId);
 
 }

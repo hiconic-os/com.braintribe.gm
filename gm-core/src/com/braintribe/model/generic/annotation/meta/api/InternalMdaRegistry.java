@@ -55,7 +55,8 @@ import com.braintribe.model.meta.data.MetaData;
 				PredicateMdaHandlers.SINGLETON, //
 				PredicateMdaHandlers.TIME_ZONELESS, //
 				PredicateMdaHandlers.UNIQUE, //
-				PredicateMdaHandlers.UNMODIFIABLE //
+				PredicateMdaHandlers.UNMODIFIABLE, //
+				PredicateMdaHandlers.VERSION //
 		);
 
 		register( //

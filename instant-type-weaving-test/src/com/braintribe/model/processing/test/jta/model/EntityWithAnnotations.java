@@ -30,6 +30,7 @@ import com.braintribe.model.generic.annotation.meta.NonDeletable;
 import com.braintribe.model.generic.annotation.meta.PositionalArguments;
 import com.braintribe.model.generic.annotation.meta.Priority;
 import com.braintribe.model.generic.annotation.meta.Unique;
+import com.braintribe.model.generic.annotation.meta.Version;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
@@ -110,5 +111,9 @@ public interface EntityWithAnnotations extends GenericEntity {
 	@Deprecated
 	String getDeprecated();
 	void setDeprecated(String deprecated);
+
+	@Version
+	Long getVersion();
+	void setVersion(Long version);
 
 }
