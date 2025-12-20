@@ -205,9 +205,11 @@ public class EntityQueryTest extends AbstractQueryParserTest {
 
 	@Test
 	public void testOrderByPaginationConditionFail() throws Exception {
-		String queryString = "from " + Person.class.getName() + "order by name desc limit 20 offset 200  where name like 'firstname' ";
+		// space at the end so length  = expected failure position
+		String okPart = "from " + Person.class.getName() + " order by name desc limit 20 offset 200 ";
+		String queryString = okPart + "where name like 'firstname' ";
 
-		List<GmqlParsingError> expectedErrorList = getExpectedError(69, 1, "mismatched input 'name' expecting <EOF>", "StandardIdentifier");
+		List<GmqlParsingError> expectedErrorList = getExpectedError(okPart.length(), 1, "mismatched input 'where' expecting <EOF>", "Where");
 
 		ParsedQuery parsedQuery = QueryParser.parse(queryString);
 		validatedInvalidParsedQuery(parsedQuery, expectedErrorList);

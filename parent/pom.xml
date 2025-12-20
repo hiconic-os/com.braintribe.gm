@@ -47,7 +47,7 @@ limitations under the License.
 		<V.jakarta.servlet>6.0.0</V.jakarta.servlet>
         <V.joda-time>2.3</V.joda-time>
         <V.junit>4.11</V.junit>
-        <V.org.antlr>4.5</V.org.antlr>
+        <V.org.antlr>4.13.2</V.org.antlr>
         <V.org.apache.httpcomponents>4.5.13</V.org.apache.httpcomponents>
         <V.org.freemarker>2.3.28</V.org.freemarker>
         <V.org.snakeyaml>2.1</V.org.snakeyaml>

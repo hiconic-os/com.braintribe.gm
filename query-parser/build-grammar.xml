@@ -18,7 +18,7 @@ limitations under the License.
 
 	<target name="compile-grammar">
 
-		<property name="version" value="4.5" />
+		<property name="version" value="4.13.2" />
 		<bt:dependencies pathId="compiler-path">
 			<bt:dependency groupId="org.antlr" artifactId="antlr4" version="${version}" scope="runtime" />
 		</bt:dependencies>

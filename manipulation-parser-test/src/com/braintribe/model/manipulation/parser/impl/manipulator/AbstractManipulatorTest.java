@@ -120,6 +120,7 @@ public class AbstractManipulatorTest {
 		stringifier.setSingleBlock(true);
 		stringifier.stringify(sb, recorededManipulation);
 		manipulationString = processManipulationString(sb.toString());
+		spOut(2, "-->");
 		spOut(manipulationString);
 	}
 

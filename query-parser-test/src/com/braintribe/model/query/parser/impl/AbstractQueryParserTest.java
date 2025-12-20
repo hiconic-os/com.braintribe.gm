@@ -15,6 +15,8 @@
 // ============================================================================
 package com.braintribe.model.query.parser.impl;
 
+import static com.braintribe.utils.SysPrint.spOut;
+
 import java.util.ArrayList;
 import java.util.List;
 

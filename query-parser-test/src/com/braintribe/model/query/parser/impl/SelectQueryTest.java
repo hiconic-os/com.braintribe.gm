@@ -15,6 +15,9 @@
 // ============================================================================
 package com.braintribe.model.query.parser.impl;
 
+import static com.braintribe.utils.SysPrint.spOut;
+import static com.braintribe.utils.lcd.CollectionTools2.first;
+
 import java.util.List;
 
 import org.junit.Test;
@@ -189,20 +192,20 @@ public class SelectQueryTest extends AbstractQueryParserTest {
 
 	@Test
 	public void testSingleSelectSingleFromTypo() throws Exception {
-
 		// misspelled from
-		String queryString = "select p.name fom " + Person.class.getName() + " p";
+		String queryString = "select p.name fom Person p";
 
 		ParsedQuery parsedQuery = QueryParser.parse(queryString);
 
-		// TODO update to reflect the actual expected errors
 		BtAssertions.assertThat(parsedQuery).isNotNull();
 		BtAssertions.assertThat(parsedQuery.getErrorList()).isNotNull();
 		BtAssertions.assertThat(parsedQuery.getErrorList().isEmpty()).isEqualTo(false);
+		BtAssertions.assertThat(parsedQuery.getErrorList()).isNotEmpty();
 		BtAssertions.assertThat(parsedQuery.getQuery()).isNull();
 		BtAssertions.assertThat(parsedQuery.getSourcesRegistry()).isNotNull();
-		BtAssertions.assertThat(parsedQuery.getSourcesRegistry()).isEmpty();
-
+		
+		GmqlParsingError firstError = first(parsedQuery.getErrorList());
+		BtAssertions.assertThat(firstError.getMessage()).isEqualTo("missing From at 'fom'");
 	}
 
 	@Test
@@ -211,7 +214,7 @@ public class SelectQueryTest extends AbstractQueryParserTest {
 		String queryString = "elect id from com.braintribe.model.user.User";
 
 		ParsedQuery parsedQuery = QueryParser.parse(queryString);
-		List<GmqlParsingError> expectedErrorList = getExpectedError(0, 1, "no viable alternative at input 'elect'", "StandardIdentifier");
+		List<GmqlParsingError> expectedErrorList = getExpectedError(0, 1, "mismatched input 'elect' expecting {Select, Distinct, From, Property}", "StandardIdentifier");
 
 		validatedInvalidParsedQuery(parsedQuery, expectedErrorList);
 	}

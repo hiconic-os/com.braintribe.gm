@@ -58,9 +58,9 @@ limitations under the License.
             <version>${V.com.braintribe.gm}</version>
         </dependency>
         <dependency>
-            <groupId>org.antlr</groupId>
-            <artifactId>antlr4</artifactId>
+	        <groupId>org.antlr</groupId>
+	        <artifactId>antlr4-runtime</artifactId>
             <version>${V.org.antlr}</version>
-        </dependency>
+	    </dependency>
     </dependencies>
 </project>

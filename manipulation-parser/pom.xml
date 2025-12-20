@@ -69,7 +69,7 @@ limitations under the License.
         </dependency>
         <dependency>
             <groupId>org.antlr</groupId>
-            <artifactId>antlr4</artifactId>
+            <artifactId>antlr4-runtime</artifactId>
             <version>${V.org.antlr}</version>
         </dependency>
         <dependency>
