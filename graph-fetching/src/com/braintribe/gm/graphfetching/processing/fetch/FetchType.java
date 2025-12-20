@@ -7,5 +7,5 @@ public enum FetchType {
 	/** collection properties non-recursive */
 	TO_MANY,
 	
-	ALL
+	ALL_FLAT
 }

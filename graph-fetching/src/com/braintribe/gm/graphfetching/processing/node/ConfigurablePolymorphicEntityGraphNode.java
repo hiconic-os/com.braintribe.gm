@@ -16,6 +16,7 @@ public class ConfigurablePolymorphicEntityGraphNode implements PolymorphicEntity
 	private Boolean hasEntityProperties;
 	private FetchQualification toManyQualification = new FetchQualification(this, FetchType.TO_MANY);
 	private FetchQualification toOneQualification = new FetchQualification(this, FetchType.TO_ONE);
+	private FetchQualification allQualification = new FetchQualification(this, FetchType.ALL_FLAT);
 	
 	public ConfigurablePolymorphicEntityGraphNode(EntityType<?> entityType) {
 		super();
@@ -101,6 +102,11 @@ public class ConfigurablePolymorphicEntityGraphNode implements PolymorphicEntity
 	@Override
 	public FetchQualification toOneQualification() {
 		return toOneQualification;
+	}
+	
+	@Override
+	public FetchQualification allQualification() {
+		return allQualification;
 	}
 
 }

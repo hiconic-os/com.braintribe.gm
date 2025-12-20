@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -20,6 +21,7 @@ import com.braintribe.gm.graphfetching.api.node.ScalarCollectionPropertyGraphNod
 import com.braintribe.gm.graphfetching.api.query.FetchJoin;
 import com.braintribe.gm.graphfetching.api.query.FetchQuery;
 import com.braintribe.gm.graphfetching.api.query.FetchResults;
+import com.braintribe.gm.graphfetching.processing.util.FetchingTools;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.CollectionType;
@@ -242,25 +244,28 @@ public class ToManyFetching {
 
 	/**
 	 * Fetch all to-many properties of the given node (entity and scalar collections).
+	 * @return 
 	 */
-	public static void fetch(FetchContext context, AbstractEntityGraphNode node, FetchTask fetchTask) {
+	public static CompletableFuture<Void> fetch(FetchContext context, AbstractEntityGraphNode node, FetchTask fetchTask) {
 		boolean supportsSubTypeJoin = context.queryFactory().supportsSubTypeJoin() && context.polymorphicJoin();
 		
 		List<CollectionFetchPlan> plans = buildPlans(context, node, supportsSubTypeJoin);
-		
+		List<CompletableFuture<Void>> futures = new ArrayList<>(plans.size());
 		for (CollectionFetchPlan plan: plans) {
 			Property property = plan.property;
 			Function<GenericEntity, GenericEntity> keyVisitor = plan.keyVisitor();
 			Function<GenericEntity, GenericEntity> valueVisitor = plan.valueVisitor();
 			
-			fetch(context, node.entityType(), plan, fetchTask, property, keyVisitor, valueVisitor);
+			futures.add(fetch(context, node.entityType(), plan, fetchTask, property, keyVisitor, valueVisitor));
 		}
+		
+		return FetchingTools.futureOf(futures);
 	}
 
 	/**
 	 * Bulk fetching for each collection property in the graph; assigns collections back to owning entities.
 	 */
-	public static <E, K> void fetch(FetchContext context, EntityType<?> baseType, CollectionFetchPlan plan, FetchTask fetchTask,
+	public static <E, K> CompletableFuture<Void> fetch(FetchContext context, EntityType<?> baseType, CollectionFetchPlan plan, FetchTask fetchTask,
 			Property property, Function<K, K> keyVisitor, Function<E, E> valueVisitor) {
 		EntityType<?> type = plan.entityNode.entityType();
 		CollectionType collectionType = plan.collectionType;
@@ -283,7 +288,7 @@ public class ToManyFetching {
 
 		long queryNanoStart = System.nanoTime();
 		
-		context.processParallel(idBulks, ids -> {
+		return context.processElements(idBulks, ids -> {
 			try (FetchResults results = fetchQuery.fetchFor(ids)) {
 				CollectionAdder collectionAdder = createCollectionAdder(collectionType, keyVisitor, valueVisitor);
 				Object curId = null;
@@ -300,7 +305,7 @@ public class ToManyFetching {
 					collectionAdder.addAndNotify(results);
 				}
 			}
-		}, () -> {
+		}).thenRun(() -> {
 			long queryDuration = System.nanoTime() - queryNanoStart;
 
 			logger.trace(() -> "consumed " + Duration.ofNanos(queryDuration).toMillis() + " ms for querying " + allIds.size() + " entities in "

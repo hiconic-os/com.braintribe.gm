@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -165,7 +166,7 @@ public class ToOneRecursiveFetching {
 		registerMappingWithJoins(rootMapping, check);
 	}
 
-	public void fetch(FetchContext context, FetchTask task) {
+	public CompletableFuture<Void> fetch(FetchContext context, FetchTask task) {
 		// if there is no sub type joining we need to enqueue subtype nodes specifically for TO_ONE
 		if (!supportsSubTypeJoin) {
 			for (EntityGraphNode entityNode : rootNode.entityNodes()) {
@@ -189,7 +190,7 @@ public class ToOneRecursiveFetching {
 		}
 
 		if (mappings.size() == 1) {
-			return;
+			return CompletableFuture.completedFuture(null);
 		}
 
 		ResultWiringContext wiringContext = new ResultWiringContext(context, task.entities);
@@ -201,15 +202,15 @@ public class ToOneRecursiveFetching {
 
 		long nanoStart = System.nanoTime();
 
-		context.processParallel(idBulks, ids -> {
+		return context.processElements(idBulks, ids -> {
 			try (FetchResults results = fetchQuery.fetchFor(ids)) {
 				wiringContext.handleRows(results);
 			}
-		}, () -> {
+		}).thenRun(() -> {
 			Duration duration = Duration.ofNanos(System.nanoTime() - nanoStart);
 			logger.trace(() -> "consumed " + duration.toMillis() + " ms for querying " + allIds.size() + " entities in " + idBulks.size()
 					+ " batches with: " + fetchQuery.stringify());
-
+			
 			for (Map.Entry<AbstractEntityGraphNode, Map<Object, GenericEntity>> entry : wiringContext.postProcessing.toManies.entrySet()) {
 				context.enqueueToManyIfRequired(entry.getKey(), entry.getValue());
 			}
@@ -217,7 +218,6 @@ public class ToOneRecursiveFetching {
 			for (Map.Entry<AbstractEntityGraphNode, Map<Object, GenericEntity>> entry : wiringContext.postProcessing.toOnes.entrySet()) {
 				context.enqueueToOneIfRequired(entry.getKey(), entry.getValue());
 			}
-			
 		});
 	}
 

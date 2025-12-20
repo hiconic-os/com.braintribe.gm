@@ -21,4 +21,5 @@ public interface FetchBuilder {
 	
 	<E extends GenericEntity> List<E> fetchDetached(Collection<? extends E> entities);
 	
-	void fetch(Collection<? extends GenericEntity> entities);}
+	void fetch(Collection<? extends GenericEntity> entities);
+}

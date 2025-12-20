@@ -6,6 +6,7 @@ import java.util.Set;
 import com.braintribe.gm.graphfetching.api.query.FetchQuery;
 import com.braintribe.gm.graphfetching.api.query.FetchResults;
 import com.braintribe.gm.graphfetching.api.query.FetchSource;
+import com.braintribe.gm.graphfetching.api.query.FetchQueryOptions;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EssentialCollectionTypes;
@@ -14,7 +15,6 @@ import com.braintribe.model.processing.query.building.SelectQueries;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
 import com.braintribe.model.query.From;
 import com.braintribe.model.query.SelectQuery;
-import com.braintribe.model.query.functions.ListIndex;
 import com.braintribe.model.record.ListRecord;
 
 public class GmSessionFetchQuery implements FetchQuery {
@@ -22,11 +22,13 @@ public class GmSessionFetchQuery implements FetchQuery {
 	private final PersistenceGmSession session;
 	private final SelectQuery query;
 	private final List<Object> selections; 
-	private final FetchSource from; 
+	private final FetchSource from;
+	private FetchQueryOptions options; 
 
-	public GmSessionFetchQuery(PersistenceGmSession session, EntityType<?> entityType) {
+	public GmSessionFetchQuery(PersistenceGmSession session, EntityType<?> entityType, FetchQueryOptions options) {
 		super();
 		this.session = session;
+		this.options = options;
 		
 		From gmFrom = SelectQueries.source(entityType);
 		Variable idsVar = Variable.T.create();
@@ -36,8 +38,14 @@ public class GmSessionFetchQuery implements FetchQuery {
 
 		selections = query.getSelections();
 
-		int pos = select(SelectQueries.property(gmFrom, GenericEntity.id));
+		Object select = options.getHydrateFrom()? gmFrom: SelectQueries.property(gmFrom, GenericEntity.id); 
+		
+		int pos = select(select);
 		from = new GmSessionFetchSource(this, entityType, gmFrom, pos);
+	}
+	
+	public FetchQueryOptions getOptions() {
+		return options;
 	}
 	
 	public int select(Object select) {
@@ -49,12 +57,6 @@ public class GmSessionFetchQuery implements FetchQuery {
 	@Override
 	public FetchSource from() {
 		return from;
-	}
-	
-	@Override
-	public FetchSource fromHydrated() {
-		// TODO: implement
-		throw new UnsupportedOperationException();
 	}
 	
 	@Override

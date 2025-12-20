@@ -29,7 +29,7 @@ public class ConfigurableEntityGraphNode extends BaseTypedGraphNode implements E
 	private EntityType<?> entityType;
 	private FetchQualification toManyQualification = new FetchQualification(this, FetchType.TO_MANY);
 	private FetchQualification toOneQualification = new FetchQualification(this, FetchType.TO_ONE);
-	private FetchQualification allQualification = new FetchQualification(this, FetchType.ALL);
+	private FetchQualification allQualification = new FetchQualification(this, FetchType.ALL_FLAT);
 	
 	public ConfigurableEntityGraphNode(EntityType<?> entityType, InferableGraphNode... subNodes) {
 		this(entityType, Arrays.asList(subNodes));

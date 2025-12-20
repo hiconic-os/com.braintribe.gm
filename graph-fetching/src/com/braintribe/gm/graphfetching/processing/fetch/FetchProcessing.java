@@ -11,11 +11,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
@@ -27,23 +26,23 @@ import com.braintribe.common.lcd.Pair;
 import com.braintribe.gm.graphfetching.api.FetchParallelization;
 import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
-import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityRelatedPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.FetchQualification;
+import com.braintribe.gm.graphfetching.api.node.MapPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.PropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.ScalarCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.query.FetchQuery;
 import com.braintribe.gm.graphfetching.api.query.FetchQueryFactory;
 import com.braintribe.gm.graphfetching.api.query.FetchResults;
 import com.braintribe.gm.graphfetching.api.query.FetchSource;
+import com.braintribe.gm.graphfetching.api.query.FetchQueryOptions;
 import com.braintribe.gm.graphfetching.processing.query.GmSessionFetchQueryFactory;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GenericEntity;
-import com.braintribe.model.generic.pr.AbsentEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.LinearCollectionType;
+import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.model.generic.reflection.Property;
-import com.braintribe.model.generic.value.PreliminaryEntityReference;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
 import com.braintribe.utils.collection.impl.AttributeContexts;
 import com.braintribe.utils.lcd.CollectionTools2;
@@ -59,7 +58,6 @@ public class FetchProcessing implements FetchContext {
 	private Queue<FetchTask> taskQueue = new LinkedList<>();
 
 	private AtomicInteger parallelTaskCounter = new AtomicInteger();
-	private ConcurrentLinkedQueue<Future<?>> futures = new ConcurrentLinkedQueue<>();
 	private ReentrantLock parallelDoneMonitor = new ReentrantLock();
 	private Condition parallelDoneCondition = parallelDoneMonitor.newCondition();
 	private PersistenceGmSession session;
@@ -159,19 +157,36 @@ public class FetchProcessing implements FetchContext {
 	 */
 	public void fetch(EntityGraphNode node, Map<Object, GenericEntity> entities) {
 		long nanosStart = System.nanoTime();
-		FetchQualification fqToOne = new FetchQualification(node, FetchType.TO_ONE);
-		FetchQualification fqToMany = new FetchQualification(node, FetchType.TO_MANY);
-		for (GenericEntity entity : entities.values()) {
-			EntityIdm idm = acquireEntity(entity);
-			idm.addHandled(fqToOne);
-			idm.addHandled(fqToMany);
+		
+		if (toOneJoinThreshold > 0) {
+			FetchQualification fqToOne = new FetchQualification(node, FetchType.TO_ONE);
+			FetchQualification fqToMany = new FetchQualification(node, FetchType.TO_MANY);
+			for (GenericEntity entity : entities.values()) {
+				EntityIdm idm = acquireEntity(entity);
+				idm.addHandled(fqToOne);
+				idm.addHandled(fqToMany);
+			}
+			enqueueToOneIfRequired(node, entities);
+			enqueueToManyIfRequired(node, entities);
 		}
-		enqueueToOneIfRequired(node, entities);
-		enqueueToManyIfRequired(node, entities);
+		else {
+			FetchQualification fqFlat = new FetchQualification(node, FetchType.ALL_FLAT);
+			for (GenericEntity entity : entities.values()) {
+				EntityIdm idm = acquireEntity(entity);
+				idm.addHandled(fqFlat);
+			}
+			enqueueFlatIfRequired(node, entities);
+		}
+		
 		process();
 		Duration duration = Duration.ofNanos(System.nanoTime() - nanosStart);
 		logger.debug(() -> "consumed " + duration.toMillis() + " ms for graph fetching of " + entities.size() + " entities of node "
 				+ getNodeDescription(node));
+	}
+	
+	@Override
+	public void notifyError(Throwable ex) {
+		errors.add(ex);
 	}
 
 	private Map<Object, GenericEntity> entityIndex(Collection<? extends GenericEntity> entities) {
@@ -195,23 +210,32 @@ public class FetchProcessing implements FetchContext {
 			enqueue(new FetchTask(node, FetchType.TO_MANY, entities));
 		}
 	}
+	
+	@Override
+	public void enqueueFlatIfRequired(AbstractEntityGraphNode node, Map<Object, GenericEntity> entities) {
+		if (node.hasCollectionProperties() || node.hasEntityProperties() && !entities.isEmpty()) {
+			enqueue(new FetchTask(node, FetchType.ALL_FLAT, entities));
+		}
+	}
 
-	private void enqueue(FetchTask task) {
+	@Override
+	public void enqueue(FetchTask task) {
+		System.out.println(task);
 		if (parallelization.isFetchParallel()) {
-			notifyParallelTaskComissioned();
-
 			AttributeContext attributeContext = AttributeContexts.peek();
-
-			futures.add(defaultExecutorLazy.get().submit(() -> {
+			
+			CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
 				AttributeContexts.with(attributeContext).run(() -> {
-					processMonitored(task);
+					processSemaphored(task);
 				});
-			}));
+			}, defaultExecutorLazy.get());
+			
+			observe(future);
 		} else
 			taskQueue.offer(task);
 	}
 
-	private void processMonitored(FetchTask task) {
+	private void processSemaphored(FetchTask task) {
 		Semaphore semaphore = lazySemaphore.get();
 		try {
 			semaphore.acquire();
@@ -224,16 +248,23 @@ public class FetchProcessing implements FetchContext {
 			processTask(task);
 		} finally {
 			semaphore.release();
-
-			notifyParallelTaskDone();
 		}
 	}
 
+	@Override
+	public void observe(CompletableFuture<?> future) {
+		notifyParallelTaskComissioned();
+		future.whenComplete((r,ex) -> {
+			if (ex != null)
+				errors.add(ex);
+			notifyParallelTaskDone();
+		});
+	}
+	
 	private void notifyParallelTaskComissioned() {
 		parallelTaskCounter.incrementAndGet();
 	}
 
-	
 	private void notifyParallelTaskDone() {
 		if (parallelTaskCounter.decrementAndGet() == 0) {
 			parallelDoneMonitor.lock();
@@ -266,26 +297,15 @@ public class FetchProcessing implements FetchContext {
 			parallelDoneMonitor.unlock();
 		}
 
-		List<Throwable> exceptions = new ArrayList<>();
-		for (Future<?> future : futures) {
-			try {
-				future.get();
-			} catch (Exception e) {
-				exceptions.add(e);
-			}
-		}
-		
-		exceptions.addAll(errors);
-
-		if (exceptions.isEmpty())
+		if (errors.isEmpty())
 			return;
 
 		RuntimeException e = new RuntimeException("Error while executing parallel fetch tasks");
 
-		if (exceptions.size() == 1)
-			e.initCause(exceptions.get(0));
+		if (errors.size() == 1)
+			e.initCause(errors.get(0));
 		else {
-			for (Throwable cause : exceptions) {
+			for (Throwable cause : errors) {
 				e.addSuppressed(cause);
 			}
 		}
@@ -302,7 +322,6 @@ public class FetchProcessing implements FetchContext {
 
 			processTask(task);
 		}
-		
 	
 		if (errors.isEmpty())
 			return;
@@ -326,18 +345,27 @@ public class FetchProcessing implements FetchContext {
 	private void processTask(FetchTask task) {
 		long nanosStart = System.nanoTime();
 
+		final CompletableFuture<?> future;
+		
 		switch (task.fetchType) {
 			case TO_MANY:
-				processToManyTask(task);
+				future = processToManyTask(task);
 				break;
 			case TO_ONE:
-				processToOneTask(task);
+				future = processToOneTask(task);
 				break;
+			case ALL_FLAT:
+				future = processFlatTask(task);
+				break;
+			default:
+				throw new IllegalStateException("Unexpected fetch type: " + task.fetchType);
 		}
-
-		Duration duration = Duration.ofNanos(System.nanoTime() - nanosStart);
-		logger.trace(() -> "consumed " + duration.toMillis() + " ms for graph " + task.fetchType + " fetching of " + task.entities.size()
-				+ " entities of node: " + getNodeDescription(task.node));
+		
+		observe(future.whenComplete((r, ex) -> {
+			Duration duration = Duration.ofNanos(System.nanoTime() - nanosStart);
+			logger.trace(() -> "consumed " + duration.toMillis() + " ms for graph " + task.fetchType + " fetching of " + task.entities.size()
+					+ " entities of node: " + getNodeDescription(task.node));
+		}));
 	}
 
 	private static String getNodeDescription(AbstractEntityGraphNode node) {
@@ -347,59 +375,68 @@ public class FetchProcessing implements FetchContext {
 	/**
 	 * Handles deep to-one fetching with follow-up to-many fetches on descendants.
 	 */
-	private void processToOneTask(FetchTask task) {
+	private CompletableFuture<?> processToOneTask(FetchTask task) {
 		ToOneRecursiveFetching toOneFetching = new ToOneRecursiveFetching(this, task.node);
-		toOneFetching.fetch(this, task);
+		return toOneFetching.fetch(this, task);
+	}
+	
+	private CompletableFuture<?> processFlatTask(FetchTask task) {
+		FlatFetching flatFetching = new FlatFetching(this, task);
+		return flatFetching.fetch();
 	}
 
 	/**
 	 * Handles deep to-many fetching with possible further graph traversal.
 	 */
-	private void processToManyTask(FetchTask task) {
-		ToManyFetching.fetch(this, task.node, task);
+	private CompletableFuture<?> processToManyTask(FetchTask task) {
+		return ToManyFetching.fetch(this, task.node, task);
 	}
 	
-	private abstract class FetchHandler {
-		public abstract void handleResult(FetchResults results);
+	private interface FetchHandler {
+		void handleResult(FetchResults results);
 	}
 	
-	private abstract class AbstractEntityFetchHandler extends FetchHandler {
-		public final List<EntityPropertyGraphNode> entityProperties = new ArrayList<>();
+	private interface ValueExtracter {
+		public Object extract(FetchResults results);
+	}
+	
+	private class ScalarExtracter implements ValueExtracter {
+		private int pos;
+		
+		public ScalarExtracter(int pos) {
+			super();
+			this.pos = pos;
+		}
+
+		@Override
+		public Object extract(FetchResults results) {
+			return results.get(pos);
+		}
+	}
+	
+	private class EntityExtracter implements ValueExtracter {
 		private int pos;
 		private EntityType<?> baseEntityType;
 		private Consumer<EntityIdm> visitor;
 		
-		public AbstractEntityFetchHandler(AbstractEntityGraphNode node, FetchSource source, int pos) {
+		public EntityExtracter(AbstractEntityGraphNode node, int pos) {
 			this.pos = pos;
-			boolean supportsSubTypeJoin = queryFactory().supportsSubTypeJoin(); 
 			baseEntityType = node.entityType();
-			
-			for (EntityGraphNode specificNode : node.entityNodes()) {
-				EntityType<?> specificEntityType = specificNode.entityType();
-				
-				boolean polymorphic = specificEntityType == baseEntityType;
-				
-				if (polymorphic && !supportsSubTypeJoin)
-					continue;
-				
-				FetchSource effectiveSource = polymorphic ? source: source.as(specificEntityType);
-				
-				for (EntityPropertyGraphNode propertyNode: specificNode.entityProperties().values()) {
-					entityProperties.add(propertyNode);
-					effectiveSource.selectEntityId(propertyNode.property());
-				}
-			}
 		}
 		
-		public void setVisitor(Consumer<EntityIdm> visitor) {
+		public EntityExtracter(AbstractEntityGraphNode node, int pos, Consumer<EntityIdm> visitor) {
+			this.pos = pos;
 			this.visitor = visitor;
+			baseEntityType = node.entityType();
 		}
 		
-		@Override
-		public void handleResult(FetchResults results) {
+		public GenericEntity extract(FetchResults results) {
 			int i = pos;
 			
 			GenericEntity entity = results.get(i++);
+			
+			if (entity == null)
+				return null;
 			
 			EntityIdm entityIdm = acquireEntity(entity);
 			
@@ -408,38 +445,31 @@ public class FetchProcessing implements FetchContext {
 			if (baseEntityType != effectiveEntity.entityType())
 				putEntity(baseEntityType, entityIdm);
 			
-			if (effectiveEntity == entity) {
-				for (EntityPropertyGraphNode propertyNode: entityProperties) {
-					Object refId = results.get(i++);
-					Property property = propertyNode.property();
-					
-					if (refId == null) {
-						property.setDirect(entity, null);
-					}
-					else {
-						AbsentEntity absentEntity = AbsentEntity.create(property.getType().getTypeSignature(), refId);
-						property.setVdDirect(effectiveEntity, absentEntity);
-					}
-				}
-			}
-			
-			handleEntity(results, effectiveEntity);
 			if (visitor != null)
 				visitor.accept(entityIdm);
+			
+			return entityIdm.entity;
 		}
-		
-		protected abstract void handleEntity(FetchResults results, GenericEntity entity);
 	}
 	
-	private class EntityFetchHandler extends AbstractEntityFetchHandler {
-		private Map<Object, GenericEntity> entities = new HashMap<>();
+	private class EntityFetchHandler extends EntityExtracter implements FetchHandler {
+		private Map<Object, GenericEntity> entities = new ConcurrentHashMap<>();
 
-		public EntityFetchHandler(AbstractEntityGraphNode node, FetchSource source) {
-			super(node, source, 0);
+		public EntityFetchHandler(AbstractEntityGraphNode node) {
+			super(node, 0);
+		}
+		
+		public EntityFetchHandler(AbstractEntityGraphNode node, FetchSource source, int pos) {
+			super(node, pos);
 		}
 		
 		@Override
-		protected void handleEntity(FetchResults results, GenericEntity entity) {
+		public void handleResult(FetchResults results) {
+			GenericEntity entity = extract(results);
+			
+			if (entity == null)
+				return;
+			
 			entities.put(entity.getId(), entity);
 		}
 		
@@ -448,61 +478,61 @@ public class FetchProcessing implements FetchContext {
 		}
 	}
 	
-	private abstract class EntityRelatedPropertyFetchHandler extends AbstractEntityFetchHandler {
-		protected Map<Object, GenericEntity> owners;
-		protected Property property;
+	private class ToOnePropertyFetchHandler implements FetchHandler {
+		
+		private ValueExtracter valueExtracter;
+		private Map<Object, GenericEntity> owners;
+		private Property property;
 
-		public EntityRelatedPropertyFetchHandler(AbstractEntityGraphNode node, FetchSource source, Map<Object, GenericEntity> owners, Property property) {
-			super(node, source, 1);
+		public ToOnePropertyFetchHandler(ValueExtracter valueExtracter, Map<Object, GenericEntity> owners, Property property) {
+			this.valueExtracter = valueExtracter;
 			this.owners = owners;
 			this.property = property;
 		}
-	}
-	
-	private class EntityPropertyFetchHandler extends EntityRelatedPropertyFetchHandler {
 
-		public EntityPropertyFetchHandler(AbstractEntityGraphNode node, FetchSource source, Map<Object, GenericEntity> owners, Property property) {
-			super(node, source, owners, property);
+		@Override
+		public void handleResult(FetchResults results) {
+			Object id = results.get(0);
+			Object value = valueExtracter.extract(results);
+			GenericEntity owner = owners.get(id);
+			property.set(owner, value);
 		}
 		
-		@Override
-		protected void handleEntity(FetchResults results, GenericEntity entity) {
-			Object id = results.get(0);
-			GenericEntity owner = owners.get(id);
-			property.set(owner, entity);
-		}
 	}
 	
-	private class EntityCollectionPropertyFetchHandler extends EntityRelatedPropertyFetchHandler {
-		private Map<Object, Collection<Object>> collections = new HashMap<>();
-		public EntityCollectionPropertyFetchHandler(AbstractEntityGraphNode node, FetchSource source, Map<Object, GenericEntity> owners, Property property) {
-			super(node, source, owners, property);
+	private class MapPropertyFetchHandler implements FetchHandler {
+		private Map<Object, Map<Object, Object>> maps = new HashMap<>();
+		private ValueExtracter keyExtracter;
+		private ValueExtracter valueExtracter;
+
+		public MapPropertyFetchHandler(ValueExtracter keyExtracter, ValueExtracter valueExtracter, Map<Object, GenericEntity> owners, Property property) {
+			this.keyExtracter = keyExtracter;
+			this.valueExtracter = valueExtracter;
 			
-			LinearCollectionType type = (LinearCollectionType)property.getType();
+			MapType type = (MapType)property.getType();
 			for (GenericEntity entity: owners.values()) {
-				Collection<Object> collection = type.createPlain();
-				property.setDirect(entity, collection);
-				collections.put(entity.getId(), collection);
+				Map<Object, Object> map = type.createPlain();
+				property.setDirect(entity, map);
+				maps.put(entity.getId(), map);
 			}
 		}
 		
 		@Override
-		protected void handleEntity(FetchResults results, GenericEntity entity) {
+		public void handleResult(FetchResults results) {
+			final Object key = keyExtracter.extract(results);
+			final Object value = valueExtracter.extract(results);
+			
 			Object id = results.get(0);
-			Collection<Object> collection = collections.get(id);
-			collection.add(entity);
+			maps.get(id).put(key, value);
 		}
 	}
 	
-	private class ScalarCollectionPropertyFetchHandler extends FetchHandler {
+	private class CollectionPropertyFetchHandler implements FetchHandler {
 		private Map<Object, Collection<Object>> collections = new HashMap<>();
-		protected Map<Object, GenericEntity> owners;
-		protected Property property;
-
-		public ScalarCollectionPropertyFetchHandler(Map<Object, GenericEntity> owners, Property property) {
-			this.owners = owners;
-			this.property = property;
-			
+		private ValueExtracter elementExtracter;
+		
+		public CollectionPropertyFetchHandler(ValueExtracter elementExtracter, Map<Object, GenericEntity> owners, Property property) {
+			this.elementExtracter = elementExtracter;
 			LinearCollectionType type = (LinearCollectionType)property.getType();
 			for (GenericEntity entity: owners.values()) {
 				Collection<Object> collection = type.createPlain();
@@ -514,26 +544,34 @@ public class FetchProcessing implements FetchContext {
 		@Override
 		public void handleResult(FetchResults results) {
 			Object id = results.get(0);
-			Object value = results.get(1);
-			GenericEntity owner = owners.get(id);
+			Object value = elementExtracter.extract(results);
 			collections.get(id).add(value);
 		}
 	}
 	
 	@Override
-	public void fetchEntities(AbstractEntityGraphNode node, Set<Object> ids, Consumer<Map<Object, GenericEntity>> receiver, Consumer<EntityIdm> visitor) {
+	public CompletableFuture<Map<Object, GenericEntity>> fetchEntities(AbstractEntityGraphNode node, Set<Object> ids, Consumer<EntityIdm> visitor) {
 		FetchQueryFactory queryFactory = queryFactory();
 		EntityType<?> baseEntityType = node.entityType();
-		FetchQuery query = queryFactory.createQuery(baseEntityType, session().getAccessId());
-		FetchSource from = query.fromHydrated();
+		FetchQueryOptions options = new FetchQueryOptions();
+		options.setHydrateFrom(true);
+		options.setHydrateAbsentEntitiesIfPossible(true);
+		FetchQuery query = queryFactory.createQuery(baseEntityType, session().getAccessId(), options);
+		query.from();
 		
-		EntityFetchHandler entityFetchHandler = new EntityFetchHandler(node, from);
+		EntityFetchHandler entityFetchHandler = new EntityFetchHandler(node);
+	
+		CompletableFuture<Map<Object, GenericEntity>> future = new CompletableFuture<>();
 		
-		fetchBulked(ids, query, entityFetchHandler, () -> {
-			receiver.accept(entityFetchHandler.entities());
-		});
+		fetchBulked(ids, query, entityFetchHandler) //
+			.whenComplete((r,ex) -> {
+				if (ex != null)
+					future.completeExceptionally(ex);
+				else
+					future.complete(entityFetchHandler.entities());
+			});
 		
-		return ;
+		return future;
 	}
 	
 	private class PropertyQueryPreparation {
@@ -543,44 +581,83 @@ public class FetchProcessing implements FetchContext {
 		public PropertyQueryPreparation(EntityGraphNode entityNode, PropertyGraphNode propertyNode) {
 			FetchQueryFactory queryFactory = queryFactory();
 			EntityType<?> entityType = entityNode.entityType();
+			FetchQueryOptions options = new FetchQueryOptions();
+			options.setHydrateAbsentEntitiesIfPossible(true);
 			query = queryFactory.createQuery(entityType, session().getAccessId());
 			FetchSource from = query.from();
 			targetSource = from.join(propertyNode.property());
 		}
 	}
 	
-	public void fetchScalarPropertyCollections(EntityGraphNode entityNode, ScalarCollectionPropertyGraphNode propertyNode, Map<Object, GenericEntity> entities, Runnable onDone) {
+	@Override
+	public CompletableFuture<Void> fetchScalarPropertyCollections(EntityGraphNode entityNode, ScalarCollectionPropertyGraphNode propertyNode, Map<Object, GenericEntity> entities) {
 		PropertyQueryPreparation queryPreparation = new PropertyQueryPreparation(entityNode, propertyNode);
-		ScalarCollectionPropertyFetchHandler fetchHandler = new ScalarCollectionPropertyFetchHandler(entities, propertyNode.property());
-		fetchBulked(entities.keySet(), queryPreparation.query, fetchHandler, onDone);
+
+		FetchHandler fetchHandler = new CollectionPropertyFetchHandler(new ScalarExtracter(1), entities, propertyNode.property());
+		return fetchBulked(entities.keySet(), queryPreparation.query, fetchHandler);
 	}
 	
 	@Override
-	public void fetchPropertyEntities(EntityGraphNode entityNode, EntityRelatedPropertyGraphNode propertyNode, Map<Object, GenericEntity> entities, Consumer<EntityIdm> visitor, Runnable onDone) {
+	public CompletableFuture<Void> fetchPropertyEntities(EntityGraphNode entityNode, EntityRelatedPropertyGraphNode propertyNode, Map<Object, GenericEntity> entities, Consumer<EntityIdm> visitor) {
 		PropertyQueryPreparation queryPreparation = new PropertyQueryPreparation(entityNode, propertyNode);
 	
 		AbstractEntityGraphNode propertyEntityNode = propertyNode.entityNode();
 		Property property = propertyNode.property();
 		
-		final AbstractEntityFetchHandler entityFetchHandler = property.getType().isCollection()? // 
-				new EntityCollectionPropertyFetchHandler(propertyEntityNode, queryPreparation.targetSource, entities, property): //
-				new EntityPropertyFetchHandler(propertyEntityNode, queryPreparation.targetSource, entities, property);
+		EntityExtracter entityExtracter = new EntityExtracter(propertyEntityNode, 1, visitor);
+		
+		final FetchHandler entityFetchHandler = property.getType().isCollection()? // 
+				new CollectionPropertyFetchHandler(entityExtracter, entities, property): //
+				new ToOnePropertyFetchHandler(entityExtracter, entities, property);
 
-		entityFetchHandler.setVisitor(visitor);
-
-		fetchBulked(entities.keySet(), queryPreparation.query, entityFetchHandler, onDone);
+		return fetchBulked(entities.keySet(), queryPreparation.query, entityFetchHandler);
 	}
 	
-	private void fetchBulked(Set<Object> ids, FetchQuery query, FetchHandler handler, Runnable onDone) {
+	@Override
+	public CompletableFuture<Void> fetchMap(EntityGraphNode entityNode, MapPropertyGraphNode propertyNode, Map<Object, GenericEntity> entities, Consumer<EntityIdm> keyVisitor, Consumer<EntityIdm> valueVisitor) {
+		PropertyQueryPreparation queryPreparation = new PropertyQueryPreparation(entityNode, propertyNode);
+		
+		final ValueExtracter keyExtracter;
+		final ValueExtracter valueExtracter;
+		
+		AbstractEntityGraphNode keyNode = propertyNode.keyNode();
+		AbstractEntityGraphNode valueNode = propertyNode.valueNode();
+		
+		if (keyNode != null) {
+			keyExtracter = new EntityExtracter(keyNode, 1, keyVisitor);
+		}
+		else {
+			keyExtracter = new ScalarExtracter(1);
+		}
+		
+		if (valueNode != null) {
+			valueExtracter = new EntityExtracter(valueNode, 2, valueVisitor);
+		}
+		else {
+			valueExtracter = new ScalarExtracter(2);
+		}
+		
+		FetchHandler fetchHandler = new MapPropertyFetchHandler(keyExtracter, valueExtracter, entities, propertyNode.property());
+		
+		return fetchBulked(entities.keySet(), queryPreparation.query, fetchHandler);
+	}
+	
+	private CompletableFuture<Void> fetchBulked(Set<Object> ids, FetchQuery query, FetchHandler handler) {
 		List<Set<Object>> idBulks = CollectionTools2.splitToSets(ids, bulkSize());
 		
-		processParallel(idBulks, bulkIds -> {
+		return processElements(idBulks, bulkIds -> {
+			long nanosStart = System.nanoTime();
 			try (FetchResults results = query.fetchFor(bulkIds)) {
 				while (results.next()) {
 					handler.handleResult(results);
 				}
 			}
-		}, onDone);
+			
+			long queryDuration = System.nanoTime() - nanosStart;
+
+			//logger.trace(() -> query.stringify()+ " took " + Duration.ofNanos(queryDuration).toMillis() + " ms for querying " + bulkIds.size() + " entities");
+			System.out.println("Query took " + Duration.ofNanos(queryDuration).toMillis() + " ms for querying " + bulkIds.size() + " entities: " + query.stringify());
+		});
 	}
 
 	private ExecutorService getExecutorService() {
@@ -591,59 +668,56 @@ public class FetchProcessing implements FetchContext {
 	}
 
 	@Override
-	public <T> void processParallel(Collection<T> tasks, Consumer<T> processor, Runnable onDone) {
+	public <T> CompletableFuture<Void> processElements(Collection<T> tasks, Consumer<T> processor) {
 		if (tasks.isEmpty()) {
-			onDone.run();
-			return;
+			return CompletableFuture.completedFuture(null);
 		}
-
+		
 		// don't use parallel processing if there is only one task or there is no bulk parallelization
 		if (tasks.size() == 1 || !parallelization.isBulkParallel()) {
+			
 			try {
 				for (T task: tasks) {
 					processor.accept(task);
 				}
-				onDone.run();
+				return CompletableFuture.completedFuture(null);
 			}
 			catch (Throwable t) {
-				errors.add(t);
+				CompletableFuture<Void> future = new CompletableFuture<>();
+				future.completeExceptionally(t);
+				return future;
 			}
 		}
 		else {
 			AttributeContext attributeContext = AttributeContexts.peek();
-
+			
+			List<CompletableFuture<Void>> futures = new ArrayList<>(tasks.size());
+			
 			Semaphore sem = lazySemaphore.get();
-
-			AtomicInteger countdown = new AtomicInteger();
+			
 			ExecutorService executor = getExecutorService();
 			for (T task: tasks) {
-				notifyParallelTaskComissioned();
-				countdown.incrementAndGet();
-				executor.submit(() -> {
+				CompletableFuture<Void> taskFuture = CompletableFuture.runAsync(() -> {
 					try {
 						sem.acquire();
-						AttributeContexts.with(attributeContext).run(() -> {
-							try {
+						try {
+							AttributeContexts.with(attributeContext).run(() -> {
 								processor.accept(task);
-							}
-							catch (Throwable t) {
-								errors.add(t);
-							}
-						});
+							});
+						}
+						finally {
+							sem.release();
+						}
 					}
 					catch (InterruptedException e) {
 						// ignore
+						Thread.currentThread().interrupt();
 					}
-					finally {
-						if (countdown.decrementAndGet() == 0) {
-							if (errors.isEmpty())
-								onDone.run();
-						}
-						sem.release();
-						notifyParallelTaskDone();
-					}
-				});
+				}, executor);
+				
+				futures.add(taskFuture);
 			}
+			return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
 		}
 	}
 

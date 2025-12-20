@@ -2,6 +2,7 @@ package com.braintribe.gm.graphfetching.processing.query;
 
 import com.braintribe.gm.graphfetching.api.query.FetchQuery;
 import com.braintribe.gm.graphfetching.api.query.FetchQueryFactory;
+import com.braintribe.gm.graphfetching.api.query.FetchQueryOptions;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
 
@@ -14,8 +15,8 @@ public class GmSessionFetchQueryFactory implements FetchQueryFactory {
 	}
 	
 	@Override
-	public FetchQuery createQuery(EntityType<?> entityType, String defaultPartition) {
-		return new GmSessionFetchQuery(session, entityType);
+	public FetchQuery createQuery(EntityType<?> entityType, String defaultPartition, FetchQueryOptions options) {
+		return new GmSessionFetchQuery(session, entityType, options);
 	}
 	
 	@Override

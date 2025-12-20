@@ -6,13 +6,19 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
+import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityCollectionPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityPropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.node.EntityRelatedPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.FetchQualification;
 import com.braintribe.gm.graphfetching.api.node.MapPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.ScalarCollectionPropertyGraphNode;
+import com.braintribe.gm.graphfetching.processing.util.FetchingTools;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.pr.AbsentEntity;
 import com.braintribe.model.generic.reflection.EntityType;
@@ -22,50 +28,91 @@ import com.braintribe.model.generic.value.ValueDescriptor;
 
 public class FlatFetching {
 	private final FetchContext context;
-	private final boolean supportsSubTypeJoin;
 	private FetchTask task;
 
 	public FlatFetching(FetchContext context, FetchTask task) {
 		super();
 		this.context = context;
 		this.task = task;
-		this.supportsSubTypeJoin = context.queryFactory().supportsSubTypeJoin();
 	}
 	
-	public void fetch() {
+	public CompletableFuture<Void> fetch() {
 		List<PropertyFetch> propertyFetches = new ArrayList<>(); 
 		
 		for (EntityGraphNode entityNode: task.node.entityNodes()) {
+			Map<Object, GenericEntity> entities = FetchingTools.filterSpecificType(task.node.entityType(), entityNode.entityType(), task.entities);
+			
+			if (entities.isEmpty())
+				continue;
+			
 			for (EntityPropertyGraphNode entityPropertyNode : entityNode.entityProperties().values())
-				propertyFetches.add(new EntityPropertyFetch(entityNode, entityPropertyNode));
+				propertyFetches.add(new EntityPropertyFetch(entityNode, entityPropertyNode, entities));
 			
 			for (EntityCollectionPropertyGraphNode entityCollectionPropertyNode : entityNode.entityCollectionProperties().values())
-				propertyFetches.add(new EntityCollectionPropertyFetch(entityCollectionPropertyNode));
+				propertyFetches.add(new EntityCollectionPropertyFetch(entityNode, entityCollectionPropertyNode, entities));
 			
 			for (ScalarCollectionPropertyGraphNode scalarCollectionPropertyNode : entityNode.scalarCollectionProperties().values())
-				propertyFetches.add(new ScalarCollectionPropertyFetch(scalarCollectionPropertyNode));
+				propertyFetches.add(new ScalarCollectionPropertyFetch(entityNode, scalarCollectionPropertyNode, entities));
 			
 			for (MapPropertyGraphNode mapPropertyNode : entityNode.mapProperties().values())
-				propertyFetches.add(new MapPropertyFetch(mapPropertyNode));
+				propertyFetches.add(new MapPropertyFetch(entityNode, mapPropertyNode, entities));
 				
 		}
 		
-		context.processParallel(propertyFetches, PropertyFetch::fetch, () -> { /* TODO */ });
+		return context.processElements(propertyFetches, PropertyFetch::fetch);
 	}
 	
-	private abstract class PropertyFetch {
-		public abstract void fetch();
+	private interface PropertyFetch {
+		void fetch();
 	}
 	
-	private class EntityPropertyFetch extends PropertyFetch {
+	private class EntityPostProcessing {
+		private Map<Object, GenericEntity> newEntities = new ConcurrentHashMap<>();
+		private FetchQualification fetchQualification;
+		private AbstractEntityGraphNode entityNode;
+		private boolean postProcessingNecessary;
+		private FetchPathNode fetchPath;
+		
+		protected EntityPostProcessing(AbstractEntityGraphNode entityNode, FetchPathNode fetchPath) {
+			this.entityNode = entityNode;
+			this.fetchPath = fetchPath;
+			this.fetchQualification = entityNode.allQualification();
+			postProcessingNecessary = entityNode.hasCollectionOrEntityProperties();
+		}
+		
+		protected void visit(EntityIdm entityIdm) {
+			if (!postProcessingNecessary)
+				return;
+			
+			if (entityIdm.addHandled(fetchQualification)) {
+				GenericEntity entity = entityIdm.entity;
+				newEntities.put(entity.getId(), entity);
+			}
+		}
+		
+		protected void postProcess(CompletableFuture<?> future) {
+			context.observe(future.thenRun(this::enqueue));
+		}
+		
+		protected void enqueue() {
+			if (newEntities.isEmpty())
+				return;
+			
+			FetchTask fetchTask = new FetchTask(entityNode, FetchType.ALL_FLAT, newEntities, fetchPath);
+			context.enqueue(fetchTask);
+		}
+	}
+	
+	private class EntityPropertyFetch extends EntityPostProcessing implements PropertyFetch {
 		private EntityPropertyGraphNode entityPropertyNode;
 		private EntityGraphNode entityNode;
-		private Map<Object, GenericEntity> newEntities = new HashMap<>();
+		private Map<Object, GenericEntity> entities;
 
-		public EntityPropertyFetch(EntityGraphNode entityNode, EntityPropertyGraphNode entityPropertyNode) {
-			super();
+		public EntityPropertyFetch(EntityGraphNode entityNode, EntityPropertyGraphNode entityPropertyNode, Map<Object, GenericEntity> entities) {
+			super(entityPropertyNode.entityNode(), new FetchPathNode(task.fetchPath, entityPropertyNode));
 			this.entityNode = entityNode;
 			this.entityPropertyNode = entityPropertyNode;
+			this.entities = entities;
 		}
 		
 		@Override
@@ -77,11 +124,13 @@ public class FlatFetching {
 			
 			Map<Object, GenericEntity> joinCases = new HashMap<>();
 			
-			for (GenericEntity entity: task.entities.values()) {
-				EntityType<?> entityType = entity.entityType();
-				EntityType<?> declaringType = property.getDeclaringType();
-				if (baseType != entityType && declaringType.isInstance(entity))
-					continue;
+			for (GenericEntity entity: entities.values()) {
+				// TODO: remove
+//				EntityType<?> entityType = entity.entityType();
+//				
+//				EntityType<?> declaringType = property.getDeclaringType();
+//				if (baseType != entityType && declaringType.isInstance(entity))
+//					continue;
 				
 				Object value = property.setDirect(entity, null);
 				
@@ -105,96 +154,117 @@ public class FlatFetching {
 				property.setDirect(entity, null);
 			}
 			
-			FetchQualification allQualification = entityPropertyNode.entityNode().allQualification();
-			
-			
+			List<CompletableFuture<?>> futures = new ArrayList<>(2);
 			
 			if (!lookupCases.isEmpty()) {
-				context.fetchEntities(entityPropertyNode.entityNode(), new HashSet<>(lookupCases.values()),
-						// visitor
-						lookupEntities -> {
-							for (Map.Entry<GenericEntity, Object> entry : lookupCases.entrySet()) {
-								GenericEntity entity = entry.getKey();
-								Object id = entry.getValue();
-								GenericEntity toOneEntity = lookupEntities.get(id);
-								property.set(entity, toOneEntity);
-							}
-						},
-						// onDone
-						entityIdm -> {
-							if (entityIdm.addHandled(allQualification)) {
-								GenericEntity entity = entityIdm.entity;
-								newEntities.put(entity.getId(), entity);
-							}
+				CompletableFuture<Void> future = context.fetchEntities(entityPropertyNode.entityNode(), new HashSet<>(lookupCases.values()), this::visit) //
+					.thenAccept(lookupEntities -> {
+						for (Map.Entry<GenericEntity, Object> entry : lookupCases.entrySet()) {
+							GenericEntity entity = entry.getKey();
+							Object id = entry.getValue();
+							GenericEntity toOneEntity = lookupEntities.get(id);
+							property.set(entity, toOneEntity);
 						}
+					}
 				);
+				
+				futures.add(future);
 			}
 			
-			if (!joinCases.isEmpty()) {
-				context.fetchPropertyEntities(entityNode, entityPropertyNode, joinCases, 
-						// visitor
-						entityIdm -> {
-							
-						}, 
-						// onDone
-						() -> {
-					
-						}
-				);
-			}
+			if (!joinCases.isEmpty())
+				futures.add(context.fetchPropertyEntities(entityNode, entityPropertyNode, joinCases, this::visit)); 
+			
+			if (futures.isEmpty())
+				return;
+			
+			postProcess(CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])));
 		}
 		
 	}
 	
-	private class EntityCollectionPropertyFetch extends PropertyFetch {
-		EntityCollectionPropertyGraphNode entityCollectionPropertyNode;
-		EntityGraphNode entityNode;
+	private class EntityCollectionPropertyFetch extends EntityPostProcessing implements PropertyFetch {
+		final EntityGraphNode entityNode;
+		final EntityRelatedPropertyGraphNode entityRelatedPropertyGraphNode;
+		final Map<Object, GenericEntity> entities;
 		
-		public EntityCollectionPropertyFetch(EntityGraphNode entityNode, EntityCollectionPropertyGraphNode entityCollectionPropertyNode) {
-			super();
+		public EntityCollectionPropertyFetch(EntityGraphNode entityNode, EntityCollectionPropertyGraphNode entityCollectionPropertyNode, Map<Object, GenericEntity> entities) {
+			super(entityCollectionPropertyNode.entityNode(), new FetchPathNode(task.fetchPath, entityCollectionPropertyNode));
 			this.entityNode = entityNode;
-			this.entityCollectionPropertyNode = entityCollectionPropertyNode;
+			this.entityRelatedPropertyGraphNode = entityCollectionPropertyNode;
+			this.entities = entities;
 		}
 
 		@Override
 		public void fetch() {
-			context.fetchPropertyEntities(entityNode, entityCollectionPropertyNode, task.entities,
-					// visitor
-					entityIdm -> {
-						
-					}, 
-					// onDone
-					() -> {
-						
-					});
+			postProcess(context.fetchPropertyEntities(entityNode, entityRelatedPropertyGraphNode, entities, this::visit));
 		}
 	}
 	
-	private class ScalarCollectionPropertyFetch extends PropertyFetch {
+	private class ScalarCollectionPropertyFetch implements PropertyFetch {
 		ScalarCollectionPropertyGraphNode scalarCollectionPropertyNode;
+		private EntityGraphNode entityNode;
+		private Map<Object, GenericEntity> entities;
 		
-		public ScalarCollectionPropertyFetch(ScalarCollectionPropertyGraphNode scalarCollectionPropertyNode) {
+		public ScalarCollectionPropertyFetch(EntityGraphNode entityNode, ScalarCollectionPropertyGraphNode scalarCollectionPropertyNode, Map<Object, GenericEntity> entities) {
 			super();
+			this.entityNode = entityNode;
 			this.scalarCollectionPropertyNode = scalarCollectionPropertyNode;
+			this.entities = entities;
 		}
 		
 		@Override
 		public void fetch() {
-			
+			context.fetchScalarPropertyCollections(entityNode, scalarCollectionPropertyNode, entities) //
+				.whenComplete((r,ex) -> {
+					if (ex != null)
+						context.notifyError(ex);
+				});
 		}
 	}
 	
-	private class MapPropertyFetch extends PropertyFetch {
+	private class MapPropertyFetch implements PropertyFetch {
 		MapPropertyGraphNode mapPropertyNode;
+		private EntityGraphNode entityNode;
+		private EntityPostProcessing keyPostProcessing;
+		private EntityPostProcessing valuePostProcessing;
+		private Map<Object, GenericEntity> entities;
 		
-		public MapPropertyFetch(MapPropertyGraphNode mapPropertyNode) {
+		public MapPropertyFetch(EntityGraphNode entityNode, MapPropertyGraphNode mapPropertyNode, Map<Object, GenericEntity> entities) {
 			super();
+			this.entityNode = entityNode;
 			this.mapPropertyNode = mapPropertyNode;
+			this.entities = entities;
+			
+			AbstractEntityGraphNode keyNode = mapPropertyNode.keyNode();
+			AbstractEntityGraphNode valueNode = mapPropertyNode.valueNode();
+			
+			FetchPathNode fetchPath = new FetchPathNode(task.fetchPath, mapPropertyNode);
+			
+			if (keyNode != null)
+				keyPostProcessing = new EntityPostProcessing(keyNode, fetchPath);
+			
+			if (valueNode != null)
+				valuePostProcessing = new EntityPostProcessing(valueNode, fetchPath);
 		}
 		
 		@Override
 		public void fetch() {
+			Consumer<EntityIdm> keyVisitor = keyPostProcessing != null? keyPostProcessing::visit: null; 
+			Consumer<EntityIdm> valueVisitor = valuePostProcessing != null? valuePostProcessing::visit: null; 
+					
+			postProcess(context.fetchMap(entityNode, mapPropertyNode, entities, keyVisitor, valueVisitor));
+		}
+		
+		private void postProcess(CompletableFuture<?> future) {
+			context.observe(future.thenRun(this::enqueue));
+		}
+		
+		private void enqueue() {
+			if (keyPostProcessing != null)
+				keyPostProcessing.enqueue();
 			
+			if (valuePostProcessing != null)
+				valuePostProcessing.enqueue();
 		}
 	}
 }

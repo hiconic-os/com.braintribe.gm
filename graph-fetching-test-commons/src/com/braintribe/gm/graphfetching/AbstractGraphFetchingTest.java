@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,10 +28,12 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.braintribe.common.lcd.Pair;
 import com.braintribe.gm._GraphFetchingTestModel_;
 import com.braintribe.gm.graphfetching.api.FetchBuilder;
 import com.braintribe.gm.graphfetching.api.Fetching;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
+import com.braintribe.gm.graphfetching.processing.fetch.FetchProcessing;
 import com.braintribe.gm.graphfetching.test.gen.TechDataGenerator;
 import com.braintribe.gm.graphfetching.test.gen.TechDataGenerator.Config;
 import com.braintribe.gm.graphfetching.test.gen.TechDataGenerator.IdMode;
@@ -64,6 +69,7 @@ import com.braintribe.model.query.EntityQuery;
 import com.braintribe.model.query.From;
 import com.braintribe.testing.junit.assertions.assertj.core.api.Assertions;
 import com.braintribe.testing.tools.gm.GmTestTools;
+import com.braintribe.utils.lcd.Lazy;
 import com.braintribe.utils.paths.UniversalPath;
 
 public abstract class AbstractGraphFetchingTest implements GraphFetchingTestConstants {
@@ -71,21 +77,26 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 
 	protected static GmMetaModel model = GMF.getTypeReflection().getModel(_GraphFetchingTestModel_.name).getMetaModel();
 
-	protected static TestDataSeeder seeder;
-	protected static DataSourceDataGenerator dataGenerator;
-	protected static TechDataGenerator techDataGenerator;
+	protected Lazy<TestDataSeeder> lazySeeder = new Lazy<>(this::buildTestDataSeeder);
+	protected Lazy<DataSourceDataGenerator> lazyDataGenerator = new Lazy<>(this::buildDataSourceDataGenerator);
+	protected Lazy<TechDataGenerator> lazyTechDataGenerator = new Lazy<>(this::buildTechDataGenerator);
+	
+	protected static Logger rootLogger;
 
-	private void configureLogging() {
+	private static Logger fetchLogger;
+
+	private static void configureLogging() {
 		LogManager.getLogManager().reset();
-		Logger root = Logger.getLogger("");
-		root.setLevel(Level.INFO);
+		
+		rootLogger = Logger.getLogger("");
+		rootLogger.setLevel(Level.INFO);
 
 		// log file path
 		File logFile = new File("out/test.log");
 
 		// remove default console handlers
-		for (Handler h : root.getHandlers()) {
-			root.removeHandler(h);
+		for (Handler h : rootLogger.getHandlers()) {
+			rootLogger.removeHandler(h);
 		}
 
 		try {
@@ -117,15 +128,17 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 				}
 			});
 
-			root.addHandler(fh);
+			rootLogger.addHandler(fh);
 
 		} catch (Exception e) {
 			e.printStackTrace(); // last resort
 		}
 
 		// enable detailed log level for your package
-		String logPackageName = UniversalPath.empty().push(Fetching.class.getPackage().getName(), ".").pop().toDottedPath();
-		Logger.getLogger(logPackageName).setLevel(Level.FINEST);
+		//String loggerName = UniversalPath.empty().push(Fetching.class.getPackage().getName(), ".").pop().toDottedPath();
+		String loggerName = FetchProcessing.class.getName();
+		fetchLogger = Logger.getLogger(loggerName);
+		fetchLogger.setLevel(Level.FINEST);
 	}
 
 	private static void truncateLogFile() {
@@ -161,6 +174,7 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 	@BeforeClass
 	public static void init() {
 		truncateLogFile();
+		configureLogging();
 	}
 	
 	protected PersistenceContext persistenceContext;
@@ -172,58 +186,75 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 		persistenceContext = getOrCreateContext(getClass(), () -> {
 			PersistenceContext context = new PersistenceContext();
 			context.access = buildAccess();
-			
-			PersistenceGmSession session = GmTestTools.newSession(context.access);
-
-			From cSource = SelectQueries.source(Company.T);
-			long cCount = session.queryDetached().select(SelectQueries.from(cSource).select(SelectQueries.count(cSource))).unique();
-			if (cCount == 0) {
-				seeder = new TestDataSeeder(session, generateIds());
-				session.commit();
-			} 
-			else {
-				seeder = new TestDataSeeder(generateIds());
-			}
-
-			From dmSource = SelectQueries.source(DataManagement.T);
-			long dmCount = session.queryDetached().select(SelectQueries.from(dmSource).select(SelectQueries.count(dmSource))).unique();
-			if (dmCount == 0) {
-				dataGenerator = new DataSourceDataGenerator(session, generateIds());
-				session.commit();
-			}
-			else {
-				dataGenerator = new DataSourceDataGenerator(null, generateIds());
-			}
-
-			From source = SelectQueries.source(Entitya.T);
-			long count = session.queryDetached().select(SelectQueries.from(source).select(SelectQueries.count(source))).unique();
-			
-			Config config = new Config();
-			config.setNullRateToOne(0.25);
-			config.setIdMode(IdMode.LONG);
-			config.setPartition(session.getAccessId());
-			
-			if (count == 0) {
-				techDataGenerator = new TechDataGenerator(config, session::create);
-				techDataGenerator.generateAll();
-				session.commit();
-			}
-			else {
-				techDataGenerator = new TechDataGenerator(config, EntityType::create);
-				techDataGenerator.generateAll();
-			}
-
 			return context;
         });
     }
 	
-	protected boolean generateIds() {
-		return true;
+	private TestDataSeeder buildTestDataSeeder() {
+		PersistenceGmSession session = GmTestTools.newSession(persistenceContext.access);
+		From cSource = SelectQueries.source(Company.T);
+
+		long cCount = session.queryDetached().select(SelectQueries.from(cSource).select(SelectQueries.count(cSource))).unique();
+		
+		final TestDataSeeder seeder;
+		
+		if (cCount == 0) {
+			seeder = new TestDataSeeder(session, generateIds());
+			session.commit();
+		} 
+		else {
+			seeder = new TestDataSeeder(generateIds());
+		}
+		
+		return seeder;
 	}
 	
-	@Before
-	public void before() {
-		configureLogging();
+	private DataSourceDataGenerator buildDataSourceDataGenerator() {
+		PersistenceGmSession session = GmTestTools.newSession(persistenceContext.access);
+		
+		From dmSource = SelectQueries.source(DataManagement.T);
+		long dmCount = session.queryDetached().select(SelectQueries.from(dmSource).select(SelectQueries.count(dmSource))).unique();
+		
+		final DataSourceDataGenerator dataGenerator;
+		
+		if (dmCount == 0) {
+			dataGenerator = new DataSourceDataGenerator(session, generateIds());
+			session.commit();
+		}
+		else {
+			dataGenerator = new DataSourceDataGenerator(null, generateIds());
+		}
+		
+		return dataGenerator;
+	}
+	
+	private TechDataGenerator buildTechDataGenerator() {
+		PersistenceGmSession session = GmTestTools.newSession(persistenceContext.access);
+		From source = SelectQueries.source(Entitya.T);
+		long count = session.queryDetached().select(SelectQueries.from(source).select(SelectQueries.count(source))).unique();
+		
+		Config config = new Config();
+		config.setNullRateToOne(0.25);
+		config.setIdMode(IdMode.LONG);
+		config.setPartition(session.getAccessId());
+		
+		final TechDataGenerator techDataGenerator;
+		
+		if (count == 0) {
+			techDataGenerator = new TechDataGenerator(config, session::create);
+			techDataGenerator.generateAll();
+			session.commit();
+		}
+		else {
+			techDataGenerator = new TechDataGenerator(config, EntityType::create);
+			techDataGenerator.generateAll();
+		}
+		
+		return techDataGenerator;
+	}
+	
+	protected boolean generateIds() {
+		return true;
 	}
 	
 	protected FetchBuilder fetchBuilder(PersistenceGmSession session, EntityGraphNode node) {
@@ -236,6 +267,54 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 
 	protected PersistenceGmSession newSession() {
 		return GmTestTools.newSession(persistenceContext.access);
+	}
+	
+	
+	protected FetchTestBuilder buildTest() {
+		List<Pair<FetchBuilder, Boolean>> tests = new ArrayList<>();
+		
+		return new FetchTestBuilder() {
+			public FetchTestBuilder add(FetchBuilder builder, boolean detached) {
+				tests.add(Pair.of(builder, detached));
+				return this;
+			}
+			
+			public <E extends GenericEntity, C extends Collection<E>> void test(C expected, Supplier<C> resolve) {
+				testFetches(tests, expected, resolve);
+			}
+		};
+	}
+	
+	private <E extends GenericEntity, C extends Collection<E>> void testFetches(List<Pair<FetchBuilder, Boolean>> tests, C expected, Supplier<C> resolveSupplier) {
+		for (Pair<FetchBuilder, Boolean> test: tests) {
+			long nanosStart = System.nanoTime();
+			
+			FetchBuilder fetchBuilder = test.first();
+			boolean detached = test.second();
+			
+			C resolve = resolveSupplier.get();
+			
+			final Collection<E> actual;
+			
+			if (detached) {
+				List<E> fetched = fetchBuilder.fetchDetached(resolve);
+				actual = resolve instanceof List? fetched: new HashSet<>(fetched);
+			}
+			else {
+				fetchBuilder.fetch(resolve);
+				actual = resolve;
+			}
+			
+			Duration duration = Duration.ofNanos(System.nanoTime() - nanosStart);
+			System.out.println(fetchBuilder + " took " + duration.toMillis() + " ms");
+			
+			AssemblyComparisonResult comparisonResult = AssemblyComparison.build().useGlobalId().enableTracking().compare(expected, actual);
+			
+			if (!comparisonResult.equal()) {
+				String msg = "Fetching failed\n  used fetch builder: " + fetchBuilder + "\n  problem: " + comparisonResult.mismatchDescription() + "\n  path: " + stringify(comparisonResult.firstMismatchPath());
+				Assertions.fail(msg);
+			}
+		}
 	}
 	
 	@Test
@@ -269,7 +348,7 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 		
 		System.out.println(graphNode.stringify());
 
-		DataManagement dataManagement = dataGenerator.getDataManagement();
+		DataManagement dataManagement = lazyDataGenerator.get().getDataManagement();
 		
 		List<DataManagement> expectedData = Collections.singletonList(dataManagement);
 		
@@ -298,7 +377,7 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 
 		System.out.println(graphNode.stringify());
 
-		Set<Company> expectedCompanies = new HashSet<>(seeder.getCompanies());
+		Set<Company> expectedCompanies = new HashSet<>(lazySeeder.get().getCompanies());
 
 		Set<Object> companyIds = expectedCompanies.stream().map(c -> c.getId()).collect(Collectors.toSet());
 
@@ -329,7 +408,7 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 	@Test
 	public void testIdmFetching() {
 		PersistenceGmSession session = newSession();
-		List<Company> companies = seeder.getIdmCompanies();
+		List<Company> companies = lazySeeder.get().getIdmCompanies();
 
 		Company companyPrototype = Fetching.graphPrototype(Company.T);
 
@@ -365,7 +444,7 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 
 		PersistenceGmSession session = newSession();
 
-		List<Company> companies = seeder.getCompanies();
+		List<Company> companies = lazySeeder.get().getCompanies();
 		Set<Object> companyIds = companies.stream().map(c -> c.getId()).collect(Collectors.toSet());
 
 		Company companyPrototype = Fetching.graphPrototype(Company.T);

@@ -149,4 +149,15 @@ public class FetchBuilderImpl implements FetchBuilder {
 		return fetchProcessing;
 			
 	}
+
+	@Override
+	public String toString() {
+		return "FetchBuilderImpl [bulkSize=" + bulkSize + ", maxParallel=" + maxParallel
+				+ ", joinProbabilityThreshold=" + joinProbabilityThreshold + ", joinProbabilityDefault="
+				+ joinProbabilityDefault + ", toOneScalarThreshold=" + toOneScalarThreshold + ", parallelization="
+				+ parallelization + ", polymorphicJoin=" + polymorphicJoin + ", toOneJoinThreshold="
+				+ toOneJoinThreshold + "]";
+	}
+
+	
 }

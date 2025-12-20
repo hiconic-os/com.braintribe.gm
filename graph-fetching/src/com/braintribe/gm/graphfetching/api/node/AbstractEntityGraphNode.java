@@ -24,6 +24,10 @@ public interface AbstractEntityGraphNode extends TypedGraphNode {
      */
     boolean hasEntityProperties();
     
+    default boolean hasCollectionOrEntityProperties() {
+    		return hasEntityProperties() || hasCollectionProperties();
+    }
+    
     PolymorphicEntityGraphNode isPolymorphic();
     
     FetchQualification toOneQualification();
