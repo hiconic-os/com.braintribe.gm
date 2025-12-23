@@ -138,7 +138,7 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 		//String loggerName = UniversalPath.empty().push(Fetching.class.getPackage().getName(), ".").pop().toDottedPath();
 		String loggerName = FetchProcessing.class.getName();
 		fetchLogger = Logger.getLogger(loggerName);
-		fetchLogger.setLevel(Level.FINE);
+		fetchLogger.setLevel(Level.FINER);
 	}
 
 	private static void truncateLogFile() {
@@ -316,7 +316,8 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 	}
 	
 	private <E extends GenericEntity, C extends Collection<E>> void testFetches(List<Pair<FetchBuilder, Boolean>> tests, List<TcTest> tcTests, C expected, Supplier<C> resolveSupplier) {
-		for (int pass = 1; pass <=3; pass++) {
+		for (int pass = 1; pass <=6; pass++) {
+			System.out.println("---- Pass " + pass + " ----");
 			for (Pair<FetchBuilder, Boolean> test: tests) {
 				long nanosStart = System.nanoTime();
 				
@@ -337,7 +338,7 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 				}
 				
 				Duration duration = Duration.ofNanos(System.nanoTime() - nanosStart);
-				System.out.println(fetchBuilder + " pass " + pass + " took " + duration.toMillis() + " ms");
+				System.out.println(fetchBuilder + " took " + duration.toMillis() + " ms");
 				
 				testAssemblies(() -> "Fetching failed\n  used fetch builder: " + fetchBuilder, expected, actual);
 			}
@@ -350,10 +351,12 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 				C resolves = resolveSupplier.get();
 				Set<Object> ids = resolves.stream().map(GenericEntity::getId).collect(Collectors.toSet());
 				
-				EntityQuery query = EntityQueryBuilder.from(Entitya.T).where() //
+				E entity = resolves.iterator().next();
+				
+				EntityQuery query = EntityQueryBuilder.from(entity.entityType()).where() //
 						.property(GenericEntity.id).in(ids).tc(tc).done();
 				
-				Entitya actualEntity = (detached? session.query(): session.queryDetached()).entities(query).first();
+				E actualEntity = (detached? session.query(): session.queryDetached()).entities(query).first();
 				
 				Duration duration = Duration.ofNanos(System.nanoTime() - nanosStart);
 

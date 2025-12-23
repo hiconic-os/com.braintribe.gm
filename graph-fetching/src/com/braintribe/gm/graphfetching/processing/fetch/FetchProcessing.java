@@ -450,6 +450,7 @@ public class FetchProcessing implements FetchContext {
 			baseEntityType = node.entityType();
 		}
 		
+		@Override
 		public GenericEntity extract(FetchResults results) {
 			int i = pos;
 			
@@ -588,7 +589,6 @@ public class FetchProcessing implements FetchContext {
 			if (entityIdm == null)
 				return false;
 			
-			System.out.println("known entity found");
 			entityFetchHandler.entities.put(id, entityIdm.entity);
 			visitor.accept(entityIdm);
 			
@@ -615,7 +615,7 @@ public class FetchProcessing implements FetchContext {
 			EntityType<?> entityType = entityNode.entityType();
 			FetchQueryOptions options = new FetchQueryOptions();
 			options.setHydrateAbsentEntitiesIfPossible(true);
-			query = queryFactory.createQuery(entityType, session().getAccessId());
+			query = queryFactory.createQuery(entityType, session().getAccessId(), options);
 			FetchSource from = query.from();
 			targetSource = from.join(propertyNode.property());
 			targetSource.orderByIfRequired();
