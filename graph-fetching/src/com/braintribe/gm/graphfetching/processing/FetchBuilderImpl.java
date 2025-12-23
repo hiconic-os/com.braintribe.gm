@@ -147,15 +147,17 @@ public class FetchBuilderImpl implements FetchBuilder {
 		fetchProcessing.setToOneJoinThreshold(toOneJoinThreshold);
 		
 		return fetchProcessing;
-			
 	}
 
 	@Override
 	public String toString() {
-		return "FetchBuilderImpl [bulkSize=" + bulkSize + ", maxParallel=" + maxParallel
-				+ ", joinProbabilityThreshold=" + joinProbabilityThreshold + ", joinProbabilityDefault="
-				+ joinProbabilityDefault + ", toOneScalarThreshold=" + toOneScalarThreshold + ", parallelization="
-				+ parallelization + ", polymorphicJoin=" + polymorphicJoin + ", toOneJoinThreshold="
+		if (toOneJoinThreshold == 0)
+			return "FetchBuilderImpl [bs=" + bulkSize + ", mp=" + maxParallel
+					+ ", tot=" + toOneJoinThreshold + "]";
+		else
+			return "FetchBuilderImpl [bs=" + bulkSize + ", mp=" + maxParallel
+				+ ", jpt=" + joinProbabilityThreshold + ", jpd="
+				+ joinProbabilityDefault + ", pj=" + polymorphicJoin + ", tot="
 				+ toOneJoinThreshold + "]";
 	}
 

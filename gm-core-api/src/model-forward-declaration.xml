@@ -3,6 +3,7 @@
 
   <for-model name='com.braintribe.gm:absence-information-model'>
     <type>com.braintribe.model.generic.pr.AbsenceInformation</type>
+    <type>com.braintribe.model.generic.pr.AbsentEntity</type>
   </for-model>
 
   <for-model name='com.braintribe.gm:manipulation-model'>

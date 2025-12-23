@@ -8,7 +8,6 @@ import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -51,6 +50,7 @@ import com.braintribe.model.generic.path.api.IModelPathElement;
 import com.braintribe.model.generic.path.api.IPropertyModelPathElement;
 import com.braintribe.model.generic.path.api.IPropertyRelatedModelPathElement;
 import com.braintribe.model.generic.path.api.ISetItemModelPathElement;
+import com.braintribe.model.generic.pr.criteria.TraversingCriterion;
 import com.braintribe.model.generic.reflection.CollectionType;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EssentialCollectionTypes;
@@ -64,13 +64,13 @@ import com.braintribe.model.processing.core.commons.comparison.AssemblyCompariso
 import com.braintribe.model.processing.meta.oracle.BasicModelOracle;
 import com.braintribe.model.processing.query.building.EntityQueries;
 import com.braintribe.model.processing.query.building.SelectQueries;
+import com.braintribe.model.processing.query.fluent.EntityQueryBuilder;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
 import com.braintribe.model.query.EntityQuery;
 import com.braintribe.model.query.From;
 import com.braintribe.testing.junit.assertions.assertj.core.api.Assertions;
 import com.braintribe.testing.tools.gm.GmTestTools;
 import com.braintribe.utils.lcd.Lazy;
-import com.braintribe.utils.paths.UniversalPath;
 
 public abstract class AbstractGraphFetchingTest implements GraphFetchingTestConstants {
 	private static final com.braintribe.logging.Logger logger = com.braintribe.logging.Logger.getLogger(AbstractGraphFetchingTest.class);
@@ -138,7 +138,7 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 		//String loggerName = UniversalPath.empty().push(Fetching.class.getPackage().getName(), ".").pop().toDottedPath();
 		String loggerName = FetchProcessing.class.getName();
 		fetchLogger = Logger.getLogger(loggerName);
-		fetchLogger.setLevel(Level.FINEST);
+		fetchLogger.setLevel(Level.FINE);
 	}
 
 	private static void truncateLogFile() {
@@ -260,7 +260,16 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 	protected FetchBuilder fetchBuilder(PersistenceGmSession session, EntityGraphNode node) {
 		return configure(Fetching.build(session, node));
 	}
-
+	
+	protected FetchTestBuilder fetchTestBuilder(PersistenceGmSession session, EntityGraphNode node, boolean detached) {
+		return buildTest() //
+				.add(fetchBuilder(session.newEquivalentSession(), node).toOneJoinThreshold(0), detached) //
+				.add(fetchBuilder(session.newEquivalentSession(), node), detached) //
+				.add(fetchBuilder(session.newEquivalentSession(), node).joinProbabilityThreshold(0.1).toOneJoinThreshold(Integer.MAX_VALUE), detached) //
+				.add(fetchBuilder(session.newEquivalentSession(), node).toOneJoinThreshold(Integer.MAX_VALUE), detached) //
+			;
+	}
+	
 	protected FetchBuilder configure(FetchBuilder fetchBuilder) {
 		return fetchBuilder;
 	}
@@ -270,73 +279,96 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 	}
 	
 	
+	private static class TcTest {
+		PersistenceGmSession session;
+		TraversingCriterion tc;
+		boolean detached;
+		public TcTest(PersistenceGmSession session, TraversingCriterion tc, boolean detached) {
+			super();
+			this.session = session;
+			this.tc = tc;
+			this.detached = detached;
+		}
+	}
+	
 	protected FetchTestBuilder buildTest() {
 		List<Pair<FetchBuilder, Boolean>> tests = new ArrayList<>();
+		List<TcTest> tcTests = new ArrayList<>();
 		
 		return new FetchTestBuilder() {
+			@Override
 			public FetchTestBuilder add(FetchBuilder builder, boolean detached) {
 				tests.add(Pair.of(builder, detached));
 				return this;
 			}
 			
+			@Override
+			public FetchTestBuilder add(PersistenceGmSession session, TraversingCriterion tc, boolean detached) {
+				tcTests.add(new TcTest(session,tc, detached));
+				return this;
+			}
+			
+			@Override
 			public <E extends GenericEntity, C extends Collection<E>> void test(C expected, Supplier<C> resolve) {
-				testFetches(tests, expected, resolve);
+				testFetches(tests, tcTests, expected, resolve);
 			}
 		};
 	}
 	
-	private <E extends GenericEntity, C extends Collection<E>> void testFetches(List<Pair<FetchBuilder, Boolean>> tests, C expected, Supplier<C> resolveSupplier) {
-		for (Pair<FetchBuilder, Boolean> test: tests) {
-			long nanosStart = System.nanoTime();
-			
-			FetchBuilder fetchBuilder = test.first();
-			boolean detached = test.second();
-			
-			C resolve = resolveSupplier.get();
-			
-			final Collection<E> actual;
-			
-			if (detached) {
-				List<E> fetched = fetchBuilder.fetchDetached(resolve);
-				actual = resolve instanceof List? fetched: new HashSet<>(fetched);
+	private <E extends GenericEntity, C extends Collection<E>> void testFetches(List<Pair<FetchBuilder, Boolean>> tests, List<TcTest> tcTests, C expected, Supplier<C> resolveSupplier) {
+		for (int pass = 1; pass <=3; pass++) {
+			for (Pair<FetchBuilder, Boolean> test: tests) {
+				long nanosStart = System.nanoTime();
+				
+				FetchBuilder fetchBuilder = test.first();
+				boolean detached = test.second();
+				
+				C resolve = resolveSupplier.get();
+				
+				final Collection<E> actual;
+				
+				if (detached) {
+					List<E> fetched = fetchBuilder.fetchDetached(resolve);
+					actual = resolve instanceof List? fetched: new HashSet<>(fetched);
+				}
+				else {
+					fetchBuilder.fetch(resolve);
+					actual = resolve;
+				}
+				
+				Duration duration = Duration.ofNanos(System.nanoTime() - nanosStart);
+				System.out.println(fetchBuilder + " pass " + pass + " took " + duration.toMillis() + " ms");
+				
+				testAssemblies(() -> "Fetching failed\n  used fetch builder: " + fetchBuilder, expected, actual);
 			}
-			else {
-				fetchBuilder.fetch(resolve);
-				actual = resolve;
-			}
 			
-			Duration duration = Duration.ofNanos(System.nanoTime() - nanosStart);
-			System.out.println(fetchBuilder + " took " + duration.toMillis() + " ms");
-			
-			AssemblyComparisonResult comparisonResult = AssemblyComparison.build().useGlobalId().enableTracking().compare(expected, actual);
-			
-			if (!comparisonResult.equal()) {
-				String msg = "Fetching failed\n  used fetch builder: " + fetchBuilder + "\n  problem: " + comparisonResult.mismatchDescription() + "\n  path: " + stringify(comparisonResult.firstMismatchPath());
-				Assertions.fail(msg);
+			for (TcTest tcTest: tcTests) {
+				TraversingCriterion tc = tcTest.tc;
+				boolean detached = tcTest.detached;
+				PersistenceGmSession session = tcTest.session;
+				long nanosStart = System.nanoTime();
+				C resolves = resolveSupplier.get();
+				Set<Object> ids = resolves.stream().map(GenericEntity::getId).collect(Collectors.toSet());
+				
+				EntityQuery query = EntityQueryBuilder.from(Entitya.T).where() //
+						.property(GenericEntity.id).in(ids).tc(tc).done();
+				
+				Entitya actualEntity = (detached? session.query(): session.queryDetached()).entities(query).first();
+				
+				Duration duration = Duration.ofNanos(System.nanoTime() - nanosStart);
+
+				System.out.println("TC pass " + pass + " took " + duration.toMillis() + " ms");
 			}
 		}
 	}
 	
-	@Test
-	public void graphNodeCreation() {
-		DataManagement dm = Fetching.graphPrototype(DataManagement.T);
-		dm.getLableRatings();
-		dm.getSourceHashes();
-		dm.getSourceOccurrences();
-		dm.getResourcesByName();
+	protected void testAssemblies(Supplier<String> prefix, Object expected, Object actual) {
+		AssemblyComparisonResult comparisonResult = AssemblyComparison.build().useGlobalId().enableTracking().compare(expected, actual);
 		
-		EntityGraphNode rootNode = Fetching.rootNode(dm);
-		
-		System.out.println(rootNode.stringify());
-		
-		EntityGraphNode rootNode2 = Fetching.rootNode(DataManagement.T,
-			Fetching.node(DataManagement.lableRatings),
-			Fetching.node(DataManagement.sourceHashes),
-			Fetching.node(DataManagement.sourceOccurrences),
-			Fetching.node(DataManagement.resourcesByName)
-		);
-		
-		System.out.println(rootNode2.stringify());
+		if (!comparisonResult.equal()) {
+			String msg = prefix + "\n  problem: " + comparisonResult.mismatchDescription() + "\n  path: " + stringify(comparisonResult.firstMismatchPath());
+			Assertions.fail(msg);
+		}
 	}
 	
 	@Test
@@ -346,26 +378,9 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 		BasicModelOracle oracle = new BasicModelOracle(model);
 		EntityGraphNode graphNode = Fetching.reachable(DataManagement.T).polymorphy(oracle).build();
 		
-		System.out.println(graphNode.stringify());
-
 		DataManagement dataManagement = lazyDataGenerator.get().getDataManagement();
 		
-		List<DataManagement> expectedData = Collections.singletonList(dataManagement);
-		
-		for (int i = 0; i < 10; i++) {
-			List<DataManagement> actualData = fetchBuilder(session, graphNode).fetchDetached(expectedData);
-			
-			AssemblyComparisonResult comparisonResult = AssemblyComparison.build() //
-					.useGlobalId()
-					.enableTracking() //
-					.compare(expectedData, actualData);
-			
-			if (!comparisonResult.equal())
-				System.out.println("fail");
-	
-			Assertions.assertThat(comparisonResult.equal())//
-					.describedAs(() -> comparisonResult.mismatchDescription() + " @ " + stringify(comparisonResult.firstMismatchPath())).isTrue();
-		}
+		fetchTestBuilder(session, graphNode, true).test(dataManagement, () -> dataManagement);
 	}
 	
 	@Test
@@ -381,18 +396,10 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 
 		Set<Object> companyIds = expectedCompanies.stream().map(c -> c.getId()).collect(Collectors.toSet());
 
-		{
-			Set<Company> actualCompanies = new HashSet<>(session.query()
-					.entities(EntityQuery.create(Company.T).where(EntityQueries.in(EntityQueries.property(GenericEntity.id), companyIds))).list());
-
-			fetchBuilder(session, graphNode).fetch(actualCompanies);
-		}
-
-		logger.info("==== ACTUAL RUN ===");
-
 		Set<Company> actualCompanies = new HashSet<>(session.query()
 				.entities(EntityQuery.create(Company.T).where(EntityQueries.in(EntityQueries.property(GenericEntity.id), companyIds))).list());
 
+		
 		fetchBuilder(session, graphNode).fetch(actualCompanies);
 
 		AssemblyComparisonResult comparisonResult = AssemblyComparison.build() //
@@ -563,4 +570,5 @@ public abstract class AbstractGraphFetchingTest implements GraphFetchingTestCons
 		}
 
 	}
+	
 }

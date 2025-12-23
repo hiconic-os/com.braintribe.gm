@@ -14,4 +14,9 @@ public class GraphFetchingTest extends AbstractGraphFetchingTest {
 	protected IncrementalAccess buildAccess() {
 		return GmTestTools.newSmoodAccessMemoryOnly(ACCESS_ID_TEST, model);
 	}
+	
+	@Override
+	public void testPolymorphism() {
+		super.testPolymorphism();
+	}
 }

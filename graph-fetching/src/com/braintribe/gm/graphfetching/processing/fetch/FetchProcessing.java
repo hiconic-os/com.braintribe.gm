@@ -1,10 +1,13 @@
 package com.braintribe.gm.graphfetching.processing.fetch;
 
+import static com.braintribe.utils.lcd.CollectionTools2.newList;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,6 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import com.braintribe.common.attribute.AttributeContext;
 import com.braintribe.common.lcd.Pair;
@@ -31,11 +35,12 @@ import com.braintribe.gm.graphfetching.api.node.FetchQualification;
 import com.braintribe.gm.graphfetching.api.node.MapPropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.PropertyGraphNode;
 import com.braintribe.gm.graphfetching.api.node.ScalarCollectionPropertyGraphNode;
+import com.braintribe.gm.graphfetching.api.query.FetchJoin;
 import com.braintribe.gm.graphfetching.api.query.FetchQuery;
 import com.braintribe.gm.graphfetching.api.query.FetchQueryFactory;
+import com.braintribe.gm.graphfetching.api.query.FetchQueryOptions;
 import com.braintribe.gm.graphfetching.api.query.FetchResults;
 import com.braintribe.gm.graphfetching.api.query.FetchSource;
-import com.braintribe.gm.graphfetching.api.query.FetchQueryOptions;
 import com.braintribe.gm.graphfetching.processing.query.GmSessionFetchQueryFactory;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GenericEntity;
@@ -158,7 +163,17 @@ public class FetchProcessing implements FetchContext {
 	public void fetch(EntityGraphNode node, Map<Object, GenericEntity> entities) {
 		long nanosStart = System.nanoTime();
 		
-		if (toOneJoinThreshold > 0) {
+		boolean flatFetching = toOneJoinThreshold == 0;
+		
+		if (flatFetching) {
+			FetchQualification fqFlat = new FetchQualification(node, FetchType.ALL_FLAT);
+			for (GenericEntity entity : entities.values()) {
+				EntityIdm idm = acquireEntity(entity);
+				idm.addHandled(fqFlat);
+			}
+			enqueueFlatIfRequired(node, entities);
+		}
+		else {
 			FetchQualification fqToOne = new FetchQualification(node, FetchType.TO_ONE);
 			FetchQualification fqToMany = new FetchQualification(node, FetchType.TO_MANY);
 			for (GenericEntity entity : entities.values()) {
@@ -169,19 +184,25 @@ public class FetchProcessing implements FetchContext {
 			enqueueToOneIfRequired(node, entities);
 			enqueueToManyIfRequired(node, entities);
 		}
-		else {
-			FetchQualification fqFlat = new FetchQualification(node, FetchType.ALL_FLAT);
-			for (GenericEntity entity : entities.values()) {
-				EntityIdm idm = acquireEntity(entity);
-				idm.addHandled(fqFlat);
-			}
-			enqueueFlatIfRequired(node, entities);
-		}
 		
 		process();
+		
 		Duration duration = Duration.ofNanos(System.nanoTime() - nanosStart);
-		logger.debug(() -> "consumed " + duration.toMillis() + " ms for graph fetching of " + entities.size() + " entities of node "
-				+ getNodeDescription(node));
+		logger.debug(() -> "consumed " + duration.toMillis() + " ms for graph " + (flatFetching? "flat ": "") + "fetching of " + index.size() + " entities of node "
+				+ getNodeDescription(node) + " " + indexAsString());
+	}
+	
+	private String indexAsString() {
+		StringBuilder builder = new StringBuilder();
+		
+		for (EntityIdm idm: index.values()) {
+			if (builder.length() > 0)
+				builder.append(", ");
+			GenericEntity entity = idm.entity;
+			builder.append(entity.entityType().getShortName() + "@" + entity.getId());
+		}
+		
+		return builder.toString();
 	}
 	
 	@Override
@@ -220,7 +241,6 @@ public class FetchProcessing implements FetchContext {
 
 	@Override
 	public void enqueue(FetchTask task) {
-		System.out.println(task);
 		if (parallelization.isFetchParallel()) {
 			AttributeContext attributeContext = AttributeContexts.peek();
 			
@@ -560,10 +580,22 @@ public class FetchProcessing implements FetchContext {
 		query.from();
 		
 		EntityFetchHandler entityFetchHandler = new EntityFetchHandler(node);
-	
+		
 		CompletableFuture<Map<Object, GenericEntity>> future = new CompletableFuture<>();
 		
-		fetchBulked(ids, query, entityFetchHandler) //
+		Predicate<Object> existingEntitiesHandler = id -> {
+			EntityIdm entityIdm = resolveEntity(baseEntityType, id);
+			if (entityIdm == null)
+				return false;
+			
+			System.out.println("known entity found");
+			entityFetchHandler.entities.put(id, entityIdm.entity);
+			visitor.accept(entityIdm);
+			
+			return true;
+		};
+		
+		fetchBulked(ids, query, entityFetchHandler, existingEntitiesHandler) //
 			.whenComplete((r,ex) -> {
 				if (ex != null)
 					future.completeExceptionally(ex);
@@ -576,7 +608,7 @@ public class FetchProcessing implements FetchContext {
 	
 	private class PropertyQueryPreparation {
 		public final FetchQuery query;
-		public final FetchSource targetSource;
+		public final FetchJoin targetSource;
 		
 		public PropertyQueryPreparation(EntityGraphNode entityNode, PropertyGraphNode propertyNode) {
 			FetchQueryFactory queryFactory = queryFactory();
@@ -586,6 +618,7 @@ public class FetchProcessing implements FetchContext {
 			query = queryFactory.createQuery(entityType, session().getAccessId());
 			FetchSource from = query.from();
 			targetSource = from.join(propertyNode.property());
+			targetSource.orderByIfRequired();
 		}
 	}
 	
@@ -642,8 +675,34 @@ public class FetchProcessing implements FetchContext {
 		return fetchBulked(entities.keySet(), queryPreparation.query, fetchHandler);
 	}
 	
-	private CompletableFuture<Void> fetchBulked(Set<Object> ids, FetchQuery query, FetchHandler handler) {
-		List<Set<Object>> idBulks = CollectionTools2.splitToSets(ids, bulkSize());
+	public static <T> List<Set<T>> split(Iterable<? extends T> elements, int limitSize, Predicate<T> exclusion) {
+		List<Set<T>> result = newList();
+
+		int partSize = limitSize;
+		Set<T> part = null;
+
+		for (T element : elements) {
+			if (exclusion.test(element))
+				continue;
+			
+			if (partSize == limitSize) {
+				partSize = 0;
+				result.add(part = new HashSet<>());
+			}
+
+			part.add(element);
+			partSize++;
+		}
+
+		return result;
+	}
+	
+	private CompletableFuture<Void> fetchBulked(Collection<Object> ids, FetchQuery query, FetchHandler handler) {
+		return fetchBulked(ids, query, handler, id -> false);
+	}
+	
+	private CompletableFuture<Void> fetchBulked(Collection<Object> ids, FetchQuery query, FetchHandler handler, Predicate<Object> exclusion) {
+		List<Set<Object>> idBulks = split(ids, bulkSize(), exclusion);
 		
 		return processElements(idBulks, bulkIds -> {
 			long nanosStart = System.nanoTime();
@@ -655,8 +714,7 @@ public class FetchProcessing implements FetchContext {
 			
 			long queryDuration = System.nanoTime() - nanosStart;
 
-			//logger.trace(() -> query.stringify()+ " took " + Duration.ofNanos(queryDuration).toMillis() + " ms for querying " + bulkIds.size() + " entities");
-			System.out.println("Query took " + Duration.ofNanos(queryDuration).toMillis() + " ms for querying " + bulkIds.size() + " entities: " + query.stringify());
+			logger.trace(() ->"Query took " + Duration.ofNanos(queryDuration).toMillis() + " ms for querying " + bulkIds.size() + " entities: " + query.stringify());
 		});
 	}
 
