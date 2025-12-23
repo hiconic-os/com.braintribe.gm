@@ -2,6 +2,7 @@ package com.braintribe.gm.graphfetching.test.gen;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.braintribe.gm.graphfetching.test.gen.TechDataGenerator.Config;
 import com.braintribe.gm.graphfetching.test.model.Person;
@@ -18,8 +19,8 @@ public class TechDataGenerationLab {
 		Map<EntityType<?>,List<GenericEntity>> all1 = generator1.generateAll();
 		Map<EntityType<?>,List<GenericEntity>> all2 = generator1.generateAll();
 	
-		List<GenericEntity> expected = all1.values().stream().flatMap(List::stream).toList();
-		List<GenericEntity> actual = all2.values().stream().flatMap(List::stream).toList();
+		List<GenericEntity> expected = all1.values().stream().flatMap(List::stream).collect(Collectors.toList());
+		List<GenericEntity> actual = all2.values().stream().flatMap(List::stream).collect(Collectors.toList());
 		
 		AssemblyComparisonResult compare = AssemblyComparison.build() //
 				.enableTracking() //
