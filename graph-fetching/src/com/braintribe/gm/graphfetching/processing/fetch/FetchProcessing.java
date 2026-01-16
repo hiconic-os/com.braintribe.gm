@@ -476,12 +476,8 @@ public class FetchProcessing implements FetchContext {
 	private class EntityFetchHandler extends EntityExtracter implements FetchHandler {
 		private Map<Object, GenericEntity> entities = new ConcurrentHashMap<>();
 
-		public EntityFetchHandler(AbstractEntityGraphNode node) {
-			super(node, 0);
-		}
-		
-		public EntityFetchHandler(AbstractEntityGraphNode node, FetchSource source, int pos) {
-			super(node, pos);
+		public EntityFetchHandler(AbstractEntityGraphNode node, Consumer<EntityIdm> visitor) {
+			super(node, 0, visitor);
 		}
 		
 		@Override
@@ -580,7 +576,7 @@ public class FetchProcessing implements FetchContext {
 		FetchQuery query = queryFactory.createQuery(baseEntityType, session().getAccessId(), options);
 		query.from();
 		
-		EntityFetchHandler entityFetchHandler = new EntityFetchHandler(node);
+		EntityFetchHandler entityFetchHandler = new EntityFetchHandler(node, visitor);
 		
 		CompletableFuture<Map<Object, GenericEntity>> future = new CompletableFuture<>();
 		

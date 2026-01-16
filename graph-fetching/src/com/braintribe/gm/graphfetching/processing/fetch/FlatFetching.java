@@ -151,8 +151,6 @@ public class FlatFetching {
 						joinCases.put(entity.getId(), entity);
 					}
 				}
-				
-				property.setDirect(entity, null);
 			}
 			
 			List<CompletableFuture<?>> futures = new ArrayList<>(2);
