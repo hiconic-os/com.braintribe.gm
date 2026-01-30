@@ -97,12 +97,18 @@ import com.braintribe.model.meta.data.MetaData;
 			return;
 		}
 
+		StringBuilder sb = new StringBuilder();
+
 		while (declarationUrls.hasMoreElements())
-			processUrl(declarationUrls.nextElement());
+			processUrl(declarationUrls.nextElement(), sb);
+
+		log.debug("Loaded custom MDA handlers:\n" + sb.toString());
 	}
 
-	private void processUrl(URL url) {
+	private void processUrl(URL url, StringBuilder sb) {
 		currentUrl = url;
+
+		sb.append(" - ").append(currentUrl.toString());
 
 		try (Scanner scanner = new Scanner(url.openStream())) {
 			while (scanner.hasNextLine())
