@@ -23,22 +23,22 @@ import com.braintribe.model.meta.data.EntityTypeMetaData;
 import com.braintribe.model.meta.data.ModelSkeletonCompatible;
 
 /**
- * <p>PositionalArguments determines the order of positioned arguments in an API call - think of command-line, REST and DSLs. 
- * A positioned argument maps to a property name and therefore this is an alternative way to address that property.
- * 
- * <p>Normal APIs work only with positional arguments which only look nice for a small set of arguments and gets annoying when
- * a lot of argument recombinations are of interest. 
- * 
- * <p>Denotation-driven APIs are recommended and well supported by GenericModels. 
- * They primarily work with named arguments (properties) to make them defaultable, addressable and distinguishable in any order. 
- * Still very important usecases would be sexier when using positional arguments and that can be achieved with this metadata. 
+ * PositionalArguments determines the order of positioned arguments in an API call - think of command-line, REST and DSLs. A positioned argument maps
+ * to a property name and therefore this is an alternative way to address that property.
+ * <p>
+ * Normal APIs work only with positional arguments which only look nice for a small set of arguments and gets annoying when a lot of argument
+ * recombinations are of interest.
+ * <p>
+ * Denotation-driven APIs are recommended and well supported by GenericModels. They primarily work with named arguments (properties) to make them
+ * defaultable, addressable and distinguishable in any order. Still very important usecases would be sexier when using positional arguments and that
+ * can be achieved with this metadata.
  * 
  * @author Dirk Scheffler
  */
 public interface PositionalArguments extends EntityTypeMetaData, ModelSkeletonCompatible {
 
 	EntityType<PositionalArguments> T = EntityTypes.T(PositionalArguments.class);
-	
+
 	List<String> getProperties();
 	void setProperties(List<String> properties);
 }

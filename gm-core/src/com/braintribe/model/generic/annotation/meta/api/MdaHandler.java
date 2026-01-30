@@ -35,13 +35,19 @@ import com.braintribe.model.meta.data.MetaData;
  * MdaHandler is responsible for converting annotations of type A into one or more MD (and back, when generating bytecode or source code).
  * <p>
  * IMPLEMENTATION NOTE: From the outside (JTA) only the {@link #buildMdList} is called, but it has a default implementation that delegates to
- * {@link #buildMd} so overriding either of these two methods is fine.
+ * {@link #buildMd} so implementing either of these two methods is fine.
  * 
  * <h2>Registering custom handlers</h2>
  * 
  * Custom handlers can be registered by adding a text file on path <b><i>{@value CustomMdaHandlerLoader#MDA_LOCATION}</i></b> to your classpath.
  * <p>
- * Ideally put this file in the model that declares both the Annotation type and MetaData type you are declaring.
+ * Typically you have one <code>xyz-model</code> with the MD and <code>xyz-annotations</code> (which depends on the <code>xyz-model</code) with the
+ * annotations and this file. Then, to use these annotations in another model, add a functional dependency to the <code>xyz-annotations</code>. <br>
+ * 
+ * Functional dependency means the dependency is not meant to be part of the model, see for example how <code>root-model</code> depends
+ * <code>gm-core-api</code>.<br>
+ * 
+ * NOTE: we will later not consider artifacts not ending with <code>-model</code> as model dependencies, so no special marking will be needed.
  * <p>
  * The file contains one line per annotation, each line consisting of comma separated values. The first two values are fully qualified class names of
  * the annotation and the meta-data type, respectively, optionally followed by a sequence of pairs [annotation attribute name, property name]. For
@@ -69,8 +75,8 @@ import com.braintribe.model.meta.data.MetaData;
  * {@link Repeatable} annotations are supported automatically by the framework and no extra mapping entry is required for the "aggregator" annotation.
  * For example, we would only have an entry for {@link Alias}, but none for {@link Aliases}.
  * <p>
- * This, however, results in multiple MD instances being added for the corresponding element. If we however wanted to merge multiple annotations into
- * a single MD, like we are doing for {@link Name} and {@link Description} - one annotation for one locale - this is currently not supported.
+ * This, however, results in multiple MD instances being added for the corresponding element. If we wanted to merge multiple annotations into a single
+ * MD, like we are doing for {@link Name} and {@link Description} - one annotation for one locale - this is currently not supported.
  * 
  * @see RepeatableMdaHandler
  * 

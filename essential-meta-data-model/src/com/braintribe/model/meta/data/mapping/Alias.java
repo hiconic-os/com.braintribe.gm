@@ -24,10 +24,10 @@ import com.braintribe.model.meta.data.UniversalMetaData;
 import com.braintribe.model.meta.data.prompt.Name;
 
 /**
- * This metadata allows to give entity types, property names, enum types and enum constants alternative names. This is to be distinguished to the
- * {@link Name} metadata which is an exclusive metadata while the Alias is a multi metadata.
- * 
- * @author Dirk Scheffler
+ * Specifies alternative names for types, properties, and enum constants.
+ * <p>
+ * It differs from {@link Name} MD in two ways. Each element has at most one Name, but can have multiple Aliases, and Name is meant to be used for
+ * output, while aliases are input.
  */
 public interface Alias extends UniversalMetaData, HasName, ModelSkeletonCompatible {
 

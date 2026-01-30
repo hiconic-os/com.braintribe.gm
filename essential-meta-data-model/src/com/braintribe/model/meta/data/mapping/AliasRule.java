@@ -19,7 +19,7 @@ import com.braintribe.model.meta.data.ModelSkeletonCompatible;
 import com.braintribe.model.meta.data.UniversalMetaData;
 
 /**
- * Similar to {@link Alias}, but the new name is derived based on {@link #getCasing() casing} and {@link #getSeparator() separator}.
+ * Similar to {@link Alias}, but the alias name is derived based on {@link #getCasing() casing} and {@link #getSeparator() separator}.
  */
 public interface AliasRule extends UniversalMetaData, ModelSkeletonCompatible {
 

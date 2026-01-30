@@ -22,9 +22,9 @@ import com.braintribe.model.generic.reflection.EnumTypes;
  */
 public enum WordSeparator implements EnumBase<WordSeparator> {
 
-	none, //
-	hyphen, //
-	underscore, //
+	none, // expertsexchange
+	hyphen, // experts-exchange
+	underscore, // experts_exchange
 	;
 
 	public static final EnumType<WordSeparator> T = EnumTypes.T(WordSeparator.class);
