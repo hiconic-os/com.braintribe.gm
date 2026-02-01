@@ -27,11 +27,11 @@ import com.braintribe.model.processing.service.api.ReasonedServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceProcessor;
 import com.braintribe.model.processing.service.api.ServiceRequestContext;
 import com.braintribe.model.service.api.ServiceRequest;
-import com.braintribe.utils.lcd.LazyInitialized;
+import com.braintribe.utils.lcd.Lazy;
 
 public abstract class AbstractDispatchingServiceProcessor<P extends ServiceRequest, R> implements ReasonedServiceProcessor<P, R> {
 
-	private final LazyInitialized<DispatchMap<P, R>> lazyDispatchMap = new LazyInitialized<DispatchMap<P, R>>(this::createDispatchMap);
+	private final Lazy<DispatchMap<P, R>> lazyDispatchMap = new Lazy<DispatchMap<P, R>>(this::createDispatchMap);
 
 	private DispatchMap<P, R> createDispatchMap() {
 		DispatchMap<P, R> dispatchMap = new DispatchMap<>();
