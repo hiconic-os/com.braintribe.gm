@@ -13,16 +13,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 --><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>com.braintribe.gm</groupId>
-        <artifactId>parent</artifactId>
-        <version>[2.0,2.1)</version>
-    </parent>
-    <artifactId>gm-rpc-test-base</artifactId>
-    <version>2.0.25</version>
-    <properties>
-    </properties>
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.braintribe.gm</groupId>
+		<artifactId>parent</artifactId>
+		<version>[2.0,2.1)</version>
+	</parent>
+	<artifactId>gm-mq-rpc</artifactId>
+	<version>2.0.1</version>
+	<properties>
+		<java.version>21</java.version>
+	</properties>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -31,25 +32,25 @@ limitations under the License.
             <comments>A business-friendly OSS license</comments>
         </license>
     </licenses>
-    <dependencies>
+	<dependencies>
         <dependency>
-            <groupId>com.braintribe.wire</groupId>
-            <artifactId>wire</artifactId>
-            <version>${V.com.braintribe.wire}</version>
+            <groupId>com.braintribe.common</groupId>
+            <artifactId>logging</artifactId>
+            <version>${V.com.braintribe.common}</version>
         </dependency>
         <dependency>
-            <groupId>com.braintribe.servlet</groupId>
-            <artifactId>servlet-tools</artifactId>
-            <version>${V.com.braintribe.servlet}</version>
+            <groupId>com.braintribe.common</groupId>
+            <artifactId>platform-exceptions</artifactId>
+            <version>${V.com.braintribe.common}</version>
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
-            <artifactId>gm-web-rpc-client</artifactId>
+            <artifactId>gm-core</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
-            <artifactId>gm-web-rpc-server</artifactId>
+            <artifactId>gm-rpc-commons</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
         <dependency>
@@ -64,43 +65,13 @@ limitations under the License.
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
-            <artifactId>security-service-api</artifactId>
+            <artifactId>messaging-api</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
-            <artifactId>security-service-api-commons</artifactId>
+            <artifactId>worker-api</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
-        <dependency>
-            <groupId>com.braintribe.gm</groupId>
-            <artifactId>json-marshaller</artifactId>
-            <version>${V.com.braintribe.gm}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.braintribe.gm</groupId>
-            <artifactId>js-eval-marshaller</artifactId>
-            <version>${V.com.braintribe.gm}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.braintribe.gm</groupId>
-            <artifactId>basic-crypto-model-processing</artifactId>
-            <version>${V.com.braintribe.gm}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.braintribe.gm</groupId>
-            <artifactId>gm-unit-test-deps</artifactId>
-            <version>${V.com.braintribe.gm}</version>
-        </dependency>
-        <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>javax.servlet-api</artifactId>
-            <version>${V.javax.servlet}</version>
-        </dependency>
-		<dependency>
-			<groupId>com.braintribe.gm</groupId>
-			<artifactId>marshaller-commons</artifactId>
-			<version>${V.com.braintribe.gm}</version>
-		</dependency>
-    </dependencies>
+	</dependencies>
 </project>

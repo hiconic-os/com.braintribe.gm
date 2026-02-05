@@ -30,36 +30,34 @@ public abstract class AbstractEvalContext<R> implements EvalContext<R> {
 
 	@Override
 	public <A extends TypeSafeAttribute<? super V>, V> void setAttribute(Class<A> attribute, V value) {
-		if (attributes == null) {
+		if (attributes == null)
 			attributes = new HashMap<>();
-		}
 
 		attributes.put((Class<TypeSafeAttribute<?>>) attribute, value);
 	}
-	
+
 	@Override
 	public <A extends TypeSafeAttribute<V>, V> V getAttribute(Class<A> attribute) {
 		return findAttribute(attribute).orElseThrow(() -> new NoSuchElementException("No entry found for attribute: " + attribute.getName()));
 	}
-	
+
 	@Override
 	public <A extends TypeSafeAttribute<V>, V> Optional<V> findAttribute(Class<A> attribute) {
-		return attributes != null?
-				Optional.ofNullable((V)attributes.get(attribute)):
+		return attributes != null ? //
+				Optional.ofNullable((V) attributes.get(attribute)) : //
 				Optional.empty();
 	}
-	
+
 	@Override
 	public Stream<TypeSafeAttributeEntry> streamAttributes() {
-		return attributes != null?
-				attributes.entrySet().stream().map(e -> TypeSafeAttributeEntry.of((Class<TypeSafeAttribute<Object>>)(Class<?>)e.getKey(), e.getValue())):
-				Stream.empty();
+		return attributes == null ? //
+				Stream.empty() : //
+				attributes.entrySet().stream()
+						.map(e -> TypeSafeAttributeEntry.of((Class<TypeSafeAttribute<Object>>) (Class<?>) e.getKey(), e.getValue()));
 	}
-	
+
 	public boolean hasAttributes() {
-		return attributes != null? 
-				attributes.isEmpty():
-				false;
+		return attributes != null && !attributes.isEmpty();
 	}
 
 }

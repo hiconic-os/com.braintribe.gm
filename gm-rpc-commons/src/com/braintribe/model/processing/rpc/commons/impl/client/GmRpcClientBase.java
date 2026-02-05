@@ -160,7 +160,7 @@ public abstract class GmRpcClientBase {
 						return Maybe.complete((T) response.asResponse().getResult());
 
 					case unsatisfied: {
-						Maybe<T> maybe = response.asUnsatisfied().toMaby();
+						Maybe<T> maybe = response.asUnsatisfied().toMaybe();
 						if (maybe.isUnsatisfiedBy(AuthenticationFailure.T)) {
 							reAuthorizationRetries = evaluateReAuthorization(new UnsatisfiedMaybeTunneling(maybe), reAuthorizationRetries);
 							enrichWithMetaData(clientContext.getServiceRequest(), true);
@@ -293,7 +293,6 @@ public abstract class GmRpcClientBase {
 		private Consumer<T> responseConsumer;
 
 		public RpcEvalContext(ServiceRequest request) {
-			super();
 			this.request = request;
 		}
 

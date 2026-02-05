@@ -41,22 +41,23 @@ import jsinterop.annotations.JsType;
 @SuppressWarnings("unusable-by-js")
 public interface EvalContext<R> extends MutableTypeSafeAttributes, ReflectedTypeSafeAttributes {
 
-	/** Similar to {@link #getReasoned()}, but returns the result directly. We recommend using the reasoned method. */
+	/** Similar to {@link #getReasoned()}, but returns the result directly. We recommend using {@link #getReasoned()}. */
 	@JsMethod(name = "getSynchronous")
 	R get() throws EvalException;
 
-	/** Similar to {@link #getReasoned(AsyncCallback)}, but passes the result directly. We recommend using the reasoned method. */
+	/** Similar to {@link #getReasoned(AsyncCallback)}, but passes the result directly. We recommend using {@link #getReasoned(AsyncCallback)}. */
 	void get(AsyncCallback<? super R> callback);
 
 	/**
 	 * Invokes the underlying request and ignores the result.
 	 * <p>
-	 * Possible errors while evaluation, whether in the form of an exception, or an unsatisfied {@link Maybe} are logged with
-	 * {@link ErrorLoggingCallback}.
+	 * Possible errors while evaluation, whether in the form of an exception, or an unsatisfied {@link Maybe} might be logged with
+	 * {@link ErrorLoggingCallback}, though when e.g. sending the request to a remote system, the result might not even be passed to this callback.
 	 * 
 	 * @see #getReasoned(AsyncCallback)
 	 */
 	default void executeAsync() {
+		setAttribute(IgnoreResponseAspect.class, Boolean.TRUE);
 		getReasoned(ErrorLoggingCallback.instance());
 	}
 
@@ -108,7 +109,7 @@ public interface EvalContext<R> extends MutableTypeSafeAttributes, ReflectedType
 	default <A extends TypeSafeAttribute<V>, V> V getAttribute(Class<A> attribute) {
 		throw new UnsupportedOperationException();
 	}
-	
+
 	@Override
 	@SuppressWarnings("unusable-by-js")
 	default Stream<TypeSafeAttributeEntry> streamAttributes() {
