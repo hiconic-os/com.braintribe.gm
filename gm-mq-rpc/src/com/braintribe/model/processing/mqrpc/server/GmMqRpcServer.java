@@ -79,7 +79,7 @@ import com.braintribe.transport.messaging.api.MessagingException;
 import com.braintribe.transport.messaging.api.MessagingSession;
 import com.braintribe.transport.messaging.api.MessagingSessionProvider;
 import com.braintribe.utils.collection.impl.AttributeContexts;
-import com.braintribe.utils.lcd.LazyInitialized;
+import com.braintribe.utils.lcd.Lazy;
 
 /**
  * Message queue driven GM RPC server.
@@ -121,7 +121,7 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 	private String endpointExposure = null;
 
 	// lazy initialized
-	private final LazyInitialized<GmMqRpcServerMsg> msg = new LazyInitialized<>(GmMqRpcServerMsg::new);
+	private final Lazy<GmMqRpcServerMsg> msg = new Lazy<>(GmMqRpcServerMsg::new);
 
 	private Thread stillProcessingTaskThread;
 
