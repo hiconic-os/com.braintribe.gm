@@ -19,6 +19,7 @@ import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
+// Not sure why this isn't @Abstract
 public interface RangeResponse extends GenericEntity {
 
 	EntityType<RangeResponse> T = EntityTypes.T(RangeResponse.class);
@@ -26,12 +27,21 @@ public interface RangeResponse extends GenericEntity {
 	boolean getRanged();
 	void setRanged(boolean ranged);
 
+	/**
+	 * Position of the first byte we take from the original payload, or from another perspective the number of bytes skipped from the original
+	 * payload.
+	 */
 	Long getRangeStart();
 	void setRangeStart(Long rangeStart);
 
+	/**
+	 * Position of the last byte we take from the original payload, inclusive. I.e., if we were only streaming one byte, this would be equal to
+	 * rangeStart.
+	 */
 	Long getRangeEnd();
 	void setRangeEnd(Long rangeEnd);
 
+	/** Total size of the original payload. */
 	Long getSize();
 	void setSize(Long size);
 
