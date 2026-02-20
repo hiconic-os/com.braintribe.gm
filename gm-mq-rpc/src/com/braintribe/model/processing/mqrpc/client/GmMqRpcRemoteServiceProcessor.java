@@ -27,6 +27,7 @@ import com.braintribe.cfg.Configurable;
 import com.braintribe.cfg.DestructionAware;
 import com.braintribe.cfg.Required;
 import com.braintribe.logging.Logger;
+import com.braintribe.model.generic.eval.IgnoreResponseAspect;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.messaging.Destination;
 import com.braintribe.model.messaging.Message;
@@ -131,19 +132,21 @@ public class GmMqRpcRemoteServiceProcessor extends AbstractRemoteServiceProcesso
 
 		ServiceRequest request = requestContext.getServiceRequest();
 		String correlationId = UUID.randomUUID().toString();
-		Message requestMessage = createRequestMessage(request, correlationId);
+		boolean ignoreResponse = ignoreResponses || requestContext.getAttributeContext().findOrDefault(IgnoreResponseAspect.class, Boolean.FALSE);
+
+		Message requestMessage = createRequestMessage(request, correlationId, ignoreResponse);
 
 		try {
 			BlockingQueue<Message> responseHolder = null;
 
-			if (!ignoreResponses)
+			if (!ignoreResponse)
 				responsesMap.put(correlationId, responseHolder = new LinkedBlockingQueue<>());
 
 			long start = System.currentTimeMillis();
 			requestProducer.sendMessage(requestMessage);
 			log.trace(() -> "Application [" + clientInstanceId + "] sent message [" + correlationId + "] with: " + request);
 
-			if (ignoreResponses)
+			if (ignoreResponse)
 				return null;
 
 			long timeout = responseTimeout;
@@ -195,10 +198,11 @@ public class GmMqRpcRemoteServiceProcessor extends AbstractRemoteServiceProcesso
 			}
 
 		} finally {
-			if (!ignoreResponses)
+			if (!ignoreResponse)
 				responsesMap.remove(correlationId);
 		}
 	}
+
 	private Message pollResponse(BlockingQueue<Message> responseHolder, long timeout) {
 		try {
 			return responseHolder.poll(timeout, TimeUnit.MILLISECONDS);
@@ -207,12 +211,12 @@ public class GmMqRpcRemoteServiceProcessor extends AbstractRemoteServiceProcesso
 		}
 	}
 
-	private Message createRequestMessage(ServiceRequest request, String correlationId) {
+	private Message createRequestMessage(ServiceRequest request, String correlationId, boolean ignoreResponse) {
 		Message requestMessage = createMessageFromSession();
 		requestMessage.setCorrelationId(correlationId);
 		requestMessage.setDestination(requestDestination);
 		requestMessage.setBody(request);
-		if (!ignoreResponses)
+		if (!ignoreResponse)
 			requestMessage.setReplyTo(responseTopic);
 
 		Map<String, Object> properties = requestMessage.getProperties();
