@@ -44,6 +44,7 @@ import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EssentialTypes;
 import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.utils.StringTools;
+import com.braintribe.utils.lcd.Lazy;
 import com.braintribe.utils.lcd.LazyInitialized;
 import com.braintribe.ve.api.VirtualEnvironment;
 import com.braintribe.ve.impl.StandardEnvironment;
@@ -74,18 +75,24 @@ import com.braintribe.ve.impl.StandardEnvironment;
  */
 public class ModeledYamlConfiguration implements ModeledConfiguration {
 	private static final Logger logger = Logger.getLogger(ModeledYamlConfiguration.class);
-	private Map<EntityType<? extends GenericEntity>, LazyInitialized<Maybe<? extends GenericEntity>>> configs = new ConcurrentHashMap<>();
+	private Map<EntityType<? extends GenericEntity>, Lazy<Maybe<? extends GenericEntity>>> configs = new ConcurrentHashMap<>();
 	private File configFolder;
 	private VirtualEnvironment virtualEnvironment = StandardEnvironment.INSTANCE;
 	private boolean writePooled;
-	private LazyInitialized<Map<String, String>> properties = new LazyInitialized<>(this::loadProperties);
+	private Lazy<Map<String, String>> properties = new Lazy<>(this::loadProperties);
 	private Function<String, String> externalPropertyLookup = n -> null;
+	private boolean enableStandardProperties = true;
 	
 	@Required
 	public void setConfigFolder(File configFolder) {
 		this.configFolder = configFolder;
 	}
 	
+	@Configurable
+	public void setEnableStandardProperties(boolean enableStandardProperties) {
+		this.enableStandardProperties = enableStandardProperties;
+	}
+
 	@Configurable
 	public void setExternalPropertyLookup(Function<String, String> externalPropertyLookup) {
 		this.externalPropertyLookup = externalPropertyLookup;
@@ -149,10 +156,12 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	}
 	
 	private String resolveProperty(String name) {
-		String value = properties.get().get(name);
-		
-		if (value != null)
-			return value;
+		if (enableStandardProperties) {
+			String value = properties.get().get(name);
+			
+			if (value != null)
+				return value;
+		}
 				
 		return externalPropertyLookup.apply(name);
 	}

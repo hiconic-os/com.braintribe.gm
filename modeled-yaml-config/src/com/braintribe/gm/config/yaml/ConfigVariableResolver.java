@@ -24,7 +24,6 @@ import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.config.ConfigurationEvaluationError;
 import com.braintribe.gm.model.reason.config.UnresolvedProperty;
-import com.braintribe.gm.model.reason.essential.NotFound;
 import com.braintribe.model.generic.value.Variable;
 import com.braintribe.ve.api.VirtualEnvironment;
 
@@ -107,8 +106,11 @@ public class ConfigVariableResolver {
 
 	private Reason acquireFailure() {
 		if (failure == null) {
-			failure = Reasons.build(ConfigurationEvaluationError.T)
-					.text("Configuration evaluation failed for " + file.getAbsolutePath()).toReason();
+			String msg = file != null? //
+				"Configuration evaluation failed for " + file.getAbsolutePath(): //
+				"Configuration evaluation failed";
+			
+			failure = Reasons.build(ConfigurationEvaluationError.T).text(msg).toReason();
 		}
 
 		return failure;
