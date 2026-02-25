@@ -15,6 +15,8 @@
 // ============================================================================
 package com.braintribe.gm.model.reason;
 
+import java.util.function.Supplier;
+
 import com.braintribe.model.generic.GmCoreApiInteropNamespaces;
 import com.braintribe.model.generic.reflection.EntityType;
 
@@ -44,5 +46,27 @@ public interface Reasons {
 		ReasonFormatter.format(builder, reason, 0, includeExceptions);
 		
 		return builder.toString();
+	}
+	
+	static <R extends Reason> R create(EntityType<R> type, String text) {
+		R reason = type.create();
+		reason.setText(text);
+		return reason;
+	}
+	
+	static <R extends Reason> Supplier<R> supplier(EntityType<R> type, Supplier<String> textSupplier) {
+		return () -> {
+			R reason = type.create();
+			reason.setText(textSupplier.get());
+			return reason;
+		};
+	}
+	
+	static <R extends Reason> ReasonAggregator<R> aggregatorForceWrap(Supplier<? extends R> wrapperSupplier) {
+		return new ReasonAggregator<R>(wrapperSupplier, true);
+	}
+	
+	static ReasonAggregator<Reason> aggregator(Supplier<? extends Reason> wrapperSupplier) {
+		return new ReasonAggregator<Reason>(wrapperSupplier, false);
 	}
 }

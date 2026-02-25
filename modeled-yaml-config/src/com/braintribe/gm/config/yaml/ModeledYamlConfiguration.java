@@ -15,6 +15,7 @@
 // ============================================================================
 package com.braintribe.gm.config.yaml;
 
+import static com.braintribe.gm.config.yaml.PropertyResolutions.reasonifyPropertyResolver;
 import static com.braintribe.utils.lcd.StringTools.camelCaseToSocialDistancingCase;
 
 import java.io.BufferedOutputStream;
@@ -37,6 +38,10 @@ import com.braintribe.codec.marshaller.api.TypeExplicitnessOption;
 import com.braintribe.codec.marshaller.yaml.YamlMarshaller;
 import com.braintribe.gm.config.api.ModeledConfiguration;
 import com.braintribe.gm.model.reason.Maybe;
+import com.braintribe.gm.model.reason.Reason;
+import com.braintribe.gm.model.reason.ReasonAggregator;
+import com.braintribe.gm.model.reason.Reasons;
+import com.braintribe.gm.model.reason.essential.ConfigurationError;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
@@ -80,8 +85,7 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	private VirtualEnvironment virtualEnvironment = StandardEnvironment.INSTANCE;
 	private boolean writePooled;
 	private Lazy<Map<String, String>> properties = new Lazy<>(this::loadProperties);
-	private Function<String, String> externalPropertyLookup = n -> null;
-	private boolean enableStandardProperties = true;
+	private Function<String, Maybe<String>> propertyLookup = reasonifyPropertyResolver(this::resolveStandardProperty);
 	
 	@Required
 	public void setConfigFolder(File configFolder) {
@@ -89,13 +93,13 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	}
 	
 	@Configurable
-	public void setEnableStandardProperties(boolean enableStandardProperties) {
-		this.enableStandardProperties = enableStandardProperties;
-	}
-
-	@Configurable
 	public void setExternalPropertyLookup(Function<String, String> externalPropertyLookup) {
-		this.externalPropertyLookup = externalPropertyLookup;
+		this.propertyLookup = reasonifyPropertyResolver(externalPropertyLookup);
+	}
+	
+	@Configurable
+	public void setExternalReasonedPropertyLookup(Function<String, Maybe<String>> externalReasonedPropertyLookup) {
+		this.propertyLookup = externalReasonedPropertyLookup;
 	}
 	
 	@Configurable
@@ -149,21 +153,27 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 		String fileName = camelCaseToSocialDistancingCase(configType.getShortName()) + ".yaml";
 		File configFile = new File(configFolder, fileName);
 		
-		return new ModeledYamlConfigurationLoader() //
+		Maybe<? extends GenericEntity> configMaybe = new ModeledYamlConfigurationLoader() //
 			.virtualEnvironment(virtualEnvironment) //
-			.variableResolver(this::resolveProperty) //
+			.variableResolverReasoned(propertyLookup) //
 			.loadConfig(configType, configFile, false);
+		
+		if (configMaybe.isUnsatisfied())
+			return configMaybe;
+		
+		return configMaybe;
 	}
 	
-	private String resolveProperty(String name) {
-		if (enableStandardProperties) {
-			String value = properties.get().get(name);
-			
-			if (value != null)
-				return value;
-		}
-				
-		return externalPropertyLookup.apply(name);
+	private String resolveStandardProperty(String name) {
+		String value = properties.get().get(name);
+		if (value != null)
+			return value;
+		
+		value = virtualEnvironment.getProperty(name);
+		if (value != null)
+			return value;
+		
+		return virtualEnvironment.getEnv(name);
 	}
 	
 	private Map<String, String> loadProperties() {

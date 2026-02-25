@@ -35,8 +35,7 @@ import com.braintribe.ve.impl.StandardEnvironment;
 
 public class ModeledYamlConfigurationLoader {
 	private VirtualEnvironment virtualEnvironment = StandardEnvironment.INSTANCE ;
-	private Function<String, String> variableResolver = n -> null;
-	
+	private Function<String, Maybe<String>> variableResolver = null;
 	
 	public ModeledYamlConfigurationLoader virtualEnvironment(VirtualEnvironment virtualEnvironment) {
 		this.virtualEnvironment = virtualEnvironment;
@@ -44,21 +43,27 @@ public class ModeledYamlConfigurationLoader {
 	}
 	
 	public ModeledYamlConfigurationLoader variableResolver(Function<String, String> variableResolver) {
+		this.variableResolver = PropertyResolutions.reasonifyPropertyResolver(variableResolver);
+		return this;
+	}
+	
+	public ModeledYamlConfigurationLoader variableResolverReasoned(Function<String, Maybe<String>> variableResolver) {
 		this.variableResolver = variableResolver;
 		return this;
 	}
 	
 	public <C extends GenericEntity> Maybe<C> loadConfig(EntityType<C> configType, InputStreamProvider inputStreamProvider) {
-		ConfigVariableResolver variableResolver = new ConfigVariableResolver(virtualEnvironment, null);
-		variableResolver.setVariableResolver(this.variableResolver);
+		ConfigVariableResolver configVariableResolver = new ConfigVariableResolver(virtualEnvironment, null);
+		if (variableResolver != null)
+			configVariableResolver.setVariableResolverReasoned(variableResolver);
 		
 		try (InputStream in = inputStreamProvider.openInputStream()) {
 			Maybe<C> maybe = YamlConfigurations.<C>read(configType) //
-					.placeholders(variableResolver::resolve) //
-					.from(inputStreamProvider);
+					.placeholders(configVariableResolver::resolve) //
+					.from(in);
 			
-			if (variableResolver.getFailure() != null) {
-				return variableResolver.getFailure().asMaybe();
+			if (configVariableResolver.getFailure() != null) {
+				return configVariableResolver.getFailure().asMaybe();
 			}
 			
 			return maybe;
@@ -85,7 +90,7 @@ public class ModeledYamlConfigurationLoader {
 		}
 		
 		ConfigVariableResolver variableResolver = new ConfigVariableResolver(virtualEnvironment, configFile);
-		variableResolver.setVariableResolver(this.variableResolver);
+		variableResolver.setVariableResolverReasoned(this.variableResolver);
 		Maybe<C> maybe = YamlConfigurations.<C>read(configType) //
 				.placeholders(variableResolver::resolve) //
 				.from(configFile);

@@ -20,22 +20,24 @@ import java.nio.file.Path;
 import java.util.function.Function;
 
 import com.braintribe.cfg.Configurable;
+import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.config.ConfigurationEvaluationError;
+import com.braintribe.gm.model.reason.config.PropertyNotFound;
 import com.braintribe.gm.model.reason.config.UnresolvedProperty;
+import com.braintribe.gm.model.reason.essential.NotFound;
 import com.braintribe.model.generic.value.Variable;
 import com.braintribe.ve.api.VirtualEnvironment;
 
 public class ConfigVariableResolver {
 
-	private static final String ENV_PREFIX = "env.";
 	private Reason failure;
 	private String dirProperty = ".";
 	private String fileProperty = "";
 	private File file;
 	private VirtualEnvironment virtualEnvironment;
-	private Function<String, String> variableResolver = n -> null;
+	private Function<String, Maybe<String>> variableResolver = null;
 
 	public ConfigVariableResolver(VirtualEnvironment virtualEnvironment, File file) {
 		super();
@@ -51,6 +53,11 @@ public class ConfigVariableResolver {
 
 	@Configurable
 	public void setVariableResolver(Function<String, String> variableResolver) {
+		this.variableResolver = PropertyResolutions.reasonifyPropertyResolver(variableResolver);
+	}
+	
+	@Configurable
+	public void setVariableResolverReasoned(Function<String, Maybe<String>> variableResolver) {
 		this.variableResolver = variableResolver;
 	}
 
@@ -63,15 +70,13 @@ public class ConfigVariableResolver {
 	}
 
 	private String resolve(String var) {
-		if (var.startsWith(ENV_PREFIX)) {
-			String envName = var.substring(ENV_PREFIX.length());
+		if (var.startsWith(PropertyResolutions.ENV_PREFIX)) {
+			String envName = var.substring(PropertyResolutions.ENV_PREFIX.length());
 
 			String value = virtualEnvironment.getEnv(envName);
 
 			if (value == null) {
-				acquireFailure().getReasons().add(Reasons.build(UnresolvedProperty.T) //
-						.text("Could not resolve property " + var) //
-						.toReason());
+				acquireFailure().getReasons().add(PropertyNotFound.create(var));
 				return "${" + var + "}";
 			}
 
@@ -89,15 +94,22 @@ public class ConfigVariableResolver {
 			break;
 		}
 
-		String value = variableResolver.apply(var);
+		if (variableResolver != null) {
+			Maybe<String> valueMaybe = variableResolver.apply(var);
+			
+			if (valueMaybe.isSatisfied())
+				return valueMaybe.get();
+			
+			if (!valueMaybe.isUnsatisfiedBy(NotFound.T)) {
+				acquireFailure().getReasons().add(valueMaybe.whyUnsatisfied());
+				return "${" + var + "}";
+			}
+		}
 
-		if (value != null)
-			return value;
-
-		value = virtualEnvironment.getProperty(var);
+		String value = virtualEnvironment.getProperty(var);
 
 		if (value == null) {
-			acquireFailure().getReasons().add(UnresolvedProperty.create(var)); //
+			acquireFailure().getReasons().add(PropertyNotFound.create(var)); //
 			return "${" + var + "}";
 		}
 

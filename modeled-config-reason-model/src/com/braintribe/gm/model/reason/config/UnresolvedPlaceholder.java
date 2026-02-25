@@ -20,20 +20,20 @@ import com.braintribe.model.generic.annotation.SelectiveInformation;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
-@SelectiveInformation("Unresolved property ${propertyName}")
-public interface UnresolvedProperty extends Reason {
+@SelectiveInformation("Unresolved placeholder ${placeholder}")
+public interface UnresolvedPlaceholder extends Reason {
 
-	EntityType<UnresolvedProperty> T = EntityTypes.T(UnresolvedProperty.class);
+	EntityType<UnresolvedPlaceholder> T = EntityTypes.T(UnresolvedPlaceholder.class);
 
-	String propertyName = "propertyName";
+	String placeholder = "placeholder";
 
-	String getPropertyName();
-	void setPropertyName(String value);
+	String getPlaceholder();
+	void setPlaceholder(String placeholder);
 
-	static UnresolvedProperty create(String propertyName) {
-		UnresolvedProperty result = T.create();
-		result.setText("Unresolved property " + propertyName);
-		result.setPropertyName(propertyName);
+	static UnresolvedPlaceholder create(String placeholder) {
+		UnresolvedPlaceholder result = UnresolvedPlaceholder.T.create();
+		result.setText("Unresolved placeholder " + placeholder);
+		result.setPlaceholder(placeholder);
 		return result;
 	}
 }

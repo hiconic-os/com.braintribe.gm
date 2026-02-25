@@ -77,9 +77,7 @@ public class ConfigVariableResolver {
 				String value = virtualEnvironment.getEnv(envName);
 
 				if (value == null) {
-					acquireFailure().getReasons().add(Reasons.build(UnresolvedProperty.T) //
-							.text("Could not resolve property " + var) //
-							.toReason());
+					acquireFailure().getReasons().add(UnresolvedProperty.create(var));
 					return "${" + var + "}";
 				}
 

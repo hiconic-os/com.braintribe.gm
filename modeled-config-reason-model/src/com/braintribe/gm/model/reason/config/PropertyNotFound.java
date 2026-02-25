@@ -15,24 +15,24 @@
 // ============================================================================
 package com.braintribe.gm.model.reason.config;
 
-import com.braintribe.gm.model.reason.Reason;
+import com.braintribe.gm.model.reason.essential.NotFound;
 import com.braintribe.model.generic.annotation.SelectiveInformation;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
-@SelectiveInformation("Unresolved property ${propertyName}")
-public interface UnresolvedProperty extends Reason {
+@SelectiveInformation("Property ${propertyName} not found")
+public interface PropertyNotFound extends NotFound {
 
-	EntityType<UnresolvedProperty> T = EntityTypes.T(UnresolvedProperty.class);
+	EntityType<PropertyNotFound> T = EntityTypes.T(PropertyNotFound.class);
 
 	String propertyName = "propertyName";
 
 	String getPropertyName();
 	void setPropertyName(String value);
 
-	static UnresolvedProperty create(String propertyName) {
-		UnresolvedProperty result = T.create();
-		result.setText("Unresolved property " + propertyName);
+	static PropertyNotFound create(String propertyName) {
+		PropertyNotFound result = T.create();
+		result.setText("Property " + propertyName + " not found");
 		result.setPropertyName(propertyName);
 		return result;
 	}
