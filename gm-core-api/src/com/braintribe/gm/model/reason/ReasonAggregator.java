@@ -30,7 +30,7 @@ public class ReasonAggregator<R extends Reason> implements Consumer<Reason>, Sup
 				reason = r;
 			else {
 				if (!wrapped) {
-					var wrapper = wrapperSupplier.get();
+					R wrapper = wrapperSupplier.get();
 					wrapper.getReasons().add(reason);
 					reason = wrapper;
 					wrapped = true;

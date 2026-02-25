@@ -10,7 +10,7 @@ public interface PropertyResolutions {
 	
 	static Function<String, Maybe<String>> reasonifyPropertyResolver(Function<String, String> resolver) {
 		return name -> {
-			var value = resolver.apply(name);
+			String value = resolver.apply(name);
 			
 			if (value != null)
 				return Maybe.complete(value);
