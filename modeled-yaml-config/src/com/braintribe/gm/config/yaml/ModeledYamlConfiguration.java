@@ -38,10 +38,6 @@ import com.braintribe.codec.marshaller.api.TypeExplicitnessOption;
 import com.braintribe.codec.marshaller.yaml.YamlMarshaller;
 import com.braintribe.gm.config.api.ModeledConfiguration;
 import com.braintribe.gm.model.reason.Maybe;
-import com.braintribe.gm.model.reason.Reason;
-import com.braintribe.gm.model.reason.ReasonAggregator;
-import com.braintribe.gm.model.reason.Reasons;
-import com.braintribe.gm.model.reason.essential.ConfigurationError;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
@@ -86,10 +82,16 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	private boolean writePooled;
 	private Lazy<Map<String, String>> properties = new Lazy<>(this::loadProperties);
 	private Function<String, Maybe<String>> propertyLookup = reasonifyPropertyResolver(this::resolveStandardProperty);
+	private String classpathConfPath;
 	
 	@Required
 	public void setConfigFolder(File configFolder) {
 		this.configFolder = configFolder;
+	}
+	
+	@Configurable
+	public void setClasspathConfPath(String classpathConfPath) {
+		this.classpathConfPath = classpathConfPath;
 	}
 	
 	@Configurable
@@ -147,6 +149,27 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	public <C extends GenericEntity> Maybe<C> configReasoned(EntityType<C> configType) {
 		// using the lazy initialized here is to avoid to block the map access and to do the actual loading afterwards
 		return (Maybe<C>) configs.computeIfAbsent(configType, k -> new LazyInitialized<>(() -> this.loadConfig(k))).get();
+	}
+	
+	
+	private interface ConfigProvider {
+		
+	}
+	
+	private class FilesystemConfigLoader implements ConfigProvider {
+		
+	}
+	
+	private class ClasspathConfigLoader implements ConfigProvider {
+		
+	}
+	
+	private class CodedConfigProvider implements ConfigProvider {
+		
+	}
+	
+	private class ConfigurationBundle {
+		
 	}
 	
 	private Maybe<? extends GenericEntity> loadConfig(EntityType<?> configType) {

@@ -76,6 +76,10 @@ public abstract class AbstractRemoteServiceProcessor implements ReasonedServiceP
 	protected abstract ServiceResult sendRequest(GmRpcClientRequestContext requestContext);
 
 	protected abstract Logger logger();
+	
+	protected boolean skipSessionIdTransferToRequest() {
+		return false;
+	}
 
 	@Override
 	public Maybe<Object> processReasoned(ServiceRequestContext requestContext, ServiceRequest request) {
@@ -91,7 +95,9 @@ public abstract class AbstractRemoteServiceProcessor implements ReasonedServiceP
 		Logger log = logger();
 
 		try {
-			transferSessionId(requestContext, request);
+			if (!skipSessionIdTransferToRequest())
+				transferSessionId(requestContext, request);
+			
 			response = sendRequest(clientRequestContext);
 
 			stopWatch.intermediate("Send Request");

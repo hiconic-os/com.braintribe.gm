@@ -15,6 +15,7 @@ package com.braintribe.model.processing.mqrpc.client;
 
 import static com.braintribe.transport.messaging.api.MessageProperties.producerAppId;
 import static com.braintribe.transport.messaging.api.MessageProperties.producerNodeId;
+import static com.braintribe.transport.messaging.api.MessageProperties.producerSessionId;
 
 import java.util.Map;
 import java.util.UUID;
@@ -26,6 +27,9 @@ import java.util.concurrent.TimeUnit;
 import com.braintribe.cfg.Configurable;
 import com.braintribe.cfg.DestructionAware;
 import com.braintribe.cfg.Required;
+import com.braintribe.common.attribute.AttributeContext;
+import com.braintribe.gm.model.reason.Reasons;
+import com.braintribe.gm.model.reason.essential.Timeout;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.eval.IgnoreResponseAspect;
 import com.braintribe.model.generic.reflection.EntityType;
@@ -36,10 +40,14 @@ import com.braintribe.model.messaging.Topic;
 import com.braintribe.model.processing.rpc.commons.api.GmRpcException;
 import com.braintribe.model.processing.rpc.commons.impl.client.AbstractRemoteServiceProcessor;
 import com.braintribe.model.processing.rpc.commons.impl.client.GmRpcClientRequestContext;
+import com.braintribe.model.processing.service.common.context.UserSessionAspect;
 import com.braintribe.model.service.api.InstanceId;
 import com.braintribe.model.service.api.ServiceRequest;
 import com.braintribe.model.service.api.result.ResponseEnvelope;
 import com.braintribe.model.service.api.result.ServiceResult;
+import com.braintribe.model.service.api.result.StillProcessing;
+import com.braintribe.model.service.api.result.Unsatisfied;
+import com.braintribe.model.usersession.UserSession;
 import com.braintribe.transport.messaging.api.MessageConsumer;
 import com.braintribe.transport.messaging.api.MessageListener;
 import com.braintribe.transport.messaging.api.MessageProducer;
@@ -48,6 +56,7 @@ import com.braintribe.transport.messaging.api.MessagingException;
 import com.braintribe.transport.messaging.api.MessagingSession;
 import com.braintribe.transport.messaging.api.MessagingSessionProvider;
 import com.braintribe.utils.lcd.LazyInitialization;
+import com.braintribe.gm.model.reason.essential.InternalError;
 
 public class GmMqRpcRemoteServiceProcessor extends AbstractRemoteServiceProcessor implements MessageListener, DestructionAware {
 	private static final Logger log = Logger.getLogger(GmMqRpcRemoteServiceProcessor.class);
@@ -58,7 +67,6 @@ public class GmMqRpcRemoteServiceProcessor extends AbstractRemoteServiceProcesso
 	private boolean ignoreResponses;
 	private String responseTopicName;
 	private long responseTimeout = 10000L;
-	private int retries = 3;
 
 	private volatile boolean stopProcessing = false;
 
@@ -78,7 +86,6 @@ public class GmMqRpcRemoteServiceProcessor extends AbstractRemoteServiceProcesso
 	@Configurable public void setIgnoreResponses(boolean ignoreResponses) { this.ignoreResponses = ignoreResponses; }
 	@Configurable public void setResponseTopicName(String responseTopicName) { this.responseTopicName = responseTopicName; }
 	@Configurable public void setResponseTimeout(long responseTimeout) { this.responseTimeout = responseTimeout; }
-	@Configurable public void setRetries(int retries) { this.retries = retries; }
 	// @formatter:on
 
 	@Override
@@ -125,6 +132,11 @@ public class GmMqRpcRemoteServiceProcessor extends AbstractRemoteServiceProcesso
 			}
 		}
 	}
+	
+	@Override
+	protected boolean skipSessionIdTransferToRequest() {
+		return true;
+	}
 
 	@Override
 	protected ServiceResult sendRequest(GmRpcClientRequestContext requestContext) {
@@ -134,7 +146,7 @@ public class GmMqRpcRemoteServiceProcessor extends AbstractRemoteServiceProcesso
 		String correlationId = UUID.randomUUID().toString();
 		boolean ignoreResponse = ignoreResponses || requestContext.getAttributeContext().findOrDefault(IgnoreResponseAspect.class, Boolean.FALSE);
 
-		Message requestMessage = createRequestMessage(request, correlationId, ignoreResponse);
+		Message requestMessage = createRequestMessage(requestContext.getAttributeContext(), request, correlationId, ignoreResponse);
 
 		try {
 			BlockingQueue<Message> responseHolder = null;
@@ -142,58 +154,47 @@ public class GmMqRpcRemoteServiceProcessor extends AbstractRemoteServiceProcesso
 			if (!ignoreResponse)
 				responsesMap.put(correlationId, responseHolder = new LinkedBlockingQueue<>());
 
-			long start = System.currentTimeMillis();
 			requestProducer.sendMessage(requestMessage);
 			log.trace(() -> "Application [" + clientInstanceId + "] sent message [" + correlationId + "] with: " + request);
 
 			if (ignoreResponse)
-				return null;
-
-			long timeout = responseTimeout;
-			long retriesLeft = retries;
+				return ResponseEnvelope.T.create();
 
 			while (true) {
-				Message responseMessage = pollResponse(responseHolder, timeout);
+				Message responseMessage = pollResponse(responseHolder);
+				
 				if (responseMessage == null) {
 					// timed out
-					if (retriesLeft == 0)
-						throw new GmRpcException("Request timed out. No response was received for the request [" + correlationId
-								+ "] to destination [" + requestDestinationName + "] from response topic [" + responseTopicName + "]: " + request);
-
-					if (log.isDebugEnabled())
-						log.debug("Application [" + clientInstanceId + "] will retry the message [" + correlationId
-								+ "] as no response was received in " + responseTimeout + " milliseconds. Remaining retries: " + retriesLeft);
-
-					requestProducer.sendMessage(requestMessage);
-					log.trace(() -> "Application [" + clientInstanceId + "] re-sent message [" + correlationId + "] with: " + request);
-
-					timeout = responseTimeout;
-					retriesLeft--;
-
-					continue;
+					return Unsatisfied.from(Reasons.build(Timeout.T).text("Timed out waiting for response").toMaybe());
 				}
 
-				timeout = Math.max(0, timeout - (System.currentTimeMillis() - start));
-
 				if (correlationId.equals(responseMessage.getCorrelationId())) {
-					InstanceId origin = requireOrigin(responseMessage);
-					ServiceResult result = requireServiceResult(responseMessage);
-
-					if (result == null) {
-						// What does 'ignore signal' mean?
-						log.trace(() -> "Application [" + clientInstanceId + "] received an ignore-signal for message [" + correlationId + "] from ["
-								+ origin + "]");
-
-					} else {
-						log.trace(() -> "Application [" + clientInstanceId + "] received a normal response for message [" + correlationId + "] from ["
-								+ origin + "]: " + result);
-
-						ResponseEnvelope responseEnvelope = result.asResponse();
-						if (responseEnvelope != null)
-							requestContext.notifyResponse(responseEnvelope.getResult());
-
-						return result;
+					Object body = responseMessage.getBody();
+					
+					if (!(body instanceof ServiceResult)) {
+						String trackbackIdTail = " (tracebackId=" + UUID.randomUUID().toString() + ")";
+						String reasonMsg = "Internal Error" + trackbackIdTail; 
+						String logMsg = "Unexpected rpc message body " + trackbackIdTail + " " + body; 
+						log.error(logMsg);
+						return Unsatisfied.from(Reasons.build(InternalError.T).text(reasonMsg).toMaybe());
 					}
+					
+					ServiceResult result = (ServiceResult) body;
+
+					if (result instanceof StillProcessing) {
+						continue;
+					}
+
+					InstanceId origin = requireOrigin(responseMessage);
+
+					log.trace(() -> "Application [" + clientInstanceId + "] received a normal response for message [" + correlationId + "] from ["
+							+ origin + "]: " + result);
+
+					ResponseEnvelope responseEnvelope = result.asResponse();
+					if (responseEnvelope != null)
+						requestContext.notifyResponse(responseEnvelope.getResult());
+
+					return result;
 				}
 			}
 
@@ -203,15 +204,15 @@ public class GmMqRpcRemoteServiceProcessor extends AbstractRemoteServiceProcesso
 		}
 	}
 
-	private Message pollResponse(BlockingQueue<Message> responseHolder, long timeout) {
+	private Message pollResponse(BlockingQueue<Message> responseHolder) {
 		try {
-			return responseHolder.poll(timeout, TimeUnit.MILLISECONDS);
+			return responseHolder.poll(responseTimeout, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException e) {
 			throw new GmRpcException("Client is closed", e);
 		}
 	}
 
-	private Message createRequestMessage(ServiceRequest request, String correlationId, boolean ignoreResponse) {
+	private Message createRequestMessage(AttributeContext attributeContext, ServiceRequest request, String correlationId, boolean ignoreResponse) {
 		Message requestMessage = createMessageFromSession();
 		requestMessage.setCorrelationId(correlationId);
 		requestMessage.setDestination(requestDestination);
@@ -222,6 +223,10 @@ public class GmMqRpcRemoteServiceProcessor extends AbstractRemoteServiceProcesso
 		Map<String, Object> properties = requestMessage.getProperties();
 		properties.put(producerAppId.getName(), clientInstanceId.getApplicationId());
 		properties.put(producerNodeId.getName(), clientInstanceId.getNodeId());
+		
+		attributeContext.findAttribute(UserSessionAspect.class) //
+			.map(UserSession::getSessionId) //
+			.ifPresent(sid -> properties.put(producerSessionId.getName(), sid));
 
 		log.trace(() -> "Created message [" + correlationId + "] from [" + clientInstanceId + "] to deliver: " + request);
 
@@ -256,14 +261,6 @@ public class GmMqRpcRemoteServiceProcessor extends AbstractRemoteServiceProcesso
 			throw new IllegalStateException("Response message is missing the [ " + propertyName + " ] property.");
 
 		return strValue;
-	}
-
-	private ServiceResult requireServiceResult(Message message) {
-		try {
-			return (ServiceResult) message.getBody();
-		} catch (Exception e) {
-			throw new IllegalStateException("Failed to get the body of the incoming message: " + message, e);
-		}
 	}
 
 	@Override

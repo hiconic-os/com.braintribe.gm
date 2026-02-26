@@ -24,6 +24,7 @@ public enum MessageProperties {
 
 	addreseeAppId("gmMessagingAddreseeAppId"),
 	addreseeNodeId("gmMessagingAddreseeNodeId"),
+	producerSessionId("gmMessagingProducerSessionId"),
 	producerAppId("gmMessagingProducerAppId"),
 	producerNodeId("gmMessagingProducerNodeId"),
 	consumerAppId("gmMessagingConsumerAppId"),

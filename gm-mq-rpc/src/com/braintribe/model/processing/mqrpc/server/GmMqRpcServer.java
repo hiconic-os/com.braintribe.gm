@@ -34,6 +34,7 @@ import com.braintribe.cfg.LifecycleAware;
 import com.braintribe.cfg.Required;
 import com.braintribe.common.attribute.AttributeContext;
 import com.braintribe.common.attribute.AttributeContextBuilder;
+import com.braintribe.common.attribute.TypeSafeAttribute;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.logging.Logger;
 import com.braintribe.logging.ThreadRenamer;
@@ -53,6 +54,7 @@ import com.braintribe.model.processing.service.api.LocalOnlyAspect;
 import com.braintribe.model.processing.service.api.ParentAttributeContextAspect;
 import com.braintribe.model.processing.service.api.ResponseConsumerAspect;
 import com.braintribe.model.processing.service.api.ServiceRequestSummaryLogger;
+import com.braintribe.model.processing.service.api.SessionIdAspect;
 import com.braintribe.model.processing.service.api.aspect.EndpointExposureAspect;
 import com.braintribe.model.processing.service.api.aspect.IsTrustedAspect;
 import com.braintribe.model.processing.service.api.aspect.RequestedEndpointAspect;
@@ -75,6 +77,7 @@ import com.braintribe.provider.Holder;
 import com.braintribe.transport.messaging.api.MessageConsumer;
 import com.braintribe.transport.messaging.api.MessageListener;
 import com.braintribe.transport.messaging.api.MessageProducer;
+import com.braintribe.transport.messaging.api.MessageProperties;
 import com.braintribe.transport.messaging.api.MessagingException;
 import com.braintribe.transport.messaging.api.MessagingSession;
 import com.braintribe.transport.messaging.api.MessagingSessionProvider;
@@ -95,10 +98,10 @@ import com.braintribe.utils.lcd.Lazy;
  * 
  */
 public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
-
+	
 	// constants
 	private static final Logger log = Logger.getLogger(GmMqRpcServer.class);
-
+	
 	// configurable
 	private Evaluator<ServiceRequest> requestEvaluator;
 	private MessagingSessionProvider messagingSessionProvider;
@@ -301,7 +304,7 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 		public void run() {
 			try {
 				ServiceRequest request = requestExtractor.apply(requestMessage);
-				AttributeContext attributeContext = initializeContext(requestMessage.getHeaders());
+				AttributeContext attributeContext = initializeContext(requestMessage);
 				ServiceRequestSummaryLogger summaryLogger = attributeContext.findAttribute(SummaryLoggerAspect.class)
 						.orElse(NoOpServiceRequestSummaryLogger.INSTANCE);
 
@@ -438,26 +441,38 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 		return responseMessage;
 	}
 
-	protected AttributeContext initializeContext(Map<String, Object> requestMetaData) {
-		String requestedEndpoint = null;
-		String requestorAddress = null;
-		String requestorId = null;
-
-		if (requestMetaData != null && !requestMetaData.isEmpty()) {
-			requestedEndpoint = asString(requestMetaData.get(RpcConstants.RPC_MAPKEY_REQUESTED_ENDPOINT));
-			requestorAddress = asString(requestMetaData.get(RpcConstants.RPC_MAPKEY_REQUESTED_ENDPOINT));
-			requestorId = asString(requestMetaData.get(RpcHeaders.rpcClientId.getHeaderName()));
-		}
+	private static final Map<String, Class<? extends TypeSafeAttribute<String>>> transferHeaderNames = Map.of(
+			RpcConstants.RPC_MAPKEY_REQUESTED_ENDPOINT, RequestedEndpointAspect.class,
+			RpcConstants.RPC_MAPKEY_REQUESTOR_ADDRESS, RequestorAddressAspect.class, 
+			RpcHeaders.rpcClientId.getHeaderName(), RequestorIdAspect.class
+	);
+	
+	private static final Map<String, Class<? extends TypeSafeAttribute<String>>> transferPropertyNames = Map.of(
+			MessageProperties.producerSessionId.getName(), SessionIdAspect.class
+	);
+	
+	protected AttributeContext initializeContext(Message requestMessage) {
+		Map<String, Object> headers = requestMessage.getHeaders();
+		Map<String,Object> properties = requestMessage.getProperties();
 
 		AttributeContext attributeContext = AttributeContexts.peek();
 
 		//@formatter:off
 		AttributeContextBuilder builder = attributeContext.derive()
-				.set(RequestedEndpointAspect.class, requestedEndpoint)
-				.set(RequestorAddressAspect.class, requestorAddress)
-				.set(RequestorIdAspect.class, requestorId)
 				.set(IsTrustedAspect.class, trusted);
 		//@formatter:on
+		
+		for (Map.Entry<String, Class<? extends TypeSafeAttribute<String>>> entry : transferHeaderNames.entrySet()) {
+			Object value = headers.get(entry.getKey());
+			if (value != null)
+				builder.set(entry.getValue(), value.toString());
+		}
+		
+		for (Map.Entry<String, Class<? extends TypeSafeAttribute<String>>> entry : transferPropertyNames.entrySet()) {
+			Object value = properties.get(entry.getKey());
+			if (value != null)
+				builder.set(entry.getValue(), value.toString());
+		}
 
 		if (endpointExposure != null) {
 			builder.set(EndpointExposureAspect.class, endpointExposure);
