@@ -82,9 +82,9 @@ public class GmMqRpcRemoteServiceProcessor extends AbstractRemoteServiceProcesso
 	// @formatter:off
 	@Required public void setMessagingSessionProvider(MessagingSessionProvider messagingSessionProvider) { this.messagingSessionProvider = messagingSessionProvider; }
 	@Required public void setRequestDestinationName(String requestDestinationName) { this.requestDestinationName = requestDestinationName; }
+	@Required public void setResponseTopicName(String responseTopicName) { this.responseTopicName = responseTopicName; }
 	@Required public void setRequestDestinationType(EntityType<? extends Destination> requestDestinationType) { this.requestDestinationType = requestDestinationType; }
 	@Configurable public void setIgnoreResponses(boolean ignoreResponses) { this.ignoreResponses = ignoreResponses; }
-	@Configurable public void setResponseTopicName(String responseTopicName) { this.responseTopicName = responseTopicName; }
 	@Configurable public void setResponseTimeout(long responseTimeout) { this.responseTimeout = responseTimeout; }
 	// @formatter:on
 
