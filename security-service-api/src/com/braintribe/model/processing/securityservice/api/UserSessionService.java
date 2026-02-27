@@ -15,8 +15,10 @@
 // ============================================================================
 package com.braintribe.model.processing.securityservice.api;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
+import java.util.Set;
 
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.time.TimeSpan;
@@ -56,7 +58,38 @@ public interface UserSessionService {
 	 *            A key to access the session alternatively by
 	 * @return {@link UserSession} object for the {@link User} given by the {@code user} parameter.
 	 */
-	Maybe<UserSession> createUserSession(User user, UserSessionType type, TimeSpan maxIdleTime, TimeSpan maxAge, Date fixedExpiryDate,
+	default Maybe<UserSession> createUserSession(User user, UserSessionType type, TimeSpan maxIdleTime, TimeSpan maxAge, Date fixedExpiryDate,
+			String internetAddress, Map<String, String> properties, String acquirationKey, boolean blocksAuthenticationAfterLogout) {
+		return createUserSession(user, Collections.emptySet(), type, maxIdleTime, maxAge, fixedExpiryDate, internetAddress, properties, acquirationKey, blocksAuthenticationAfterLogout);
+	}
+	
+	/**
+	 * <p>
+	 * Creates a {@link UserSession} for the {@link User} given by {@code user}.
+	 * 
+	 * @param user
+	 *            {@link User} to have a {@link UserSession} created for.
+	 * @param additionalRoles Roles that will additionally added to the effectiveRoles of the UserSession   
+	 * @param type
+	 *            {@link UserSessionType}.
+	 * @param maxIdleTime
+	 *            {@link TimeSpan} to be used as the created session's max idle time (
+	 *            {@link UserSession#getMaxIdleTime()}).
+	 * @param maxAge
+	 *            If provided, this {@link TimeSpan} is used to calculate the user session's fixed expiry date (
+	 *            {@link UserSession#getFixedExpiryDate()}). Ignored if {@code fixedExpiryDate} parameter is provided.
+	 * @param fixedExpiryDate
+	 *            If provided, determines the user session's fixed expiry date ({@link UserSession#getFixedExpiryDate()})
+	 * @param internetAddress
+	 *            Internet address of the caller for whom the session is being created, to be accessible through
+	 *            {@link UserSession#getCreationInternetAddress()}
+	 * @param properties
+	 *            If provided, determines the user session's properties ({@link UserSession#getProperties()})
+	 * @param acquirationKey
+	 *            A key to access the session alternatively by
+	 * @return {@link UserSession} object for the {@link User} given by the {@code user} parameter.
+	 */
+	Maybe<UserSession> createUserSession(User user, Set<String> additionalRoles, UserSessionType type, TimeSpan maxIdleTime, TimeSpan maxAge, Date fixedExpiryDate,
 			String internetAddress, Map<String, String> properties, String acquirationKey, boolean blocksAuthenticationAfterLogout);
 
 	/**

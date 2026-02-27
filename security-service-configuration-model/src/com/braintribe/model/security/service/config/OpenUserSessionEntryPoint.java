@@ -31,6 +31,7 @@ public interface OpenUserSessionEntryPoint extends GenericEntity {
     String name = "name";
     String allowedRoles = "allowedRoles";
     String forbiddenRoles = "forbiddenRoles";
+    String inducedRoles = "inducedRoles";
     String sessionCookieName = "sessionCookieName";
     String sessionCookieHttpOnly = "sessionCookieHttpOnly";
     String httpActivations = "httpActivations";
@@ -62,6 +63,11 @@ public interface OpenUserSessionEntryPoint extends GenericEntity {
             + "If the user has any of these roles, access is denied, regardless of allowedRoles.")
     Set<String> getForbiddenRoles();
     void setForbiddenRoles(Set<String> forbiddenRoles);
+    
+    @Description("The roles that are automatically added to the effective roles of a UserSession"
+    		+ " when it is opened via this entry point.")
+    Set<String> getInducedRoles();
+    void setInducedRoles(Set<String> inducedRoles);
     
     default String sessionCookieName() {
     	String sessionCookieName = getSessionCookieName();
