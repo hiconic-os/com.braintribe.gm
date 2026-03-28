@@ -25,7 +25,6 @@ import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.config.ConfigurationEvaluationError;
 import com.braintribe.gm.model.reason.config.PropertyNotFound;
-import com.braintribe.gm.model.reason.config.UnresolvedProperty;
 import com.braintribe.gm.model.reason.essential.NotFound;
 import com.braintribe.model.generic.value.Variable;
 import com.braintribe.ve.api.VirtualEnvironment;
@@ -35,8 +34,8 @@ public class ConfigVariableResolver {
 	private Reason failure;
 	private String dirProperty = ".";
 	private String fileProperty = "";
-	private File file;
-	private VirtualEnvironment virtualEnvironment;
+	private final File file;
+	private final VirtualEnvironment virtualEnvironment;
 	private Function<String, Maybe<String>> variableResolver = null;
 
 	public ConfigVariableResolver(VirtualEnvironment virtualEnvironment, File file) {

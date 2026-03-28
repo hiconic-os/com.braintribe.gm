@@ -58,66 +58,63 @@ import com.braintribe.processing.async.api.AsyncCallback;
 import com.braintribe.provider.Holder;
 
 /**
- * A Utility class to read configurations written in yaml with support for root type inference, property placeholders, default initialization, variable resolving and different input options.
+ * A Utility class to read configurations written in yaml with support for root type inference, property placeholders, default initialization,
+ * variable resolving and different input options.
+ * 
  * @author Dirk Scheffler
  *
  */
 public abstract class YamlConfigurations {
-	private static final YamlMarshaller marshaller;
-	
-	static {
-		marshaller = new YamlMarshaller();
-		marshaller.setV2(true);
-	}
-	
+	private static final YamlMarshaller marshaller = new YamlMarshaller();
+
 	/**
 	 * <p>
-	 * Starts a {@link ConfigurationReadBuilder} builder that parses a certain {@link EntityType} by using that as root type inference and generic type parameterization. The root type inference
-	 * allows to read completely untyped yaml configurations.
+	 * Starts a {@link ConfigurationReadBuilder} builder that parses a certain {@link EntityType} by using that as root type inference and generic
+	 * type parameterization. The root type inference allows to read completely untyped yaml configurations.
 	 * 
 	 * <p>
 	 * If no further option other that a from method is choosen on the builder it will be in the following mode:
 	 * 
 	 * <ul>
-	 * 	<li>entity default initialization active
-	 *  <li>placeholder support inactive
-	 *  <li>value descriptor resolving inactive
-	 *  <li>root type inference active
-	 *  <li>
+	 * <li>entity default initialization active
+	 * <li>placeholder support inactive
+	 * <li>value descriptor resolving inactive
+	 * <li>root type inference active
+	 * <li>
 	 * </ul>
 	 */
 	public static <C extends GenericEntity> ConfigurationReadBuilder<C> read(EntityType<C> type) {
 		return new ConfigurationReadBuilderImpl<C>(type);
 	}
-	
+
 	/**
 	 * <p>
-	 * Starts a {@link ConfigurationReadBuilder} builder that parses a certain {@link GenericModelType} by using that as root type inference. The generic type parameterization must come
-	 * by other ways such as left value type inference or explizit parameterization of the call. The root type inference
-	 * allows to read completely untyped yaml configurations.
-	 * Starts a {@link ConfigurationReadBuilder} builder that parses a certain {@link EntityType} by using that as root type inference and generic type parameterization. The root type inference
-	 * allows to read completely untyped yaml configurations.
+	 * Starts a {@link ConfigurationReadBuilder} builder that parses a certain {@link GenericModelType} by using that as root type inference. The
+	 * generic type parameterization must come by other ways such as left value type inference or explizit parameterization of the call. The root type
+	 * inference allows to read completely untyped yaml configurations. Starts a {@link ConfigurationReadBuilder} builder that parses a certain
+	 * {@link EntityType} by using that as root type inference and generic type parameterization. The root type inference allows to read completely
+	 * untyped yaml configurations.
 	 * 
 	 * <p>
 	 * If no further option other that a from method is choosen on the builder it will be in the following mode:
 	 * 
 	 * <ul>
-	 * 	<li>entity default initialization active
-	 *  <li>placeholder support inactive
-	 *  <li>value descriptor resolving inactive
-	 *  <li>root type inference active
-	 *  <li>
+	 * <li>entity default initialization active
+	 * <li>placeholder support inactive
+	 * <li>value descriptor resolving inactive
+	 * <li>root type inference active
+	 * <li>
 	 * </ul>
 	 */
 	public static <C> ConfigurationReadBuilder<C> read(GenericModelType type) {
 		return new ConfigurationReadBuilderImpl<C>(type);
 	}
-	
+
 	private static class ConfigurationReadBuilderImpl<E> implements ConfigurationReadBuilder<E> {
-		private GmDeserializationContextBuilder optionsBuilder;
+		private final GmDeserializationContextBuilder optionsBuilder;
 		private Function<Variable, Object> resolver;
-		private GenericModelType type;
-		
+		private final GenericModelType type;
+
 		public ConfigurationReadBuilderImpl(GenericModelType type) {
 			this.type = type;
 			optionsBuilder = GmDeserializationOptions.deriveDefaults().setInferredRootType(type).set(EntityFactory.class, EntityType::create);
@@ -128,43 +125,43 @@ public abstract class YamlConfigurations {
 			configurer.accept(optionsBuilder);
 			return this;
 		}
-		
+
 		@Override
 		public ConfigurationReadBuilder<E> placeholders() {
 			optionsBuilder.set(PlaceholderSupport.class, true);
 			return this;
 		}
-		
+
 		@Override
 		public ConfigurationReadBuilder<E> placeholders(Function<Variable, Object> resolver) {
 			placeholders();
 			this.resolver = resolver;
 			return this;
 		}
-		
+
 		@Override
 		public ConfigurationReadBuilder<E> absentifyMissingProperties() {
 			noDefaulting();
 			optionsBuilder.set(AbsentifyMissingPropertiesOption.class, true);
-			
+
 			return this;
 		}
-		
+
 		@Override
 		public ConfigurationReadBuilder<E> noDefaulting() {
 			optionsBuilder.set(EntityFactory.class, EntityType::createRaw);
 			return this;
 		}
-		
+
 		@Override
 		public Maybe<E> from(InputStream in) {
-			Maybe<E> configMaybe = (Maybe<E>)marshaller.unmarshallReasoned(in, optionsBuilder.build());
+			Maybe<E> configMaybe = (Maybe<E>) marshaller.unmarshallReasoned(in, optionsBuilder.build());
 			return configMaybe.flatMap(this::postProcessConfig);
 		}
-		
+
 		@Override
 		public Maybe<E> from(Reader reader) {
-			Maybe<E> configMaybe = (Maybe<E>)marshaller.unmarshallReasoned(reader, optionsBuilder.build());
+			Maybe<E> configMaybe = (Maybe<E>) marshaller.unmarshallReasoned(reader, optionsBuilder.build());
 			return configMaybe.flatMap(this::postProcessConfig);
 		}
 
@@ -172,78 +169,70 @@ public abstract class YamlConfigurations {
 			if (resolver != null) {
 				return resolvePlaceholders(config, resolver);
 			}
-			
+
 			return Maybe.complete(config);
 		}
-		
+
 		@Override
 		public Maybe<E> from(InputStreamProvider streamProvider) {
 			try (InputStream in = streamProvider.openInputStream()) {
 				return from(in);
-			}
-			catch (IOException e) {
+			} catch (IOException e) {
 				throw new UncheckedIOException(e);
 			}
 		}
-		
+
 		@Override
 		public Maybe<E> from(File file) {
 			if (file.exists()) {
 				Maybe<E> maybe = from(() -> new FileInputStream(file));
-				
+
 				if (maybe.isUnsatisfied())
 					return errorFor(file, maybe.whyUnsatisfied());
-				
+
 				return maybe;
 			} else
 				return Reasons.build(NotFound.T) //
 						.text("File not found: " + file.getAbsolutePath()) //
 						.toMaybe();
 		}
-		
+
 		private <T> Maybe<T> errorFor(File file, Reason cause) {
-			return Reasons.build(ConfigurationError.T).text("Error while reading " + type.getTypeSignature() + " configuration from: " + file.getAbsolutePath()).cause(cause).toMaybe();
+			return Reasons.build(ConfigurationError.T)
+					.text("Error while reading " + type.getTypeSignature() + " configuration from: " + file.getAbsolutePath()).cause(cause).toMaybe();
 		}
-		
+
 		@Override
 		public Maybe<E> from(URL url) {
 			return from(url::openStream);
 		}
 	}
-	
+
 	private static class AiEvaluator implements ValueDescriptorEvaluator<AbsenceInformation> {
 		@Override
 		public VdeResult evaluate(VdeContext context, AbsenceInformation valueDescriptor) throws VdeRuntimeException {
 			return new VdeResultImpl(valueDescriptor, false);
 		}
 	}
-	
+
 	public static <E> Maybe<E> resolvePlaceholders(E config, Function<Variable, Object> resolver) {
-		VdeRegistry vdeRegistry = VDE.registryBuilder()
-				.loadDefaultSetup()
-				.withConcreteExpert(AbsenceInformation.class, new AiEvaluator())
-				.done();
-		
-		VdeContextBuilder builder = VDE.evaluate()
-				.withRegistry(vdeRegistry)
-				.with(VariableProviderAspect.class, resolver);
-		
+		VdeRegistry vdeRegistry = VDE.registryBuilder().loadDefaultSetup().withConcreteExpert(AbsenceInformation.class, new AiEvaluator()).done();
+
+		VdeContextBuilder builder = VDE.evaluate().withRegistry(vdeRegistry).with(VariableProviderAspect.class, resolver);
+
 		Holder<E> resultHolder = new Holder<>();
 		Holder<Throwable> errorHolder = new Holder<>();
-		
-		new AsyncCloningImpl((vd,c) -> c.onSuccess(builder.forValue(vd)), Runnable::run, e -> false)
-		.cloneValue(config, AsyncCallback.of(
-				resultHolder, 
-				errorHolder
-				));
-		
+
+		new AsyncCloningImpl((vd, c) -> c.onSuccess(builder.forValue(vd)), Runnable::run, e -> false).cloneValue(config,
+				AsyncCallback.of(resultHolder, errorHolder));
+
 		config = resultHolder.get();
 		Throwable throwable = errorHolder.get();
-		
+
 		if (throwable != null) {
 			return Maybe.incomplete(config, InternalError.from(throwable));
 		}
-		
+
 		return Maybe.complete(config);
 	}
 }

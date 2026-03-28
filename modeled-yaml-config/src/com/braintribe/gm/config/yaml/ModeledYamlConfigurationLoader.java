@@ -34,71 +34,69 @@ import com.braintribe.ve.api.VirtualEnvironment;
 import com.braintribe.ve.impl.StandardEnvironment;
 
 public class ModeledYamlConfigurationLoader {
-	private VirtualEnvironment virtualEnvironment = StandardEnvironment.INSTANCE ;
+	private VirtualEnvironment virtualEnvironment = StandardEnvironment.INSTANCE;
 	private Function<String, Maybe<String>> variableResolver = null;
-	
+
 	public ModeledYamlConfigurationLoader virtualEnvironment(VirtualEnvironment virtualEnvironment) {
 		this.virtualEnvironment = virtualEnvironment;
 		return this;
 	}
-	
+
 	public ModeledYamlConfigurationLoader variableResolver(Function<String, String> variableResolver) {
 		this.variableResolver = PropertyResolutions.reasonifyPropertyResolver(variableResolver);
 		return this;
 	}
-	
+
 	public ModeledYamlConfigurationLoader variableResolverReasoned(Function<String, Maybe<String>> variableResolver) {
 		this.variableResolver = variableResolver;
 		return this;
 	}
-	
+
 	public <C extends GenericEntity> Maybe<C> loadConfig(EntityType<C> configType, InputStreamProvider inputStreamProvider) {
 		ConfigVariableResolver configVariableResolver = new ConfigVariableResolver(virtualEnvironment, null);
 		if (variableResolver != null)
 			configVariableResolver.setVariableResolverReasoned(variableResolver);
-		
+
 		try (InputStream in = inputStreamProvider.openInputStream()) {
-			Maybe<C> maybe = YamlConfigurations.<C>read(configType) //
+			Maybe<C> maybe = YamlConfigurations.<C> read(configType) //
 					.placeholders(configVariableResolver::resolve) //
 					.from(in);
-			
+
 			if (configVariableResolver.getFailure() != null) {
 				return configVariableResolver.getFailure().asMaybe();
 			}
-			
+
 			return maybe;
-		}
-		catch (IOException e) {
+		} catch (IOException e) {
 			throw new UncheckedIOException(e);
-		}
-		catch (ReasonException e) {
+		} catch (ReasonException e) {
 			return e.getReason().asMaybe();
 		}
 	}
-	
+
 	public <C extends GenericEntity> Maybe<C> loadConfig(EntityType<C> configType, File configFile, boolean fileMustExist) {
 		return loadConfig(configType, configFile, configType::create, fileMustExist);
 	}
-	
+
 	public <C> Maybe<C> loadConfig(GenericModelType configType, File configFile, Supplier<C> defaultSupplier, boolean fileMustExist) {
 		// if file does not exist a default instance of the configuration will be created
 		if (!configFile.exists()) {
-			if (fileMustExist) 
+			if (fileMustExist)
 				return Reasons.build(NotFound.T).text("Configuration file " + configFile.getAbsolutePath() + " does not exist").toMaybe();
-			else 
+			else
 				return Maybe.complete(defaultSupplier.get());
 		}
-		
+
 		ConfigVariableResolver variableResolver = new ConfigVariableResolver(virtualEnvironment, configFile);
 		variableResolver.setVariableResolverReasoned(this.variableResolver);
-		Maybe<C> maybe = YamlConfigurations.<C>read(configType) //
+		Maybe<C> maybe = YamlConfigurations.<C> read(configType) //
 				.placeholders(variableResolver::resolve) //
 				.from(configFile);
-		
+
 		if (variableResolver.getFailure() != null) {
 			return variableResolver.getFailure().asMaybe();
 		}
-		
+
 		return maybe;
 	}
 }

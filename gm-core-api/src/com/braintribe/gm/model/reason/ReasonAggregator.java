@@ -4,28 +4,29 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class ReasonAggregator<R extends Reason> implements Consumer<Reason>, Supplier<R> {
-	private boolean wrapped;
-	private Supplier<? extends R> wrapperSupplier;
+
 	private Reason reason;
-	private boolean forceWrap;
+	private boolean wrapped;
+	private final Supplier<? extends R> wrapperSupplier;
+	private final boolean forceWrap;
 
 	ReasonAggregator(Supplier<? extends R> wrapperSupplier, boolean forceWrap) {
 		this.wrapperSupplier = wrapperSupplier;
 		this.forceWrap = forceWrap;
 	}
-	
+
 	@Override
 	public void accept(Reason r) {
 		if (r == null)
 			return;
-		
+
 		if (forceWrap) {
 			if (reason == null)
 				reason = wrapperSupplier.get();
-	
+
 			reason.getReasons().add(r);
-		}
-		else {
+
+		} else {
 			if (reason == null)
 				reason = r;
 			else {
@@ -35,7 +36,7 @@ public class ReasonAggregator<R extends Reason> implements Consumer<Reason>, Sup
 					reason = wrapper;
 					wrapped = true;
 				}
-				
+
 				reason.getReasons().add(r);
 			}
 		}
@@ -45,11 +46,12 @@ public class ReasonAggregator<R extends Reason> implements Consumer<Reason>, Sup
 		if (reason != null)
 			collector.accept(reason);
 	}
-	
+
+	@Override
 	public R get() {
-		return (R)reason;
+		return (R) reason;
 	}
-	
+
 	public boolean hasReason() {
 		return reason != null;
 	}

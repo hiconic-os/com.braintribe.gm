@@ -25,11 +25,11 @@ import com.braintribe.gm.config.yaml.ModeledYamlConfiguration;
 import com.braintribe.gm.config.yaml.YamlConfigurations;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.config.ConfigurationError;
-import com.braintribe.gm.model.reason.essential.ParseError;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.testing.model.test.technical.features.SimpleEntity;
 
 public class ModeledYamlConfigTest {
+
 	@Test
 	public void testAbsenceInformation() {
 		String yaml = "{}";
@@ -71,7 +71,7 @@ public class ModeledYamlConfigTest {
 	@Test
 	public void testPropertyInjection() {
 		ModeledYamlConfiguration config = new ModeledYamlConfiguration();
-		config.setConfigFolder(new File("res/conf"));;
+		config.setConfigFolder(new File("res/conf"));
 		SimpleEntity simpleEntity = config.configReasoned(SimpleEntity.T).get();
 		Assertions.assertThat(simpleEntity.getStringProperty()).isEqualTo("first-second");
 	}
