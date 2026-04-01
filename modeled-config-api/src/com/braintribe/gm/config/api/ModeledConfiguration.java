@@ -21,20 +21,30 @@ import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 
 /**
- * ModelledConfiguration allows to access configuration data that is defined by a root entity type. It may come from some persistence defined in a runtime system or from memory.
- * The fact that the configuration is solely given by modeled data supports generic serialization/persistence.
+ * ModelledConfiguration allows to access configuration data that is defined by a root entity type. It may come from some persistence defined in a
+ * runtime system or from memory. The fact that the configuration is solely given by modeled data supports generic serialization/persistence.
+ * 
  * @author dirk.scheffler
  */
 public interface ModeledConfiguration {
 	/**
-	 *	Returns a configuration for the given Type or throws a ReasonException in case that the configuration could not be retrieved.
-	 *	If an explicit configuration cannot be found a default initialized instance of the configType will be returned. 
+	 * Returns a configuration for the given Type or throws a ReasonException in case that the configuration could not be retrieved. If an explicit
+	 * configuration cannot be found a default initialized instance of the configType will be returned.
 	 */
-	<C extends GenericEntity> C config(EntityType<C> configType) throws ReasonException;
-	
+	<C extends GenericEntity> C config(EntityType<C> configType, String useCase) throws ReasonException;
+
+	default <C extends GenericEntity> C config(EntityType<C> configType) throws ReasonException {
+		return config(configType, "");
+	}
+
 	/**
-	 *	Returns a configuration for the given type or a reason why the configuration could not be retrieved.
-	 *	If an explicit configuration cannot be found a default initialized instance of the configType will be returned. 
+	 * Returns a configuration for the given type or a reason why the configuration could not be retrieved. If an explicit configuration cannot be
+	 * found a default initialized instance of the configType will be returned.
 	 */
-	<C extends GenericEntity> Maybe<C> configReasoned(EntityType<C> configType);
+	<C extends GenericEntity> Maybe<C> configReasoned(EntityType<C> configType, String useCase);
+
+	default <C extends GenericEntity> Maybe<C> configReasoned(EntityType<C> configType) {
+		return configReasoned(configType, "");
+	}
+
 }

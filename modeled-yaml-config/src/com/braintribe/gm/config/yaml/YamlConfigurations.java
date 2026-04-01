@@ -29,7 +29,6 @@ import com.braintribe.codec.marshaller.api.EntityFactory;
 import com.braintribe.codec.marshaller.api.GmDeserializationOptions;
 import com.braintribe.codec.marshaller.api.PlaceholderSupport;
 import com.braintribe.codec.marshaller.api.options.GmDeserializationContextBuilder;
-import com.braintribe.codec.marshaller.api.options.attributes.AbsentifyMissingPropertiesOption;
 import com.braintribe.codec.marshaller.yaml.YamlMarshaller;
 import com.braintribe.gm.config.yaml.api.ConfigurationReadBuilder;
 import com.braintribe.gm.model.reason.Maybe;
@@ -62,7 +61,6 @@ import com.braintribe.provider.Holder;
  * variable resolving and different input options.
  * 
  * @author Dirk Scheffler
- *
  */
 public abstract class YamlConfigurations {
 	private static final YamlMarshaller marshaller = new YamlMarshaller();
@@ -70,10 +68,10 @@ public abstract class YamlConfigurations {
 	/**
 	 * <p>
 	 * Starts a {@link ConfigurationReadBuilder} builder that parses a certain {@link EntityType} by using that as root type inference and generic
-	 * type parameterization. The root type inference allows to read completely untyped yaml configurations.
+	 * type parameterization. The root type inference allows to read completely untyped YAML configurations.
 	 * 
 	 * <p>
-	 * If no further option other that a from method is choosen on the builder it will be in the following mode:
+	 * If no further option other that a from method is chosen on the builder it will be in the following mode:
 	 * 
 	 * <ul>
 	 * <li>entity default initialization active
@@ -141,8 +139,13 @@ public abstract class YamlConfigurations {
 
 		@Override
 		public ConfigurationReadBuilder<E> absentifyMissingProperties() {
+			return absentifyMissingProperties(true);
+		}
+
+		@Override
+		public ConfigurationReadBuilder<E> absentifyMissingProperties(boolean shouldAbsentify) {
 			noDefaulting();
-			optionsBuilder.set(AbsentifyMissingPropertiesOption.class, true);
+			optionsBuilder.absentifyMissingProperties(shouldAbsentify);
 
 			return this;
 		}

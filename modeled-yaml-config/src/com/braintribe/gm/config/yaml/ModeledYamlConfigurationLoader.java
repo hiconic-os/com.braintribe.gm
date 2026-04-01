@@ -36,6 +36,7 @@ import com.braintribe.ve.impl.StandardEnvironment;
 public class ModeledYamlConfigurationLoader {
 	private VirtualEnvironment virtualEnvironment = StandardEnvironment.INSTANCE;
 	private Function<String, Maybe<String>> variableResolver = null;
+	private boolean shouldAbsentify;
 
 	public ModeledYamlConfigurationLoader virtualEnvironment(VirtualEnvironment virtualEnvironment) {
 		this.virtualEnvironment = virtualEnvironment;
@@ -52,6 +53,11 @@ public class ModeledYamlConfigurationLoader {
 		return this;
 	}
 
+	public ModeledYamlConfigurationLoader absentifyMissingProperties(boolean shouldAbsentify) {
+		this.shouldAbsentify = shouldAbsentify;
+		return this;
+	}
+
 	public <C extends GenericEntity> Maybe<C> loadConfig(EntityType<C> configType, InputStreamProvider inputStreamProvider) {
 		ConfigVariableResolver configVariableResolver = new ConfigVariableResolver(virtualEnvironment, null);
 		if (variableResolver != null)
@@ -60,15 +66,17 @@ public class ModeledYamlConfigurationLoader {
 		try (InputStream in = inputStreamProvider.openInputStream()) {
 			Maybe<C> maybe = YamlConfigurations.<C> read(configType) //
 					.placeholders(configVariableResolver::resolve) //
+					.absentifyMissingProperties(shouldAbsentify) //
 					.from(in);
 
-			if (configVariableResolver.getFailure() != null) {
+			if (configVariableResolver.getFailure() != null)
 				return configVariableResolver.getFailure().asMaybe();
-			}
 
 			return maybe;
+
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
+
 		} catch (ReasonException e) {
 			return e.getReason().asMaybe();
 		}

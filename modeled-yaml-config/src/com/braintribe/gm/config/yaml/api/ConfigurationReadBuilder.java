@@ -25,6 +25,7 @@ import java.util.function.Function;
 import com.braintribe.codec.marshaller.api.options.GmDeserializationContextBuilder;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.essential.NotFound;
+import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.session.InputStreamProvider;
 import com.braintribe.model.generic.value.Variable;
 
@@ -72,7 +73,7 @@ public interface ConfigurationReadBuilder<T> {
 	ConfigurationReadBuilder<T> placeholders();
 
 	/**
-	 * Deactivates the entity default initialization.
+	 * Deactivates the entity default initialization, i.e. entities will be created with {@link EntityType#createRaw()} instead of {@link EntityType#create()}.
 	 */
 	ConfigurationReadBuilder<T> noDefaulting();
 
@@ -82,5 +83,7 @@ public interface ConfigurationReadBuilder<T> {
 	ConfigurationReadBuilder<T> options(Consumer<GmDeserializationContextBuilder> configurer);
 
 	ConfigurationReadBuilder<T> absentifyMissingProperties();
+
+	ConfigurationReadBuilder<T> absentifyMissingProperties(boolean shouldAbsentify);
 
 }

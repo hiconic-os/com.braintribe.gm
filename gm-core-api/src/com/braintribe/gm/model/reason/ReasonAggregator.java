@@ -15,6 +15,10 @@ public class ReasonAggregator<R extends Reason> implements Consumer<Reason>, Sup
 		this.forceWrap = forceWrap;
 	}
 
+	public void acceptMaybe(Maybe<?> maybe) {
+		accept(maybe.whyUnsatisfied());
+	}
+
 	@Override
 	public void accept(Reason r) {
 		if (r == null)

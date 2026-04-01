@@ -27,12 +27,12 @@ import com.braintribe.model.generic.reflection.EntityType;
 public class DefaultModeledConfiguration implements ModeledConfiguration {
 
 	@Override
-	public <C extends GenericEntity> C config(EntityType<C> configType) {
+	public <C extends GenericEntity> C config(EntityType<C> configType, String useCase) {
 		return configType.create();
 	}
 
 	@Override
-	public <C extends GenericEntity> Maybe<C> configReasoned(EntityType<C> configType) {
+	public <C extends GenericEntity> Maybe<C> configReasoned(EntityType<C> configType, String useCase) {
 		return Maybe.complete(config(configType));
 	}
 

@@ -14,24 +14,26 @@
 package com.braintribe.gm.model.reason.config;
 
 import com.braintribe.gm.model.reason.essential.NotFound;
-import com.braintribe.model.generic.annotation.SelectiveInformation;
+import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
-@SelectiveInformation("Property ${propertyName} not found")
-public interface PropertyNotFound extends NotFound {
+public interface IncompatibleCollectionTypes extends NotFound {
 
-	EntityType<PropertyNotFound> T = EntityTypes.T(PropertyNotFound.class);
+	EntityType<IncompatibleCollectionTypes> T = EntityTypes.T(IncompatibleCollectionTypes.class);
 
-	String propertyName = "propertyName";
+	GenericEntity getLowPrioEntity();
+	void setLowPrioEntity(GenericEntity lowPrioEntity);
 
-	String getPropertyName();
-	void setPropertyName(String value);
+	GenericEntity getHighPrioEntity();
+	void setHighPrioEntity(GenericEntity highPrioEntity);
 
-	static PropertyNotFound create(String propertyName) {
-		PropertyNotFound result = T.create();
-		result.setText("Property " + propertyName + " not found");
-		result.setPropertyName(propertyName);
+	static IncompatibleCollectionTypes create(GenericEntity lowPrioEntity, GenericEntity highPrioEntity) {
+		IncompatibleCollectionTypes result = T.create();
+		result.setText("Low prio entity is not assignable to high prior entity. Low: [" + lowPrioEntity.entityType().getTypeSignature() + "], High: ["
+				+ highPrioEntity.entityType().getTypeSignature() + "]");
+		result.setLowPrioEntity(lowPrioEntity);
+		result.setHighPrioEntity(highPrioEntity);
 		return result;
 	}
 }
