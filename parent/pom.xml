@@ -52,7 +52,9 @@ limitations under the License.
         <V.org.freemarker>2.3.28</V.org.freemarker>
         <V.org.snakeyaml>2.1</V.org.snakeyaml>
 
+        <!--  Needs new token every three months and now it failed anyway... supporting this is a waste of time right now.
         <npmRegistryUrl>https://registry.npmjs.org</npmRegistryUrl>
+        -->
     </properties>
     <licenses>
         <license>
