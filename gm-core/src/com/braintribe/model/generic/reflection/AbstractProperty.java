@@ -223,7 +223,7 @@ public abstract class AbstractProperty implements Property {
 
 	@Override
 	public Object getDefaultValue() {
-		return initializer != null ? initializer : getDefaultRawValue();
+		return initializer != null ? EntityInitializerImpl.resolveInitializerValue(this, initializer) : getDefaultRawValue();
 	}
 
 	@Override

@@ -68,7 +68,7 @@ public interface InitializedEntity extends GenericEntity {
 
 	@Initializer("now()")
 	Date getDateValue();
-	void setDateValue(Date value);
+	void setDateValue(Date dateValue);
 
 	@Initializer("enum(com.braintribe.model.processing.test.itw.entity.Color,green)")
 	Color getEnumValue();

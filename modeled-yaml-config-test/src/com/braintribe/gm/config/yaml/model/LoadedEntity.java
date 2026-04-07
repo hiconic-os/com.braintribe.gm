@@ -34,4 +34,7 @@ public interface LoadedEntity extends GenericEntity {
 	String getAfterAllValue();
 	void setAfterAllValue(String afterAllValue);
 
+	boolean getPrimitiveBoolean();
+	void setPrimitiveBoolean(boolean primitiveBoolean);
+
 }

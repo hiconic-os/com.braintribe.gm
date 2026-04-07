@@ -57,8 +57,14 @@ public class ModeledYamlConfigurationTest {
 
 		assertThat(entity).isNotNull();
 
-		assertThat(entity).hasNotAbsentProperty("preCpValue"); // test that absence information used internally is cleared
+		// test non-set values are not absent
+
+		assertThat(entity).hasNotAbsentProperty("primitiveBoolean");
+		assertThat(entity.getPrimitiveBoolean()).isFalse();
+
+		assertThat(entity).hasNotAbsentProperty("preCpValue");
 		assertThat(entity.getPreCpValue()).isNull();
+
 		assertThat(entity.getCpValue()).isEqualTo("cp-value");
 
 		assertThat(entity).hasNotAbsentProperty("preFsValue");

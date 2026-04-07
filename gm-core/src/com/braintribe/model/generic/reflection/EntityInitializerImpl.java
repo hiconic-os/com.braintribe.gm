@@ -30,6 +30,7 @@ import com.braintribe.model.bvd.time.Now;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.value.EnumReference;
+import com.braintribe.model.generic.value.NullDescriptor;
 
 /**
  * @author peter.gazdik
@@ -56,12 +57,25 @@ public abstract class EntityInitializerImpl implements EntityInitializer {
 		if (initializer instanceof Now)
 			return new CurrentDateInitializer();
 
-		Object resolvedInitializer = resolveInitializer(property, initializer);
+		if (initializer instanceof NullDescriptor)
+			return NULL_INITIALIZER;
 
-		return new StaticInitializer(resolvedInitializer);
+		Object value = resolveStaticInitializerValue(property, initializer);
+
+		return new StaticInitializer(value);
 	}
 
-	private static Object resolveInitializer(Property p, Object initializer) {
+	public static Object resolveInitializerValue(Property p, Object initializer) {
+		if (initializer instanceof Now)
+			return now();
+
+		if (initializer instanceof NullDescriptor)
+			return null;
+
+		return resolveStaticInitializerValue(p, initializer);
+	}
+
+	private static Object resolveStaticInitializerValue(Property p, Object initializer) {
 		switch (p.getType().getTypeCode()) {
 			case booleanType:
 			case dateType:
@@ -142,7 +156,10 @@ public abstract class EntityInitializerImpl implements EntityInitializer {
 		return et.getEnumValue(enumReference.getConstant());
 	}
 
+	static StaticInitializer NULL_INITIALIZER = new StaticInitializer(null);
+
 	static class StaticInitializer extends EntityInitializerImpl {
+
 		private final Object value;
 
 		public StaticInitializer(Object value) {
@@ -158,7 +175,12 @@ public abstract class EntityInitializerImpl implements EntityInitializer {
 	static class CurrentDateInitializer extends EntityInitializerImpl {
 		@Override
 		public void initialize(GenericEntity entity) {
-			property.set(entity, new Date());
+			property.set(entity, now());
 		}
 	}
+
+	private static Date now() {
+		return new Date();
+	}
+
 }

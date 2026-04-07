@@ -292,13 +292,13 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	}
 
 	private void deepDeabsentify(GenericEntity entity) {
-		entity.entityType().traverse(new AiOverwritingTraversingContext(), entity);
+		entity.entityType().traverse(new AbsenceInfoBustingTc(), entity);
 	}
 
-	class AiOverwritingTraversingContext extends StandardTraversingContext {
+	class AbsenceInfoBustingTc extends StandardTraversingContext {
 		@Override
 		public boolean isAbsenceResolvable(Property property, GenericEntity entity, AbsenceInformation absenceInformation) {
-			property.setDirectUnsafe(entity, null);
+			property.setDirectUnsafe(entity, property.getDefaultValue());
 			return false;
 		}
 	}

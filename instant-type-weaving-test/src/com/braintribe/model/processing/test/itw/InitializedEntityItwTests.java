@@ -105,6 +105,10 @@ public class InitializedEntityItwTests extends ImportantItwTestSuperType {
 		assertPropertyInitializer(InitializedEntity.T, "intValue", 99);
 		assertPropertyInitializer(InitializedSubEntity.T, "intValue", 88);
 
+		assertThat(InitializedEntity.T.getProperty("dateValue").getDefaultValue()).isInstanceOf(Date.class);
+		assertThat(InitializedSubEntity.T.getProperty("dateValue").getDefaultValue()).isNull();
+		assertThat(InitializedEntity.T.getProperty("enumValue").getDefaultValue()).isInstanceOf(Color.class);
+
 		// declaring type is sub-type, firstDeclaringType is super-type
 		assertDeclaringType(InitializedSubEntity.T, "intValue", InitializedSubEntity.T, InitializedEntity.T);
 	}
@@ -112,6 +116,7 @@ public class InitializedEntityItwTests extends ImportantItwTestSuperType {
 	private void assertPropertyInitializer(EntityType<?> et, String propertyName, Object expectedInitializer) {
 		Property p = et.getProperty(propertyName);
 		assertThat(p.getInitializer()).isEqualTo(expectedInitializer);
+		assertThat(p.getDefaultValue()).isEqualTo(expectedInitializer);
 	}
 
 	private void assertDeclaringType(EntityType<?> et, String propertyName, EntityType<?> declaringType, EntityType<?> firstDeclaringType) {
