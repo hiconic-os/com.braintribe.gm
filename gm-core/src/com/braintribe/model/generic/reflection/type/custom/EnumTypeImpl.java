@@ -65,7 +65,7 @@ public class EnumTypeImpl<E extends Enum<E>> extends AbstractCustomType implemen
 
 	@Override
 	public E getEnumValue(String name) {
-		return getInstance(name);
+		return Enum.valueOf(getJavaType(), name);
 	}
 
 	@Override
@@ -84,7 +84,7 @@ public class EnumTypeImpl<E extends Enum<E>> extends AbstractCustomType implemen
 
 	@Override
 	public <T> T instanceFromString(String encodedValue) throws GenericModelException {
-		return (T) getInstance(encodedValue);
+		return (T) getEnumValue(encodedValue);
 	}
 
 	@Override
@@ -104,13 +104,13 @@ public class EnumTypeImpl<E extends Enum<E>> extends AbstractCustomType implemen
 	@Override
 	public Object instanceFromGmString(String encodedValue) {
 		String[] parsedEnum = GmValueCodec.parseEnumConstantIdentifier(encodedValue);
-		return getInstance(parsedEnum[1]);
+		return getEnumValue(parsedEnum[1]);
 	}
 
 	@Override
 	@Deprecated
 	public E getInstance(String value) {
-		return Enum.valueOf(getJavaType(), value);
+		return getEnumValue(value);
 	}
 
 	@Override

@@ -130,18 +130,18 @@ public class BasicItwTests extends ImportantItwTestSuperType {
 		BtAssertions.assertThat(e.toSelectiveInformation()).isEqualTo("SubEntity %{N/A} 99 ANO");
 		BtAssertions.assertThat(e.toString()).isEqualTo("SubEntity %{N/A} 99 ANO");
 	}
-	
+
 	@Test
 	public void testToStringAsStringDelegation() {
 		AsStringBase asb = AsStringBase.T.create();
 		asb.setName("foo");
-		
+
 		BtAssertions.assertThat(asb.asString()).isEqualTo("foo");
 		BtAssertions.assertThat(asb.toString()).isEqualTo(asb.asString());
-		
+
 		AsStringDerivate asd = AsStringDerivate.T.create();
 		asd.setName("bar");
-		
+
 		BtAssertions.assertThat(asd.asString()).isEqualTo("bar");
 		BtAssertions.assertThat(asd.toString()).isEqualTo("Derived [bar]");
 	}

@@ -251,7 +251,7 @@ public abstract class AbstractProxyEntityType implements EntityType<ProxyEntity>
 	public Iterable<EntityType<?>> getTransitiveSuperTypes(boolean includeSelf, boolean distinct) {
 		return includeSelf ? Collections.singleton(this) : Collections.emptySet();
 	}
-
+	
 	@Override
 	public boolean hasExplicitSelectiveInformation() {
 		return false;
