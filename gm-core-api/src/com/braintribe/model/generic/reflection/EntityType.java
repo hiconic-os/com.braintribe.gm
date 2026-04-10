@@ -45,6 +45,31 @@ public interface EntityType<T extends GenericEntity> extends EntityTypeDeprecati
 	/** returns the direct supertypes of this {@link EntityType} */
 	List<EntityType<?>> getSuperTypes();
 
+	/**
+	 * Returns all supertypes, including this type itself, using less strict C3 linearization algorithm, which guarantees that a subtype is always
+	 * placed before its supertype in the list. Hence, this type is always the first element of the list, and the last element is always
+	 * {@link GenericEntity}.
+	 * <p>
+	 * Less strict means it allows to hierarchies that break monotonicity, e.g. *
+	 * 
+	 * <pre>
+	 * A extends B, C
+	 * D extends C, B
+	 * X extends A, D
+	 * </pre>
+	 * 
+	 * Strict C3 would fail due to a contradiction - B before C, and C before B in the supertypes of X. We simply pick the first encountered, i.e. X
+	 * goes first to A, A goes first to B, thus we pick B before C in the result.
+	 * 
+	 * @see "https://www.geeksforgeeks.org/python/c3-linearization-algorithm-in-python/"
+	 */
+	List<EntityType<?>> getLinearizedSuperTypes();
+
+	/**
+	 * @deprecated use {@link #getLinearizedSuperTypes()} instead. All usages of this method were called with "distinct" anyway, and if you also need
+	 *             to "includeSelf", do it yourself.
+	 */
+	@Deprecated
 	Iterable<EntityType<?>> getTransitiveSuperTypes(boolean includeSelf, boolean distinct);
 
 	boolean hasExplicitSelectiveInformation();

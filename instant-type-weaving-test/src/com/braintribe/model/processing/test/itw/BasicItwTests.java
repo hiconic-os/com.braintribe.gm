@@ -54,6 +54,11 @@ import com.braintribe.model.processing.test.itw.entity.AsStringDerivate;
 import com.braintribe.model.processing.test.itw.entity.TestEntity;
 import com.braintribe.model.processing.test.itw.entity.TestRecursiveToStringSelectiveInfo;
 import com.braintribe.model.processing.test.itw.entity.TestSubEntity;
+import com.braintribe.model.processing.test.itw.entity.c3linearization.A;
+import com.braintribe.model.processing.test.itw.entity.c3linearization.B;
+import com.braintribe.model.processing.test.itw.entity.c3linearization.C;
+import com.braintribe.model.processing.test.itw.entity.c3linearization.D;
+import com.braintribe.model.processing.test.itw.entity.c3linearization.X;
 import com.braintribe.utils.junit.assertions.BtAssertions;
 
 /**
@@ -157,6 +162,14 @@ public class BasicItwTests extends ImportantItwTestSuperType {
 
 		BtAssertions.assertThat(child.toString()).isEqualTo(":PARENT:CHILD");
 		BtAssertions.assertThat(child.toSelectiveInformation()).isEqualTo("/PARENT/CHILD");
+	}
+
+	@Test
+	public void testSuperTypes() {
+		assertThat(TestSubEntity.T.getSuperTypes()).containsExactly(AnotherTestEntity.T, TestEntity.T);
+		assertThat(TestSubEntity.T.getLinearizedSuperTypes()).containsExactly(TestSubEntity.T, AnotherTestEntity.T, TestEntity.T, GenericEntity.T);
+
+		assertThat(X.T.getLinearizedSuperTypes()).containsExactly(X.T, A.T, D.T, B.T, C.T, GenericEntity.T);
 	}
 
 	@Test

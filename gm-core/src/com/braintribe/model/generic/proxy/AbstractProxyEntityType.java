@@ -248,6 +248,12 @@ public abstract class AbstractProxyEntityType implements EntityType<ProxyEntity>
 	}
 
 	@Override
+	public List<EntityType<?>> getLinearizedSuperTypes() {
+		return Collections.emptyList();
+	}
+
+	@Override
+	@Deprecated
 	public Iterable<EntityType<?>> getTransitiveSuperTypes(boolean includeSelf, boolean distinct) {
 		return includeSelf ? Collections.singleton(this) : Collections.emptySet();
 	}
