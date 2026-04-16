@@ -40,6 +40,15 @@ public interface EntityType<T extends GenericEntity> extends EntityTypeDeprecati
 	@Override
 	Class<T> getJavaType();
 
+	/**
+	 * Analogous to {@link Class#cast(Object)}
+	 * 
+	 * @throws ClassCastException
+	 *             if the value is not null and cannot be cast to this type.
+	 */
+	@JsIgnore
+	T cast(Object value);
+
 	boolean isAbstract();
 
 	/** returns the direct supertypes of this {@link EntityType} */

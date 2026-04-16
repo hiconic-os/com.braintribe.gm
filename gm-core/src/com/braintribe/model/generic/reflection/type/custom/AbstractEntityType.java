@@ -107,6 +107,13 @@ public abstract class AbstractEntityType<T extends GenericEntity> extends Abstra
 	}
 
 	@Override
+	public T cast(Object value) {
+		if (value != null && !isInstance(value))
+			throw new ClassCastException("Cannot cast " + value.getClass().getName() + " to " + getTypeSignature());
+		return (T) value;
+	}
+
+	@Override
 	public final boolean isEntity() {
 		return true;
 	}
@@ -182,7 +189,7 @@ public abstract class AbstractEntityType<T extends GenericEntity> extends Abstra
 
 		return effectiveEvaluatesTo;
 	}
-	
+
 	private GenericModelType resolveEffectiveEvaluatesTo() {
 		if (evaluatesTo != null)
 			return evaluatesTo;
@@ -207,7 +214,6 @@ public abstract class AbstractEntityType<T extends GenericEntity> extends Abstra
 			return t1;
 	}
 
-	
 	public void setEvaluatesTo(GenericModelType evaluatesTo) {
 		this.evaluatesTo = evaluatesTo;
 	}
@@ -411,7 +417,7 @@ public abstract class AbstractEntityType<T extends GenericEntity> extends Abstra
 		entityClone = cloningContext.supplyRawClone(actualType, entity);
 		cloningContext.registerAsVisited(entity, entityClone);
 
-		// transfer transient properties if cloned type is exactly the same 
+		// transfer transient properties if cloned type is exactly the same
 		List<TransientProperty> actualTransProperties = actualType.getTransientProperties();
 		if (actualType == entityClone.entityType() && !actualTransProperties.isEmpty())
 			for (TransientProperty tp : actualTransProperties) {
@@ -569,8 +575,8 @@ public abstract class AbstractEntityType<T extends GenericEntity> extends Abstra
 		try {
 			traversingContext.pushTraversingCriterion(actualType.acquireCriterion(), entity);
 
-			/* Some Matchers may operate only on ENTITY level (and e.g. not PROPERTY or ROOT level). To handle that
-			 * case, we have to check again here whether the Matcher matches. (see BTT-4113) */
+			/* Some Matchers may operate only on ENTITY level (and e.g. not PROPERTY or ROOT level). To handle that case, we have to check again here
+			 * whether the Matcher matches. (see BTT-4113) */
 			if (traversingContext.isTraversionContextMatching())
 				return;
 

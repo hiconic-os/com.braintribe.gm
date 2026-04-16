@@ -225,6 +225,11 @@ public abstract class AbstractProxyEntityType implements EntityType<ProxyEntity>
 	}
 
 	@Override
+	public ProxyEntity cast(Object value) {
+		return (ProxyEntity) value;
+	}
+
+	@Override
 	public boolean isAbstract() {
 		return false;
 	}
