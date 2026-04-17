@@ -145,7 +145,7 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 		this.classpathIndex = classpathIndex;
 	}
 
-	// e.g. rx/conf/ for loading from classpath
+	// e.g. HICONIC-CONF/ for loading from classpath
 	@Configurable
 	public void setClasspathConfPath(String classpathConfPath) {
 		if (classpathConfPath == null || classpathConfPath.isBlank())

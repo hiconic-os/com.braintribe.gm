@@ -26,10 +26,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import com.braintribe.common.db.BasicDbTestSession;
 import com.braintribe.common.db.DbVendor;
 import com.braintribe.common.db.wire.contract.DbTestDataSourcesContract;
 import com.braintribe.model.processing.lock.api.ReentrableReadWriteLock;
+import com.braintribe.model.processing.locking.db.test.wire.DbLockingTestWireModule;
 import com.braintribe.model.processing.locking.db.test.wire.contract.DbLockingTestContract;
 import com.braintribe.util.jdbc.JdbcTools;
 import com.braintribe.util.network.NetworkTools;
@@ -52,20 +52,13 @@ public abstract class AbstractDbLockingTestBase {
 
 	protected static final int TIMEOUT_MS = 5000;
 
-	private static BasicDbTestSession dbTestSession;
-
 	private static WireContext<DbLockingTestContract> lockingWireContext;
 
 	@BeforeClass
 	public static void beforeClass() throws Exception {
 		FileTools.deleteDirectoryRecursively(new File("res"));
 
-		dbTestSession = BasicDbTestSession.startDbTest();
-
-		lockingWireContext = Wire.context(DbLockingTestContract.class) //
-				.bindContracts(DbLockingTestContract.class) //
-				.bindContract(DbTestDataSourcesContract.class, dbTestSession.contract) //
-				.build();
+		lockingWireContext = Wire.context(DbLockingTestWireModule.INSTANCE);
 
 		// Call this on startup so that the result is cached and does not interfere with other tests that rely on timing
 		// TODO find out if needed
@@ -105,7 +98,7 @@ public abstract class AbstractDbLockingTestBase {
 
 	public AbstractDbLockingTestBase(DbVendor vendor) {
 		this.vendor = vendor;
-		this.dataSource = dbTestSession.contract.dataSource(vendor);
+		this.dataSource = lockingWireContext.contract(DbTestDataSourcesContract.class).dataSource(vendor);
 		this.locking = lockingWireContext.contract().locking(vendor);
 	}
 

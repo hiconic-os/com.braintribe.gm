@@ -30,7 +30,6 @@ import com.braintribe.model.processing.locking.db.test.wire.contract.DbLockingTe
 import com.braintribe.transport.messaging.api.MessagingContext;
 import com.braintribe.wire.api.annotation.Import;
 import com.braintribe.wire.api.annotation.Managed;
-import com.braintribe.wire.api.context.WireContextConfiguration;
 import com.braintribe.wire.api.scope.InstanceConfiguration;
 
 @Managed
@@ -40,11 +39,6 @@ public class DbLockingTestSpace implements DbLockingTestContract {
 
 	@Import
 	private DbTestDataSourcesContract dataSources;
-
-	@Override
-	public void onLoaded(WireContextConfiguration configuration) {
-		DbLockingTestContract.super.onLoaded(configuration);
-	}
 
 	@Override
 	@Managed
