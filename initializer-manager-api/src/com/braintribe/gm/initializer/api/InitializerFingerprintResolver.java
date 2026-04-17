@@ -13,8 +13,6 @@
 // ============================================================================
 package com.braintribe.gm.initializer.api;
 
-import java.util.function.Function;
-
 /**
  * @author peter.gazdik
  */
