@@ -4,11 +4,12 @@ import com.braintribe.model.generic.annotation.ForwardDeclaration;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 import com.braintribe.model.generic.value.EntityReference;
+import com.braintribe.model.generic.value.EntityReferenceType;
 
 @ForwardDeclaration("com.braintribe.gm:absence-information-model")
 @SuppressWarnings("unusable-by-js")
 public interface AbsentEntity extends AbsenceInformation, EntityReference {
-	
+
 	final EntityType<AbsentEntity> T = EntityTypes.T(AbsentEntity.class);
 
 	static AbsentEntity create(String typeSignature, Object id) {
@@ -17,8 +18,14 @@ public interface AbsentEntity extends AbsenceInformation, EntityReference {
 		absentEntity.setRefId(id);
 		return absentEntity;
 	}
-	
+
 	static AbsentEntity create(EntityType<?> entityType, Object id) {
 		return create(entityType.getTypeSignature(), id);
 	}
+
+	@Override
+	default EntityReferenceType referenceType() {
+		return EntityReferenceType.absentEntity;
+	}
+
 }

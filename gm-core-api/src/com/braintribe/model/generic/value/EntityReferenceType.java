@@ -27,6 +27,7 @@ public enum EntityReferenceType {
 
 	preliminary,
 	persistent,
-	global;
+	global,
+	absentEntity;
 
 }
