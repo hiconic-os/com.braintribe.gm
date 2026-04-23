@@ -36,6 +36,7 @@ import com.braintribe.model.generic.StandardIntegerIdentifiable;
 import com.braintribe.model.generic.StandardStringIdentifiable;
 import com.braintribe.model.generic.reflection.BaseType;
 import com.braintribe.model.generic.reflection.CollectionType;
+import com.braintribe.model.generic.reflection.CustomType;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.GenericModelException;
@@ -120,7 +121,8 @@ public class NewMetaModelGeneration {
 
 		List<GmType> simpleAndBaseTypes = newList(typeMap.values());
 
-		rootMetaModel = buildMetaModel(rootModelName, asList(GenericEntity.T, StandardIdentifiable.T, StandardStringIdentifiable.T, StandardIntegerIdentifiable.T), null);
+		rootMetaModel = buildMetaModel(rootModelName,
+				asList(GenericEntity.T, StandardIdentifiable.T, StandardStringIdentifiable.T, StandardIntegerIdentifiable.T), null);
 		rootMetaModel.getTypes().addAll(simpleAndBaseTypes);
 	}
 
@@ -192,11 +194,11 @@ public class NewMetaModelGeneration {
 		return this;
 	}
 
-	public GmMetaModel buildMetaModel(String name, Collection<EntityType<?>> entityTypes) {
-		return buildMetaModel(name, entityTypes, asList(rootMetaModel));
+	public GmMetaModel buildMetaModel(String name, Collection<? extends CustomType> customTypes) {
+		return buildMetaModel(name, customTypes, asList(rootMetaModel));
 	}
 
-	public GmMetaModel buildMetaModel(String name, Collection<EntityType<?>> entityTypes, List<GmMetaModel> dependencies) {
+	public GmMetaModel buildMetaModel(String name, Collection<? extends CustomType> customTypes, List<GmMetaModel> dependencies) {
 		initializeAllowedGmTypesIfWithValidation(dependencies);
 
 		currentlyBuildMetaModel = create(GmMetaModel.T);
@@ -206,8 +208,8 @@ public class NewMetaModelGeneration {
 
 		newGmTypes.clear();
 
-		for (EntityType<?> entityType : nullSafe(entityTypes))
-			aquireGmType(entityType);
+		for (CustomType customType : nullSafe(customTypes))
+			aquireGmType(customType);
 
 		currentlyBuildMetaModel.getTypes().addAll(newGmTypes);
 
