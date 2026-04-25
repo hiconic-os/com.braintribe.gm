@@ -20,7 +20,6 @@ import java.sql.Connection;
 import javax.sql.DataSource;
 
 import com.braintribe.logging.Logger;
-import com.braintribe.model.processing.bootstrapping.TribefireRuntime;
 import com.braintribe.util.jdbc.dialect.JdbcDialect;
 import com.braintribe.utils.IOTools;
 
@@ -28,16 +27,17 @@ public class JdbcTypeSupport {
 
 	private static final Logger logger = Logger.getLogger(JdbcTypeSupport.class);
 
-	protected static String getDatabaseSpecificType(String dbName, String typeName, String defaultValue) {
-		String key = "TRIBEFIRE_JDBC_TYPE_" + typeName.toUpperCase() + "_" + dbName.toUpperCase().replace(' ', '_');
-		String type = TribefireRuntime.getProperty(key);
-		logger.debug(
-				() -> "Specific mapping for type " + typeName + " with " + dbName + " (" + key + "): " + type + " (default: " + defaultValue + ")");
-		if (type == null) {
-			return defaultValue;
-		}
-		return type;
-	}
+//	protected static String getDatabaseSpecificType(String dbName, String typeName, String defaultValue) {
+		// Old impl:
+		// String key = "TRIBEFIRE_JDBC_TYPE_" + typeName.toUpperCase() + "_" + dbName.toUpperCase().replace(' ', '_');
+		// String type = TribefireRuntime.getProperty(key);
+		// logger.debug(
+		// () -> "Specific mapping for type " + typeName + " with " + dbName + " (" + key + "): " + type + " (default: " + defaultValue + ")");
+		// if (type == null) {
+		// return defaultValue;
+		// }
+		// return type;
+//	}
 
 	public static DatabaseTypes getDatabaseTypes(DataSource dataSource) {
 
@@ -52,7 +52,7 @@ public class JdbcTypeSupport {
 			} else if (lowerCaseDbName.contains("postgresql") || (lowerCaseDbName.contains("microsoft sql"))) {
 				clobType = "TEXT";
 			}
-			clobType = getDatabaseSpecificType(dbName, "CLOB", clobType);
+//			clobType = getDatabaseSpecificType(dbName, "CLOB", clobType);
 		}
 
 		String blobType = "BLOB";
@@ -65,7 +65,7 @@ public class JdbcTypeSupport {
 			} else if (lowerCaseDbName.contains("microsoft sql")) {
 				blobType = "IMAGE";
 			}
-			blobType = getDatabaseSpecificType(dbName, "BLOB", blobType);
+//			blobType = getDatabaseSpecificType(dbName, "BLOB", blobType);
 		}
 
 		String timestampType = "TIMESTAMP";
@@ -74,7 +74,7 @@ public class JdbcTypeSupport {
 			if (lowerCaseDbName.contains("microsoft sql")) {
 				timestampType = "DATETIME2";
 			}
-			timestampType = getDatabaseSpecificType(dbName, "TIMESTAMP", timestampType);
+//			timestampType = getDatabaseSpecificType(dbName, "TIMESTAMP", timestampType);
 		}
 
 		DatabaseTypes types = new DatabaseTypes(dbName, clobType, blobType, timestampType);
