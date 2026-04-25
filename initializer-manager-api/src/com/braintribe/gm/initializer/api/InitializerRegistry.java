@@ -14,6 +14,11 @@
 package com.braintribe.gm.initializer.api;
 
 /**
+ * Registry for {@link InitializerTask}s, which are tasks that are meant to be run once, regardless of how many times the application is started, as
+ * long as they would produce the same effect. In order to tell the framework whether or not the result would be the same an
+ * {@link InitializerFingerprintResolver} is registered, which produces a "fingerprint" (e.g. a version number, a hash, etc.), and the framework runs
+ * the task iff the fingerprint has changed (or the task with given name has not been run before).
+ * 
  * @author peter.gazdik
  */
 public interface InitializerRegistry {

@@ -14,14 +14,16 @@
 package com.braintribe.gm.initializer.api;
 
 /**
+ * @see InitializerRegistry
+ * 
  * @author peter.gazdik
  */
 @FunctionalInterface
 public interface InitializerFingerprintResolver {
 
 	/**
-	 * Provides the new fingerprint, optionally taking into account an old one. If the value for a
-	 * {@link InitializerRegistry#registerInitializer registered} task differs from the old one
+	 * Provides the new fingerprint, optionally taking into account an old one. If the value for a {@link InitializerRegistry#registerInitializer
+	 * registered} task differs from the old one.
 	 */
 	String resolveFingerprint(String oldValue);
 

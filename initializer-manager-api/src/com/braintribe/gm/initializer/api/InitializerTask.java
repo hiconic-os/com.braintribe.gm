@@ -16,6 +16,8 @@ package com.braintribe.gm.initializer.api;
 import com.braintribe.gm.model.reason.Maybe;
 
 /**
+ * @see InitializerRegistry
+ * 
  * @author peter.gazdik
  */
 @FunctionalInterface
@@ -24,7 +26,7 @@ public interface InitializerTask {
 	/**
 	 * Runs the initializer and returns an optional string that will be stored by the initializer manager for reference.
 	 * <p>
-	 * In case of an error an {@link Maybe#empty empty Maybe} is returned.
+	 * In case of an error an {@link Maybe#empty unsatisfied Maybe} is returned.
 	 */
 	Maybe<String> run();
 
