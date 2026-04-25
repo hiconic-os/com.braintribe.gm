@@ -1,23 +1,17 @@
 package com.braintribe.gm.initializer.jdbc.processing;
 
 import static com.braintribe.utils.lcd.CollectionTools2.asMap;
-import static com.braintribe.utils.lcd.CollectionTools2.newConcurrentSet;
-import static com.braintribe.utils.lcd.CollectionTools2.newLinkedSet;
-import static com.braintribe.utils.lcd.CollectionTools2.newSet;
+import static com.braintribe.utils.lcd.NullSafe.nonNull;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 
 import javax.sql.DataSource;
 
 import com.braintribe.cfg.Required;
 import com.braintribe.gm.initializer.api.InitializerFingerprintResolver;
-import com.braintribe.gm.initializer.api.InitializerRegistry;
 import com.braintribe.gm.initializer.api.InitializerTask;
 import com.braintribe.gm.jdbc.api.GmColumn;
 import com.braintribe.gm.jdbc.api.GmDb;
@@ -33,17 +27,10 @@ import com.braintribe.utils.lcd.Lazy;
 /**
  * @author peter.gazdik
  */
-public class GmDbInitializerManager implements InitializerRegistry {
+public class GmDbInitializerManager extends AbstractInitializerManager {
 
 	private static final Logger log = Logger.getLogger(GmDbInitializerManager.TaskEntry.class);
 
-	private final Map<String, TaskEntry> tasks = new ConcurrentHashMap<>();
-	private final Map<String, Set<String>> taskNameToDependencyNames = new ConcurrentHashMap<>();
-
-	record TaskEntry(String name, InitializerTask task, InitializerFingerprintResolver fingerprintResolver) {
-	}
-
-	private String useCase;
 	private String nodeId;
 	private GmDb gmDb;
 	private String tableName;
@@ -52,34 +39,18 @@ public class GmDbInitializerManager implements InitializerRegistry {
 	private final Lazy<TasksTable> tasksTableLazy = new Lazy<GmDbInitializerManager.TasksTable>(TasksTable::new);
 
 	// @formatter:off
-	/** Description of the use case, such as db-schema-update or master-data-sync. */
-	@Required public void setUseCase(String useCase) { this.useCase = useCase; }
 	/** Node id to be inserted to the DB table as updatedBy. */
 	@Required public void setNodeId(String nodeId) { this.nodeId = nodeId; }
 	@Required public void setDataSource(DataSource dataSource) { this.gmDb = GmDb.newDb(dataSource).done(); }
-	@Required public void setTasksTableName(String tableName) { this.tableName = tableName; }
-	@Required public void setLocking(Locking locking) { this.locking = locking; }
+	@Required public void setTasksTableName(String tableName) { this.tableName = nonNull(tableName, "tableName"); }
+	@Required public void setLocking(Locking locking) { this.locking = nonNull(locking, "locking"); }
 	// @formatter:on
-
-	// #################################################
-	// ## . . . . . . InitializerRegistry . . . . . . ##
-	// #################################################
-
-	@Override
-	public void registerInitializer(String initializerName, InitializerFingerprintResolver fingerprintResolver, InitializerTask task) {
-		tasks.put(initializerName, new TaskEntry(initializerName, task, fingerprintResolver));
-
-	}
-
-	@Override
-	public void ensureOrder(String runsFirstName, String runsLaterNamer) {
-		taskNameToDependencyNames.computeIfAbsent(runsLaterNamer, k -> newConcurrentSet()).add(runsFirstName);
-	}
 
 	// #################################################
 	// ## . . . . . . . Initialization . . . . . . . .##
 	// #################################################
 
+	@Override
 	public void runInitializers() {
 		if (tasks.isEmpty())
 			return;
@@ -104,9 +75,9 @@ public class GmDbInitializerManager implements InitializerRegistry {
 			List<TaskEntry> tasksDepsFirst = sortTasks();
 
 			for (TaskEntry taskEntry : tasksDepsFirst) {
-				taskName = taskEntry.name;
-				task = taskEntry.task;
-				fingerprintResolver = taskEntry.fingerprintResolver;
+				taskName = taskEntry.name();
+				task = taskEntry.task();
+				fingerprintResolver = taskEntry.fingerprintResolver();
 
 				runTaskIfNeeded();
 			}
@@ -177,48 +148,6 @@ public class GmDbInitializerManager implements InitializerRegistry {
 			table.write(taskId, taskName, asMap(table.colNote, error));
 		}
 
-	}
-
-	private List<TaskEntry> sortTasks() {
-		Set<String> added = newSet();
-		Set<String> visitTrail = newLinkedSet();
-		List<TaskEntry> result = new ArrayList<>();
-
-		for (String taskName : tasks.keySet())
-			addDependencies(taskName, added, visitTrail, result);
-
-		return result;
-	}
-
-	private void addDependencies(String taskName, Set<String> added, Set<String> visitTrail, List<TaskEntry> result) {
-		if (!visitTrail.add(taskName))
-			throw new IllegalStateException(
-					"Cycle detected in initializer task dependencies at task [" + taskName + "]. Previous tasks: " + visitTrail);
-
-		try {
-			if (!added.add(taskName))
-				// already added,
-				return;
-
-			Set<String> dependencyNames = taskNameToDependencyNames.get(taskName);
-			if (dependencyNames != null)
-				for (String dependencyName : dependencyNames)
-					addDependencies(dependencyName, added, visitTrail, result);
-
-			result.add(tasks.get(taskName));
-
-		} finally {
-			visitTrail.remove(taskName);
-		}
-	}
-
-	private void log(LogLevel level, String string) {
-		if (log.isLevelEnabled(level))
-			log.log(level, logMsg(string));
-	}
-
-	private String logMsg(String string) {
-		return "Initializer [" + useCase + "]: " + string;
 	}
 
 	private class TasksTable {

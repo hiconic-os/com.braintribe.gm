@@ -1,50 +1,29 @@
 package com.braintribe.gm.initializer.jdbc.processing;
 
-import javax.sql.DataSource;
+import java.io.File;
 
-import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-
-import com.braintribe.common.db.DbVendor;
-import com.braintribe.common.db.wire.contract.DbTestDataSourcesContract;
-import com.braintribe.gm.initializer.jdbc.test.wire.InitializerManagerTestWireModule;
-import com.braintribe.gm.initializer.jdbc.test.wire.contract.InitializerManagerTestContract;
-import com.braintribe.util.jdbc.JdbcTools;
-import com.braintribe.wire.api.Wire;
-import com.braintribe.wire.api.context.WireContext;
+import org.junit.rules.TemporaryFolder;
 
 /**
- * Tests for {@link GmDbInitializerManager}
+ * Tests for {@link FileSystemInitializerManager}
  * 
  * @author peter.gazdik
  */
-public class GmDbInitializerManagerTest extends AbstractInitializerManagerTest<GmDbInitializerManager> {
+public class FileSystemInitializerManagerTest extends AbstractInitializerManagerTest<FileSystemInitializerManager> {
 
-	private WireContext<InitializerManagerTestContract> wireContext;
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
+
+	private File storageFile;
 
 	@Override
 	@Before
 	public void before() {
-		wireContext = Wire.context(InitializerManagerTestWireModule.INSTANCE);
-		dropTasksTable();
+		storageFile = new File(tempFolder.getRoot(), "hiconic/test/initializer-fingerprints.properties");
 		super.before();
-	}
-
-	private void dropTasksTable() {
-		DataSource dataSource = wireContext.contract(DbTestDataSourcesContract.class).dataSource(DbVendor.h2);
-		JdbcTools.withStatement(dataSource, () -> "Dropping " + InitializerManagerTestContract.TABLE_NAME, ps -> {
-			try {
-				ps.executeUpdate("drop table " + InitializerManagerTestContract.TABLE_NAME);
-			} catch (Exception e) {
-				// table might not exist yet, ignore
-			}
-		});
-	}
-
-	@After
-	public void after() {
-		wireContext.shutdown();
 	}
 
 	// ###############################################
@@ -64,8 +43,11 @@ public class GmDbInitializerManagerTest extends AbstractInitializerManagerTest<G
 	// @formatter:on
 
 	@Override
-	protected GmDbInitializerManager newManager() {
-		return wireContext.contract().newManager(DbVendor.h2);
+	protected FileSystemInitializerManager newManager() {
+		FileSystemInitializerManager m = new FileSystemInitializerManager();
+		m.setUseCase("test");
+		m.setTasksPropertiesFile(storageFile);
+		return m;
 	}
 
 }
