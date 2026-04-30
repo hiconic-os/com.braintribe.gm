@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 
 import org.junit.Test;
 
+import com.braintribe.model.generic.annotation.meta.Temporal;
 import com.braintribe.model.generic.annotation.meta.api.MdaHandler;
 import com.braintribe.model.generic.annotation.meta.api.MdaRegistry;
 import com.braintribe.model.generic.annotation.meta.api.MetaDataAnnotations;
@@ -35,10 +36,12 @@ import com.braintribe.model.meta.GmEntityType;
 import com.braintribe.model.meta.GmProperty;
 import com.braintribe.model.meta.data.MetaData;
 import com.braintribe.model.meta.data.Predicate;
+import com.braintribe.model.meta.data.prompt.TemporalType;
 import com.braintribe.model.processing.ImportantItwTestSuperType;
 import com.braintribe.model.processing.itw.analysis.JavaTypeAnalysis;
 import com.braintribe.model.processing.test.itw.entity.annotation.CustomMd;
 import com.braintribe.model.processing.test.itw.entity.annotation.CustomMdEnum;
+import com.braintribe.model.processing.test.itw.entity.annotation.CustomMdGmEnum;
 import com.braintribe.model.processing.test.itw.entity.annotation.CustomMd_Annotation;
 import com.braintribe.model.processing.test.itw.entity.annotation.CustomPredicate;
 import com.braintribe.model.processing.test.itw.entity.annotation.CustomPredicate_Annotation;
@@ -53,6 +56,7 @@ import com.braintribe.model.processing.test.itw.entity.annotation.HasCustomMdPro
  * Currently only {@link Predicate}s are supported.
  * <p>
  * 
+ * @see HasCustomMdProperties
  * @see MdaHandler
  * @see CustomPredicate_Annotation
  */
@@ -67,6 +71,7 @@ public class CustomMdAnnotationTests extends ImportantItwTestSuperType {
 		assertMdaRegistry(CustomMd_Annotation.class, CustomMd.T);
 		assertMdaRegistry(CustomRepeatableMd_Annotation.class, CustomRepeatableMd.T);
 		assertMdaRegistry(CustomRepeatableMd_Annotations.class, CustomRepeatableMd.T);
+		assertMdaRegistry(Temporal.class, com.braintribe.model.meta.data.prompt.Temporal.T);
 
 		{
 			CustomPredicate md = assertMdaUsedInJta("predicate", CustomPredicate.T);
@@ -82,6 +87,8 @@ public class CustomMdAnnotationTests extends ImportantItwTestSuperType {
 			assertThat(md.getCustomEnum()).isEqualTo(CustomMdEnum.bbb);
 			assertThat(md.getCustomEnumList()).containsExactly(CustomMdEnum.aaa, CustomMdEnum.bbb);
 			assertThat(md.getCustomEnumSet()).containsExactly(CustomMdEnum.aaa, CustomMdEnum.ccc);
+			assertThat(md.getConvertedEnum()).isEqualTo(CustomMdGmEnum.beta);
+			assertThat(md.getConvertedEnumList()).containsExactly(CustomMdGmEnum.alpha, CustomMdGmEnum.gamma);
 		}
 
 		{
@@ -97,6 +104,12 @@ public class CustomMdAnnotationTests extends ImportantItwTestSuperType {
 
 			assertThat(list.get(0).getValue()).isEqualTo("one");
 			assertThat(list.get(1).getValue()).isEqualTo("two");
+		}
+
+		{
+
+			com.braintribe.model.meta.data.prompt.Temporal md = assertMdaUsedInJta("temporal", com.braintribe.model.meta.data.prompt.Temporal.T);
+			assertThat(md.getTemporalType()).isSameAs(TemporalType.TIMESTAMP);
 		}
 
 	}

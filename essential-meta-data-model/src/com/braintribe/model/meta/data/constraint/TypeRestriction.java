@@ -20,6 +20,9 @@ import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 import com.braintribe.model.meta.data.PropertyMetaData;
 
+/**
+ * Annotation is {@link com.braintribe.model.generic.annotation.TypeRestriction}
+ */
 @Abstract
 public interface TypeRestriction extends PropertyMetaData {
 

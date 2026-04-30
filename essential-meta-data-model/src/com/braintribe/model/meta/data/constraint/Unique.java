@@ -24,8 +24,9 @@ import com.braintribe.model.meta.data.PropertyMetaData;
 
 /**
  * Erasure is {@link NonUnique}.
- */
-
+  * <p>
+ * Annotation is {@link com.braintribe.model.generic.annotation.meta.Unique}
+*/
 public interface Unique extends PropertyMetaData, ExplicitPredicate, ModelSkeletonCompatible {
 
 	EntityType<Unique> T = EntityTypes.T(Unique.class);

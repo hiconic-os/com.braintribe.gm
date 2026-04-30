@@ -15,7 +15,11 @@
 // ============================================================================
 package com.braintribe.model.processing.test.itw.entity.annotation;
 
+import java.util.Date;
+
 import com.braintribe.model.generic.GenericEntity;
+import com.braintribe.model.generic.annotation.meta.Temporal;
+import com.braintribe.model.generic.annotation.meta.TemporalType;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
@@ -37,7 +41,9 @@ public interface HasCustomMdProperties extends GenericEntity {
 			name = "CUSTOM_NAME", //
 			customEnum = CustomMdEnum.bbb, //
 			customEnumList = { CustomMdEnum.aaa, CustomMdEnum.bbb }, //
-			customEnumSet = { CustomMdEnum.aaa, CustomMdEnum.ccc } //
+			customEnumSet = { CustomMdEnum.aaa, CustomMdEnum.ccc }, //
+			convertedEnum = CustomMdAnnoEnum.beta, //
+			convertedEnumList = { CustomMdAnnoEnum.alpha, CustomMdAnnoEnum.gamma } //
 	)
 	String getCustomMd();
 	void setCustomMd(String customMd);
@@ -50,5 +56,9 @@ public interface HasCustomMdProperties extends GenericEntity {
 	@CustomRepeatableMd_Annotation("two")
 	String getTwoRepeatableMds();
 	void setTwoRepeatableMds(String twoRepeatableMds);
+
+	@Temporal(TemporalType.TIMESTAMP)
+	Date getTemporal();
+	void setTemporal(Date temporal);
 
 }

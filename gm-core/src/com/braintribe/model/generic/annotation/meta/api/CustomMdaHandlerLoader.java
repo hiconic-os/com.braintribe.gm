@@ -19,6 +19,7 @@ import static com.braintribe.utils.lcd.CollectionTools2.asLinkedSet;
 import static com.braintribe.utils.lcd.CollectionTools2.asList;
 import static com.braintribe.utils.lcd.CollectionTools2.newList;
 import static com.braintribe.utils.lcd.CollectionTools2.newSet;
+import static com.braintribe.utils.lcd.CollectionTools2.substract;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -37,6 +38,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.function.Function;
 
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GenericEntity;
@@ -339,8 +341,9 @@ import com.braintribe.model.meta.data.MetaData;
 		if (methodHandle == null)
 			return;
 
-		if (verifyPropertyExists(type))
-			result.add(new AttributeToProperty(attribute, methodHandle, propertyName));
+		AttributeToProperty atp = createAtp(type);
+		if (atp != null)
+			result.add(atp);
 	}
 
 	private Class<?> resolveAttributeType(boolean ignoreIfMissing) {
@@ -359,43 +362,108 @@ import com.braintribe.model.meta.data.MetaData;
 		}
 	}
 
-	private boolean verifyPropertyExists(Class<?> type) {
-		Method m = getGetter(propertyName);
-		if (m == null)
-			return false;
+	private AttributeToProperty createAtp(Class<?> annoAttrType) {
+		Method mdGetter = getGetter(propertyName);
+		if (mdGetter == null)
+			return null;
 
-		if (!type.isArray()) {
-			if (m.getReturnType() != type)
-				return logWrongTypeAndReturnFalse(type, m);
+		MethodHandle methodHandle = findHandle(annoClass, attribute, annoAttrType);
+		if (methodHandle == null)
+			return null;
+
+		if (!annoAttrType.isArray()) {
+			Class<?> mdType = mdGetter.getReturnType();
+
+			if (mdGetter.getReturnType() == annoAttrType)
+				return simpleAtp(methodHandle);
 			else
-				return true;
+				return autoConvertingAtp(annoAttrType, mdType, methodHandle);
 		}
 
-		Class<?> rawReturnType = m.getReturnType();
-		if (rawReturnType != List.class && rawReturnType != Set.class)
-			return logWrongTypeAndReturnFalse(type, m);
+		Class<?> rawReturnType = mdGetter.getReturnType();
+		if (rawReturnType != List.class && rawReturnType != Set.class) {
+			logWrongType(annoAttrType, rawReturnType);
+			return null;
+		}
 
-		Class<?> componentType = type.getComponentType();
+		Class<?> annoComponetType = annoAttrType.getComponentType();
 
 		// We know this is List<?> or Set<?>, we have to check: ? == componentType
-		Type genericReturnType = m.getGenericReturnType();
+		Type genericReturnType = mdGetter.getGenericReturnType();
 		if (genericReturnType instanceof ParameterizedType) {
 			ParameterizedType pt = (ParameterizedType) genericReturnType;
-
-			// We check that typeArguments == [componentType]
 			Type[] typeArguments = pt.getActualTypeArguments();
-			if (typeArguments.length == 1 && typeArguments[0] == componentType)
-				return true;
+
+			if (typeArguments.length == 1) {
+				Type mdElementType = typeArguments[0];
+				if (mdElementType == annoComponetType)
+					return simpleAtp(methodHandle);
+
+				if (mdElementType instanceof Class)
+					return autoConvertingAtp(annoComponetType, (Class<?>) mdElementType, methodHandle);
+			}
 		}
 
-		return logWrongTypeAndReturnFalse(type, m);
+		logWrongType(annoAttrType, rawReturnType);
+		return null;
 	}
 
-	private boolean logWrongTypeAndReturnFalse(Class<?> type, Method m) {
-		logError("MD Entity type " + mdClass.getName() + " has a property " + propertyName + " of type " + m.getReturnType().getName()
+	private AttributeToProperty autoConvertingAtp(Class<?> attributeType, Class<?> mdType, MethodHandle methodHandle) {
+		// Currently we only support enum-to-enum conversion
+		if (attributeType.isEnum() && mdType.isEnum()) {
+			AttributeToProperty atp = simpleAtp(methodHandle);
+			if (applyEnumConversion(attributeType, mdType, atp))
+				return atp;
+		}
+
+		logWrongType(attributeType, mdType);
+		return null;
+	}
+
+	private AttributeToProperty simpleAtp(MethodHandle methodHandle) {
+		return new AttributeToProperty(attribute, methodHandle, propertyName);
+	}
+
+	@SuppressWarnings("rawtypes")
+	private boolean applyEnumConversion(Class<?> aEnum, Class<?> mdEnum, AttributeToProperty atp) {
+		Set<String> aConsts = constantNamesOf((Class<? extends Enum>) aEnum);
+		Set<String> mdConsts = constantNamesOf((Class<? extends Enum>) mdEnum);
+
+		Set<String> missingInMd = substract(aConsts, mdConsts);
+		Set<String> missingInA = substract(mdConsts, aConsts);
+
+		if (!missingInMd.isEmpty() || !missingInA.isEmpty()) {
+			StringBuilder sb = new StringBuilder();
+			sb.append("Cannot convert between anno enum [").append(aEnum.getName()).append("] and MD enum [").append(mdEnum.getName()).append("]");
+			if (!missingInMd.isEmpty())
+				sb.append(".\n\tExtra constants in ").append(aEnum.getSimpleName()).append(": ").append(missingInMd);
+			if (!missingInA.isEmpty())
+				sb.append(".\n\tExtra constants in ").append(mdEnum.getSimpleName()).append(": ").append(missingInA);
+			logError(sb.toString());
+			return false;
+		}
+
+		Class<Enum> aEnumType = (Class<Enum>) aEnum;
+		Class<Enum> mdEnumType = (Class<Enum>) mdEnum;
+
+		atp.toPropertyConverter = v -> Enum.valueOf(mdEnumType, ((Enum<?>) v).name());
+		atp.toAttributeConverter = v -> Enum.valueOf(aEnumType, ((Enum<?>) v).name());
+
+		return true;
+	}
+
+	@SuppressWarnings("rawtypes")
+	private Set<String> constantNamesOf(Class<? extends Enum> sourceEnum) {
+		Set<String> result = newSet();
+		for (Enum<?> c : sourceEnum.getEnumConstants())
+			result.add(((Enum<?>) c).name());
+		return result;
+	}
+
+	private void logWrongType(Class<?> type, Type mdType) {
+		logError("MD Entity type " + mdClass.getName() + " has a property " + propertyName + " of type " + mdType.getTypeName()
 				+ ". This doesn't match the type " + type.getName() + " of the corresponding annotation attribute " + attribute + " of "
 				+ annoClass.getName());
-		return false;
 	}
 
 	private Method getGetter(String propertyName) {
@@ -443,6 +511,7 @@ import com.braintribe.model.meta.data.MetaData;
 		atp.ensureProperty(md);
 
 		Object value = readAttribute(anno, atp.methodHandle, atp.attribute);
+		value = convertValuesIfNeeded(value, atp.toPropertyConverter);
 		value = convertToCollectionIfArray(value, atp);
 
 		md.write(atp.property, value);
@@ -465,6 +534,7 @@ import com.braintribe.model.meta.data.MetaData;
 		atp.ensureProperty(md);
 
 		Object value = md.read(atp.property);
+		value = convertValuesIfNeeded(value, atp.toAttributeConverter);
 		value = convertToArrayIfCollection(value);
 
 		descriptor.addAnnotationValue(atp.attribute, value);
@@ -475,6 +545,28 @@ import com.braintribe.model.meta.data.MetaData;
 			return ((Collection<?>) value).toArray();
 		else
 			return value;
+	}
+
+	private Object convertValuesIfNeeded(Object value, Function<Object, Object> converter) {
+		if (converter == null || value == null)
+			return value;
+
+		if (value.getClass().isArray()) {
+			Object[] array = (Object[]) value;
+			Object[] converted = new Object[array.length];
+			for (int i = 0; i < array.length; i++)
+				converted[i] = converter.apply(array[i]);
+			return converted;
+		}
+
+		if (value instanceof Collection) {
+			List<Object> converted = newList();
+			for (Object element : (Collection<?>) value)
+				converted.add(converter.apply(element));
+			return converted;
+		}
+
+		return converter.apply(value);
 	}
 
 	private <T> T readAttribute(Annotation anno, MethodHandle handle, String attribute) {
@@ -490,6 +582,9 @@ import com.braintribe.model.meta.data.MetaData;
 		public final MethodHandle methodHandle;
 		public final String propertyName;
 		public Property property;
+
+		public Function<Object, Object> toPropertyConverter;
+		public Function<Object, Object> toAttributeConverter;
 
 		public AttributeToProperty(String attribute, MethodHandle methodHandle, String propertyName) {
 			this.attribute = attribute;

@@ -1,6 +1,4 @@
 // ============================================================================
-// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -13,21 +11,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.meta.data.constraint;
-
-import com.braintribe.model.generic.reflection.EntityType;
-import com.braintribe.model.generic.reflection.EntityTypes;
-import com.braintribe.model.meta.data.ExplicitPredicate;
-import com.braintribe.model.meta.data.ModelSkeletonCompatible;
-import com.braintribe.model.meta.data.UniversalMetaData;
+package com.braintribe.model.generic.annotation.meta;
 
 /**
- * Erasure is {@link Optional}
- * <p>
- * Annotation is {@link com.braintribe.model.generic.annotation.meta.Mandatory}
+ * See jakarta.persistence.TemporalType
  */
-public interface Mandatory extends UniversalMetaData, ExplicitPredicate, ModelSkeletonCompatible {
+public enum TemporalType {
 
-	EntityType<Mandatory> T = EntityTypes.T(Mandatory.class);
+	DATE,
 
+	TIME,
+
+	TIMESTAMP
 }

@@ -1,6 +1,4 @@
 // ============================================================================
-// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -13,21 +11,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.meta.data.constraint;
+package com.braintribe.model.meta.data.prompt;
 
-import com.braintribe.model.generic.reflection.EntityType;
-import com.braintribe.model.generic.reflection.EntityTypes;
-import com.braintribe.model.meta.data.ExplicitPredicate;
-import com.braintribe.model.meta.data.ModelSkeletonCompatible;
-import com.braintribe.model.meta.data.UniversalMetaData;
+import com.braintribe.model.generic.base.EnumBase;
+import com.braintribe.model.generic.reflection.EnumType;
+import com.braintribe.model.generic.reflection.EnumTypes;
 
 /**
- * Erasure is {@link Optional}
- * <p>
- * Annotation is {@link com.braintribe.model.generic.annotation.meta.Mandatory}
+ * @see Temporal
  */
-public interface Mandatory extends UniversalMetaData, ExplicitPredicate, ModelSkeletonCompatible {
+public enum TemporalType implements EnumBase<TemporalType> {
+	DATE,
+	TIME,
+	TIMESTAMP;
 
-	EntityType<Mandatory> T = EntityTypes.T(Mandatory.class);
+	public static final EnumType<TemporalType> T = EnumTypes.T(TemporalType.class);
+
+	@Override
+	public EnumType<TemporalType> type() {
+		return T;
+	}
 
 }

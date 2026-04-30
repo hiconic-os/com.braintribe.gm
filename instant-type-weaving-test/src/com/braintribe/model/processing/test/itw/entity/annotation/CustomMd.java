@@ -40,4 +40,10 @@ public interface CustomMd extends UniversalMetaData {
 	Set<CustomMdEnum> getCustomEnumSet();
 	void setCustomEnumSet(Set<CustomMdEnum> customEnumSet);
 
+	CustomMdGmEnum getConvertedEnum();
+	void setConvertedEnum(CustomMdGmEnum convertedEnum);
+
+	List<CustomMdGmEnum> getConvertedEnumList();
+	void setConvertedEnumList(List<CustomMdGmEnum> convertedEnumList);
+
 }

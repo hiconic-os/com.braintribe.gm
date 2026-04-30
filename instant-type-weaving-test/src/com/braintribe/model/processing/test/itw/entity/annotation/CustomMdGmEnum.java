@@ -1,6 +1,4 @@
 // ============================================================================
-// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -13,21 +11,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.meta.data.constraint;
+package com.braintribe.model.processing.test.itw.entity.annotation;
 
-import com.braintribe.model.generic.reflection.EntityType;
-import com.braintribe.model.generic.reflection.EntityTypes;
-import com.braintribe.model.meta.data.ExplicitPredicate;
-import com.braintribe.model.meta.data.ModelSkeletonCompatible;
-import com.braintribe.model.meta.data.UniversalMetaData;
+import com.braintribe.model.generic.base.EnumBase;
+import com.braintribe.model.generic.reflection.EnumType;
+import com.braintribe.model.generic.reflection.EnumTypes;
 
 /**
- * Erasure is {@link Optional}
- * <p>
- * Annotation is {@link com.braintribe.model.generic.annotation.meta.Mandatory}
+ * GM enum used on the {@link CustomMd} entity. Has the same constants as {@link CustomMdAnnoEnum}, which is the
+ * corresponding plain Java enum used in {@link CustomMd_Annotation}. Auto-conversion between the two is tested.
  */
-public interface Mandatory extends UniversalMetaData, ExplicitPredicate, ModelSkeletonCompatible {
+public enum CustomMdGmEnum implements EnumBase<CustomMdGmEnum> {
 
-	EntityType<Mandatory> T = EntityTypes.T(Mandatory.class);
+	alpha,
+	beta,
+	gamma;
 
+	public static final EnumType<CustomMdGmEnum> T = EnumTypes.T(CustomMdGmEnum.class);
+
+	@Override
+	public EnumType<CustomMdGmEnum> type() {
+		return T;
+	}
 }
