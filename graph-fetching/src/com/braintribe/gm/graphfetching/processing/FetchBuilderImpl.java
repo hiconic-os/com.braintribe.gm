@@ -7,7 +7,7 @@ import java.util.concurrent.ExecutorService;
 
 import com.braintribe.gm.graphfetching.api.FetchBuilder;
 import com.braintribe.gm.graphfetching.api.FetchParallelization;
-import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
+import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.query.FetchQueryFactory;
 import com.braintribe.gm.graphfetching.processing.fetch.FetchProcessing;
 import com.braintribe.gm.graphfetching.processing.util.FetchingTools;
@@ -16,7 +16,7 @@ import com.braintribe.model.processing.session.api.persistence.PersistenceGmSess
 
 public class FetchBuilderImpl implements FetchBuilder {
 	private PersistenceGmSession session;
-	private EntityGraphNode node;
+	private AbstractEntityGraphNode node;
 	private FetchQueryFactory queryFactory;
 	private ExecutorService executor;
 	private int bulkSize = 100;
@@ -27,73 +27,73 @@ public class FetchBuilderImpl implements FetchBuilder {
 	private FetchParallelization parallelization = FetchParallelization.FETCH_AND_BULK;
 	private boolean polymorphicJoin = false;
 	private int toOneJoinThreshold = 1;
-	
-	public FetchBuilderImpl(PersistenceGmSession session, EntityGraphNode node) {
+
+	public FetchBuilderImpl(PersistenceGmSession session, AbstractEntityGraphNode node) {
 		super();
 		this.session = session;
 		this.node = node;
 	}
-	
+
 	@Override
 	public FetchBuilder queryFactory(FetchQueryFactory queryFactory) {
 		this.queryFactory = queryFactory;
 		return this;
 	}
-	
+
 	@Override
 	public FetchBuilder bulkSize(int bulkSize) {
-		this.bulkSize  = bulkSize;
+		this.bulkSize = bulkSize;
 		return this;
 	}
-	
+
 	@Override
 	public FetchBuilder toOneScalarThreshold(int threshold) {
 		toOneScalarThreshold = threshold;
 		return this;
 	}
-	
+
 	@Override
 	public FetchBuilder toOneJoinThreshold(int toOneJoinThreshold) {
-		this.toOneJoinThreshold  = toOneJoinThreshold;
+		this.toOneJoinThreshold = toOneJoinThreshold;
 		return this;
 	}
-	
+
 	@Override
 	public FetchBuilder joinProbabilityDefault(double probability) {
 		joinProbabilityDefault = probability;
 		return this;
 	}
-	
+
 	@Override
 	public FetchBuilder joinProbabilityThreshold(double threshold) {
 		joinProbabilityThreshold = threshold;
 		return this;
 	}
-	
+
 	@Override
 	public FetchBuilder maxParallel(int maxParallel) {
-		this.maxParallel  = maxParallel;
+		this.maxParallel = maxParallel;
 		return this;
 	}
-	
+
 	@Override
 	public FetchBuilder parallelization(FetchParallelization parallelization) {
 		this.parallelization = parallelization;
 		return this;
 	}
-	
+
 	@Override
 	public FetchBuilder polymorphicJoin(boolean polymorphicJoin) {
 		this.polymorphicJoin = polymorphicJoin;
 		return this;
 	}
-	
+
 	@Override
 	public FetchBuilder executor(ExecutorService executor) {
 		this.executor = executor;
 		return this;
 	}
-	
+
 	@Override
 	public <E extends GenericEntity> List<E> fetchDetached(Collection<? extends E> entities) {
 		List<E> detachedEntities = new ArrayList<>();
@@ -109,7 +109,7 @@ public class FetchBuilderImpl implements FetchBuilder {
 			return detachedEntities;
 		}
 	}
-	
+
 	@Override
 	public void fetch(Collection<? extends GenericEntity> entities) {
 		if (entities.isEmpty())
@@ -126,17 +126,17 @@ public class FetchBuilderImpl implements FetchBuilder {
 			}
 		}
 	}
-	
+
 	private FetchProcessing fetchProcessing() {
 		final FetchProcessing fetchProcessing;
 		if (queryFactory != null)
 			fetchProcessing = new FetchProcessing(session, queryFactory);
 		else
 			fetchProcessing = new FetchProcessing(session);
-		
+
 		if (executor != null)
 			fetchProcessing.setExecutorService(executor);
-		
+
 		fetchProcessing.setBulkSize(bulkSize);
 		fetchProcessing.setMaxParallel(maxParallel);
 		fetchProcessing.setJoinProbabilityDefault(joinProbabilityDefault);
@@ -145,21 +145,17 @@ public class FetchBuilderImpl implements FetchBuilder {
 		fetchProcessing.setParallelization(parallelization);
 		fetchProcessing.setPolymorphicJoin(polymorphicJoin);
 		fetchProcessing.setToOneJoinThreshold(toOneJoinThreshold);
-		
+
 		return fetchProcessing;
 	}
 
 	@Override
 	public String toString() {
 		if (toOneJoinThreshold == 0)
-			return "FetchBuilderImpl [bs=" + bulkSize + ", mp=" + maxParallel
-					+ ", tot=" + toOneJoinThreshold + "]";
+			return "FetchBuilderImpl [bs=" + bulkSize + ", mp=" + maxParallel + ", tot=" + toOneJoinThreshold + "]";
 		else
-			return "FetchBuilderImpl [bs=" + bulkSize + ", mp=" + maxParallel
-				+ ", jpt=" + joinProbabilityThreshold + ", jpd="
-				+ joinProbabilityDefault + ", pj=" + polymorphicJoin + ", tot="
-				+ toOneJoinThreshold + "]";
+			return "FetchBuilderImpl [bs=" + bulkSize + ", mp=" + maxParallel + ", jpt=" + joinProbabilityThreshold + ", jpd="
+					+ joinProbabilityDefault + ", pj=" + polymorphicJoin + ", tot=" + toOneJoinThreshold + "]";
 	}
 
-	
 }
