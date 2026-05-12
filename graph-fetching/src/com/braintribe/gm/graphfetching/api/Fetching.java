@@ -3,6 +3,7 @@ package com.braintribe.gm.graphfetching.api;
 import java.util.Collection;
 import java.util.List;
 
+import com.braintribe.gm.graphfetching.api.node.AbstractEntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.EntityGraphNode;
 import com.braintribe.gm.graphfetching.api.node.InferableGraphNode;
 import com.braintribe.gm.graphfetching.api.node.ReachableNodeBuilder;
@@ -99,7 +100,7 @@ public interface Fetching {
 	 */
 	static EntityGraphNode rootNode(GenericEntity selectPrototype) {
 		return new GraphPrototypeNodeCollector().toEntityNode(selectPrototype);
-		//return GraphPrototypePai.convert(selectPrototype);
+		// return GraphPrototypePai.convert(selectPrototype);
 	}
 
 	static <E extends GenericEntity> List<E> fetchFromLocal(EntityGraphNode node, Collection<? extends E> entities) {
@@ -118,7 +119,8 @@ public interface Fetching {
 	 *            the entities to fetch
 	 * @return detached, deep-fetched entities
 	 */
-	static <E extends GenericEntity> List<E> fetchDetached(PersistenceGmSession session, EntityGraphNode node, Collection<? extends E> entities) {
+	static <E extends GenericEntity> List<E> fetchDetached(PersistenceGmSession session, AbstractEntityGraphNode node,
+			Collection<? extends E> entities) {
 		return build(session, node).fetchDetached(entities);
 	}
 
@@ -133,11 +135,11 @@ public interface Fetching {
 	 * @param entities
 	 *            The root entities to populate
 	 */
-	static void fetch(PersistenceGmSession session, EntityGraphNode node, Collection<? extends GenericEntity> entities) {
+	static void fetch(PersistenceGmSession session, AbstractEntityGraphNode node, Collection<? extends GenericEntity> entities) {
 		build(session, node).fetch(entities);
 	}
-	
-	static FetchBuilder build(PersistenceGmSession session, EntityGraphNode node) {
+
+	static FetchBuilder build(PersistenceGmSession session, AbstractEntityGraphNode node) {
 		return new FetchBuilderImpl(session, node);
 	}
 }
