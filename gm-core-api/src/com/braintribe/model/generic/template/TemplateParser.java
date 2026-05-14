@@ -83,15 +83,22 @@ class TemplateParser {
 	
 	private static class BracedVarRule implements Rule {
 		private final StringBuilder builder = new StringBuilder();
+		private int nestedBraces;
 		private boolean closed;
 		
 		@Override
 		public void accept(char c, RuleContext context) {
-			if (c == '}') {
+			if (c == '{') {
+				nestedBraces++;
+				builder.append(c);
+				return;
+			}
+
+			if (c == '}' && nestedBraces-- == 0) {
 				closed = true;
 				context.activateRule(new TextRule());
-			}
-			else {
+
+			} else {
 				builder.append(c);
 			}
 		}
