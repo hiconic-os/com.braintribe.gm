@@ -24,11 +24,12 @@ import com.braintribe.model.generic.reflection.EntityTypes;
 public interface UserNameIdentification extends UserIdentification, HasUserName {
 
 	EntityType<UserNameIdentification> T = EntityTypes.T(UserNameIdentification.class);
-	
-	static UserNameIdentification of(String userId) {
+
+	static UserNameIdentification of(String userName) {
 		UserNameIdentification result = UserNameIdentification.T.create();
-		result.setUserName(userId);
-		
+		result.setUserName(userName);
+
 		return result;
 	}
+
 }
