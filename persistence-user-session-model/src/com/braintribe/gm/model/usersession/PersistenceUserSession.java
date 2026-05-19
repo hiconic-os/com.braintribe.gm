@@ -55,6 +55,9 @@ public interface PersistenceUserSession extends GenericEntity {
 	Boolean getClosed();
 	void setClosed(Boolean closed);
 
+	String getUserId();
+	void setUserId(String userId);
+
 	String getUserName();
 	void setUserName(String name);
 
