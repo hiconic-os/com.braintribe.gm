@@ -22,7 +22,6 @@ import static com.braintribe.transport.messaging.api.MessageProperties.producerN
 
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutorService;
@@ -116,7 +115,6 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 
 	// internals
 	private String fromTag;
-	private Map<String, Message> processingRequests;
 	private DelayQueue<StillProcessingCheck> processingRequestsDelayQueue;
 
 	private Function<ServiceRequest, CmdResolver> metaDataResolverProvider;
@@ -233,7 +231,6 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 	@Override
 	public void postConstruct() {
 		if (keepAliveInterval > 0) {
-			this.processingRequests = new ConcurrentHashMap<>();
 			this.processingRequestsDelayQueue = new DelayQueue<>();
 			this.stillProcessingTaskThread = Thread.ofVirtual().name("GmMqRpcServer-still-processing").start(this::stillProcessingSignalTask);
 		}
@@ -294,6 +291,7 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 
 		private final Message requestMessage;
 		private final String correlationId;
+		private StillProcessingCheck stillProcessingCheck;
 
 		private GmMqRpcProcessor(Message requestMessage) {
 			this.requestMessage = requestMessage;
@@ -343,22 +341,16 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 		public void registerProcessingRequest() {
 			log.trace(() -> "Registering request: " + correlationId);
 
-			processingRequests.put(correlationId, requestMessage);
-
-			try {
-				StillProcessingCheck check = new StillProcessingCheck(correlationId);
-				processingRequestsDelayQueue.offer(check);
-			} catch (RuntimeException | Error e) {
-				processingRequests.remove(correlationId);
-				throw e;
-			}
+			stillProcessingCheck = new StillProcessingCheck(requestMessage);
+			processingRequestsDelayQueue.offer(stillProcessingCheck);
 
 			log.trace(() -> "Registered request: " + correlationId);
 		}
 
 		public void unregisterProcessingRequest() {
 			log.trace(() -> "Unregistering request: " + correlationId);
-			processingRequests.remove(correlationId);
+
+			stillProcessingCheck.active = false;
 			log.trace(() -> "Unregistered request: " + correlationId);
 		}
 
@@ -487,10 +479,6 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 		return (ServiceRequest) message.getBody();
 	}
 
-	private static String asString(Object object) {
-		return object == null ? null : object.toString();
-	}
-
 	private void stillProcessingSignalTask() {
 		try {
 			threadRenamer.push(() -> fromTag + ".keepAliveTask");
@@ -499,42 +487,40 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 
 			while (true) {
 				try {
-					StillProcessingCheck check = processingRequestsDelayQueue.poll(1, TimeUnit.SECONDS);
+					StillProcessingCheck check = processingRequestsDelayQueue.take();
+					Message requestMessage = check.message;
+					String correlationId = requestMessage.getCorrelationId();
 
-					if (check != null) {
-						// Here we check if an expired entry matches a request which is still being processed
-
-						Message requestMessage = processingRequests.get(check.correlationId);
-						if (requestMessage != null) {
-							log.trace(() -> "Still processing signal will be sent for: " + requestMessage);
-
-							// The expired entry is still processing, so we send a StillProcessing reply.
-							try {
-								Message responseMessage = createResponseMessage(requestMessage, StillProcessing.T.create());
-								sendResponse(requestMessage, responseMessage.getReplyTo());
-
-								log.debug(() -> "Sent still processing signal for: " + requestMessage);
-
-							} catch (Throwable t) {
-								log.error("Failed to send still processing signal: " + t, t);
-							}
-
-							// The entry needs to be re-enqueued to allow subsequent StillProcessing signals
-							try {
-								check.reset();
-								processingRequestsDelayQueue.offer(check);
-
-								log.trace(() -> "Re-enqueued entry for still processing request: " + requestMessage);
-
-							} catch (Throwable t) {
-								log.error("Failed to re-enqueue entry for still processing request: " + requestMessage, t);
-							}
-
-						} else {
-							// The expired entry is no longer being processed and is just ignored.
-							log.trace(() -> "Expired entry is no longer being processed: " + check.correlationId);
-						}
+					if (!check.active) {
+						log.trace(() -> "Expired entry is no longer being processed: " + correlationId);
+						continue;
 					}
+
+					// Here we check if an expired entry matches a request which is still being processed
+					log.trace(() -> "Still processing signal will be sent for: " + correlationId);
+
+					// The expired entry is still processing, so we send a StillProcessing reply.
+					try {
+						Message responseMessage = createResponseMessage(requestMessage, StillProcessing.T.create());
+						sendResponse(responseMessage, requestMessage.getReplyTo());
+
+						log.debug(() -> "Sent still processing signal for: " + correlationId);
+
+					} catch (Throwable t) {
+						log.error("Failed to send still processing signal for: " + requestMessage, t);
+					}
+
+					// The entry needs to be re-enqueued to allow subsequent StillProcessing signals
+					try {
+						check.reset(); // delays the take by 'keepAliveInterval'
+						processingRequestsDelayQueue.offer(check);
+
+						log.trace(() -> "Re-enqueued entry for still processing request: " + correlationId);
+
+					} catch (Throwable t) {
+						log.error("Failed to re-enqueue entry for still processing request: " + requestMessage, t);
+					}
+
 				} catch (InterruptedException e) {
 					break;
 				}
@@ -558,12 +544,13 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 
 	private class StillProcessingCheck implements Delayed {
 
-		private final String correlationId;
+		public final Message message;
+		public boolean active = true;
 		private long expiration;
 
-		public StillProcessingCheck(String correlationId) {
-			this.correlationId = Objects.requireNonNull(correlationId, "correlationId cannot be null");
-			reset();
+		public StillProcessingCheck(Message message) {
+			this.message = message;
+			this.reset();
 		}
 
 		public void reset() {
@@ -584,7 +571,7 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 		@Override
 		public long getDelay(TimeUnit unit) {
 			long delay = expiration - System.currentTimeMillis();
-			return Objects.requireNonNull(unit, "unit cannot be null").convert(delay, TimeUnit.MILLISECONDS);
+			return unit.convert(delay, TimeUnit.MILLISECONDS);
 		}
 
 	}
