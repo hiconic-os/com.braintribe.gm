@@ -318,7 +318,7 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 					ServiceResult result = evaluate(attributeContext, request, ignoreResponse);
 
 					if (ignoreResponse) {
-						Unsatisfied asUnsatisfied = result.asUnsatisfied();
+						Unsatisfied asUnsatisfied = result != null? result.asUnsatisfied(): null;
 						if (asUnsatisfied != null) {
 							log.error("Error while evaluating MQ request " + request + ":\n" + asUnsatisfied.getWhy().stringify());
 						}
