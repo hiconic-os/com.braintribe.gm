@@ -1,11 +1,8 @@
 package com.braintribe.gm.graphfetching;
 
-import org.junit.Ignore;
-
 import com.braintribe.model.access.IncrementalAccess;
 import com.braintribe.testing.tools.gm.GmTestTools;
 
-@Ignore
 public class GraphFetchingTest extends AbstractGraphFetchingTest {
 
 	@Override
