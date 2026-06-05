@@ -22,8 +22,8 @@ import com.braintribe.model.generic.reflection.Property;
 
 public class LocalFetching {
 
-	private Queue<Runnable> taskQueue = new LinkedList<>();
-	private Map<GenericEntity, DetachedEntity> detachedEntities = new IdentityHashMap<>();
+	private final Queue<Runnable> taskQueue = new LinkedList<>();
+	private final Map<GenericEntity, DetachedEntity> detachedEntities = new IdentityHashMap<>();
 	
 	public List<GenericEntity> fetch(AbstractEntityGraphNode node, Collection<? extends GenericEntity> entities) {
 		List<GenericEntity> clonedEntities = new ArrayList<>(entities.size());
@@ -103,8 +103,6 @@ public class LocalFetching {
 			
 			Map<?, ?> otherMap = property.get(entity);
 			MapType mapType = mapPropertyNode.type();
-			
-			LinearCollectionType type = (LinearCollectionType) property.getType();
 			
 			Map<Object, Object> clonedCollection = mapType.createPlain();
 			property.set(clonedEntity, clonedCollection);

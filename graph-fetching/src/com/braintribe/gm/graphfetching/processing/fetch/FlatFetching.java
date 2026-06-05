@@ -1,6 +1,5 @@
 package com.braintribe.gm.graphfetching.processing.fetch;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,17 +21,15 @@ import com.braintribe.gm.graphfetching.api.node.ScalarCollectionPropertyGraphNod
 import com.braintribe.gm.graphfetching.processing.util.FetchingTools;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.pr.AbsentEntity;
-import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.VdHolder;
 import com.braintribe.model.generic.value.ValueDescriptor;
 
 public class FlatFetching {
 	private final FetchContext context;
-	private FetchTask task;
+	private final FetchTask task;
 
 	public FlatFetching(FetchContext context, FetchTask task) {
-		super();
 		this.context = context;
 		this.task = task;
 	}
@@ -68,11 +65,11 @@ public class FlatFetching {
 	}
 	
 	private class EntityPostProcessing {
-		private Map<Object, GenericEntity> newEntities = new ConcurrentHashMap<>();
-		private FetchQualification fetchQualification;
-		private AbstractEntityGraphNode entityNode;
-		private boolean postProcessingNecessary;
-		private FetchPathNode fetchPath;
+		private final Map<Object, GenericEntity> newEntities = new ConcurrentHashMap<>();
+		private final FetchQualification fetchQualification;
+		private final AbstractEntityGraphNode entityNode;
+		private final boolean postProcessingNecessary;
+		private final FetchPathNode fetchPath;
 		
 		protected EntityPostProcessing(AbstractEntityGraphNode entityNode, FetchPathNode fetchPath) {
 			this.entityNode = entityNode;
@@ -105,9 +102,9 @@ public class FlatFetching {
 	}
 	
 	private class EntityPropertyFetch extends EntityPostProcessing implements PropertyFetch {
-		private EntityPropertyGraphNode entityPropertyNode;
-		private EntityGraphNode entityNode;
-		private Map<Object, GenericEntity> entities;
+		private final EntityPropertyGraphNode entityPropertyNode;
+		private final EntityGraphNode entityNode;
+		private final Map<Object, GenericEntity> entities;
 
 		public EntityPropertyFetch(EntityGraphNode entityNode, EntityPropertyGraphNode entityPropertyNode, Map<Object, GenericEntity> entities) {
 			super(entityPropertyNode.entityNode(), new FetchPathNode(task.fetchPath, entityPropertyNode));
@@ -118,7 +115,6 @@ public class FlatFetching {
 		
 		@Override
 		public void fetch() {
-			EntityType<?> baseType = entityPropertyNode.entityNode().entityType();
 			Property property = entityPropertyNode.property();
 			
 			Map<GenericEntity, Object> lookupCases = new IdentityHashMap<>();
@@ -201,8 +197,8 @@ public class FlatFetching {
 	
 	private class ScalarCollectionPropertyFetch implements PropertyFetch {
 		ScalarCollectionPropertyGraphNode scalarCollectionPropertyNode;
-		private EntityGraphNode entityNode;
-		private Map<Object, GenericEntity> entities;
+		private final EntityGraphNode entityNode;
+		private final Map<Object, GenericEntity> entities;
 		
 		public ScalarCollectionPropertyFetch(EntityGraphNode entityNode, ScalarCollectionPropertyGraphNode scalarCollectionPropertyNode, Map<Object, GenericEntity> entities) {
 			super();
@@ -223,10 +219,10 @@ public class FlatFetching {
 	
 	private class MapPropertyFetch implements PropertyFetch {
 		MapPropertyGraphNode mapPropertyNode;
-		private EntityGraphNode entityNode;
+		private final EntityGraphNode entityNode;
 		private EntityPostProcessing keyPostProcessing;
 		private EntityPostProcessing valuePostProcessing;
-		private Map<Object, GenericEntity> entities;
+		private final Map<Object, GenericEntity> entities;
 		
 		public MapPropertyFetch(EntityGraphNode entityNode, MapPropertyGraphNode mapPropertyNode, Map<Object, GenericEntity> entities) {
 			super();

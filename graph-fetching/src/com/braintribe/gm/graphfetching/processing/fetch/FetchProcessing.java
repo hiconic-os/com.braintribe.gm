@@ -59,25 +59,25 @@ import com.braintribe.utils.lcd.Lazy;
 public class FetchProcessing implements FetchContext {
 	protected static final int DEFAULT_BULK_SIZE = 100;
 	private static Logger logger = Logger.getLogger(FetchProcessing.class);
-	private Queue<FetchTask> taskQueue = new LinkedList<>();
+	private final Queue<FetchTask> taskQueue = new LinkedList<>();
 
-	private AtomicInteger parallelTaskCounter = new AtomicInteger();
-	private ReentrantLock parallelDoneMonitor = new ReentrantLock();
-	private Condition parallelDoneCondition = parallelDoneMonitor.newCondition();
-	private PersistenceGmSession session;
-	private Map<Pair<EntityType<?>, Object>, EntityIdm> index = new ConcurrentHashMap<>();
+	private final AtomicInteger parallelTaskCounter = new AtomicInteger();
+	private final ReentrantLock parallelDoneMonitor = new ReentrantLock();
+	private final Condition parallelDoneCondition = parallelDoneMonitor.newCondition();
+	private final PersistenceGmSession session;
+	private final Map<Pair<EntityType<?>, Object>, EntityIdm> index = new ConcurrentHashMap<>();
 	private ExecutorService threadPool;
 	private final FetchQueryFactory queryFactory;
 	private int maxParallel = 10;
-	private Lazy<Semaphore> lazySemaphore = new Lazy<>(this::buildSemaphore);
-	private Lazy<ExecutorService> defaultExecutorLazy = new Lazy<>(() -> Executors.newFixedThreadPool(maxParallel), s -> s.shutdown());
+	private final Lazy<Semaphore> lazySemaphore = new Lazy<>(this::buildSemaphore);
+	private final Lazy<ExecutorService> defaultExecutorLazy = new Lazy<>(() -> Executors.newFixedThreadPool(maxParallel), s -> s.shutdown());
 	private int bulkSize = DEFAULT_BULK_SIZE;
 	private int toOneScalarStopThreshold = 500;
 	private double joinProbabiltyThreshold = 0.05;
 	private double joinProbabilityDefault = 0.5;
 	private FetchParallelization parallelization;
 	private boolean polymorphicJoin = true;
-	private List<Throwable> errors = Collections.synchronizedList(new ArrayList<>());
+	private final List<Throwable> errors = Collections.synchronizedList(new ArrayList<>());
 	private int toOneJoinThreshold = 1;
 
 	public FetchProcessing(PersistenceGmSession session) {
@@ -187,7 +187,8 @@ public class FetchProcessing implements FetchContext {
 
 		Duration duration = Duration.ofNanos(System.nanoTime() - nanosStart);
 		logger.debug(() -> "consumed " + duration.toMillis() + " ms for graph " + (flatFetching ? "flat " : "") + "fetching of " + index.size()
-				+ " entities of node " + getNodeDescription(node) + " " + indexAsString());
+				+ " entities of node " + getNodeDescription(node));
+		logger.trace(() -> "Index: " + indexAsString());
 	}
 
 	private String indexAsString() {
@@ -419,10 +420,9 @@ public class FetchProcessing implements FetchContext {
 	}
 
 	private class ScalarExtracter implements ValueExtracter {
-		private int pos;
+		private final int pos;
 
 		public ScalarExtracter(int pos) {
-			super();
 			this.pos = pos;
 		}
 
@@ -433,14 +433,9 @@ public class FetchProcessing implements FetchContext {
 	}
 
 	private class EntityExtracter implements ValueExtracter {
-		private int pos;
-		private EntityType<?> baseEntityType;
-		private Consumer<EntityIdm> visitor;
-
-		public EntityExtracter(AbstractEntityGraphNode node, int pos) {
-			this.pos = pos;
-			baseEntityType = node.entityType();
-		}
+		private final int pos;
+		private final EntityType<?> baseEntityType;
+		private final Consumer<EntityIdm> visitor;
 
 		public EntityExtracter(AbstractEntityGraphNode node, int pos, Consumer<EntityIdm> visitor) {
 			this.pos = pos;
@@ -472,7 +467,7 @@ public class FetchProcessing implements FetchContext {
 	}
 
 	private class EntityFetchHandler extends EntityExtracter implements FetchHandler {
-		private Map<Object, GenericEntity> entities = new ConcurrentHashMap<>();
+		private final Map<Object, GenericEntity> entities = new ConcurrentHashMap<>();
 
 		public EntityFetchHandler(AbstractEntityGraphNode node, Consumer<EntityIdm> visitor) {
 			super(node, 0, visitor);
@@ -495,9 +490,9 @@ public class FetchProcessing implements FetchContext {
 
 	private class ToOnePropertyFetchHandler implements FetchHandler {
 
-		private ValueExtracter valueExtracter;
-		private Map<Object, GenericEntity> owners;
-		private Property property;
+		private final ValueExtracter valueExtracter;
+		private final Map<Object, GenericEntity> owners;
+		private final Property property;
 
 		public ToOnePropertyFetchHandler(ValueExtracter valueExtracter, Map<Object, GenericEntity> owners, Property property) {
 			this.valueExtracter = valueExtracter;
@@ -516,9 +511,9 @@ public class FetchProcessing implements FetchContext {
 	}
 
 	private class MapPropertyFetchHandler implements FetchHandler {
-		private Map<Object, Map<Object, Object>> maps = new HashMap<>();
-		private ValueExtracter keyExtracter;
-		private ValueExtracter valueExtracter;
+		private final Map<Object, Map<Object, Object>> maps = new HashMap<>();
+		private final ValueExtracter keyExtracter;
+		private final ValueExtracter valueExtracter;
 
 		public MapPropertyFetchHandler(ValueExtracter keyExtracter, ValueExtracter valueExtracter, Map<Object, GenericEntity> owners,
 				Property property) {
@@ -544,8 +539,8 @@ public class FetchProcessing implements FetchContext {
 	}
 
 	private class CollectionPropertyFetchHandler implements FetchHandler {
-		private Map<Object, Collection<Object>> collections = new HashMap<>();
-		private ValueExtracter elementExtracter;
+		private final Map<Object, Collection<Object>> collections = new HashMap<>();
+		private final ValueExtracter elementExtracter;
 
 		public CollectionPropertyFetchHandler(ValueExtracter elementExtracter, Map<Object, GenericEntity> owners, Property property) {
 			this.elementExtracter = elementExtracter;

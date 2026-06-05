@@ -45,7 +45,6 @@ public class ToManyFetching {
 		EntityGraphNode entityNode;
 		Property property;
 		public CollectionFetchPlan(EntityGraphNode entityNode, Property property, CollectionType collectionType) {
-			super();
 			this.entityNode = entityNode;
 			this.property = property;
 			this.collectionType = collectionType;
@@ -68,14 +67,14 @@ public class ToManyFetching {
 	}
 
 	static class EntityMapping {
-		private boolean polymorphicJoin;
+		private final boolean polymorphicJoin;
 
 		public List<EntityGraphNode> exactTypeNodes = new ArrayList<>();
 		public List<EntityGraphNode> subTypeNodes = new ArrayList<>();
 		public Property property;
 		public PolymorphicEntityGraphNode possiblePolyNode;
 		public List<NodePostProcessing> postProcessings;
-		private FetchContext context;
+		private final FetchContext context;
 
 		public EntityMapping(FetchContext context, Property property, PolymorphicEntityGraphNode polymorphicNode, boolean supportsSubTypeJoin) {
 			super();
@@ -244,7 +243,6 @@ public class ToManyFetching {
 
 	/**
 	 * Fetch all to-many properties of the given node (entity and scalar collections).
-	 * @return 
 	 */
 	public static CompletableFuture<Void> fetch(FetchContext context, AbstractEntityGraphNode node, FetchTask fetchTask) {
 		boolean supportsSubTypeJoin = context.queryFactory().supportsSubTypeJoin() && context.polymorphicJoin();
@@ -366,7 +364,7 @@ public class ToManyFetching {
 	
 	private static class MapAdder<K, V> extends AbstractCollectionAdder<V> {
 
-		private Function<K, K> keyVisitor;
+		private final Function<K, K> keyVisitor;
 		private Map<K, V> map;
 
 		public MapAdder(Function<K, K> keyVisitor, Function<V, V> valueVisitor) {
