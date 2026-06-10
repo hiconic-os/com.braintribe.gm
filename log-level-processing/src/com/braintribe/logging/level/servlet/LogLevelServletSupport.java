@@ -130,7 +130,7 @@ public class LogLevelServletSupport {
 	}
 
 	private Maybe<Neutral> handleSet(ParameterProvider parameters, String selectedApplication) {
-		Maybe<String> name = parameter(parameters, "name");
+		Maybe<String> name = loggerNameParameter(parameters, "name");
 		Maybe<String> level = parameter(parameters, "level");
 
 		if (name.isUnsatisfied()) {
@@ -152,7 +152,7 @@ public class LogLevelServletSupport {
 	}
 
 	private Maybe<Neutral> handleResetToDeployment(ParameterProvider parameters, String selectedApplication) {
-		Maybe<String> name = parameter(parameters, "name");
+		Maybe<String> name = loggerNameParameter(parameters, "name");
 
 		if (name.isUnsatisfied()) {
 			return name.propagateReason();
@@ -247,6 +247,14 @@ public class LogLevelServletSupport {
 	private Maybe<String> parameter(ParameterProvider parameters, String name) {
 		String value = parameters.getParameter(name);
 		if (value == null || value.trim().isEmpty()) {
+			return Maybe.empty(InvalidArgument.create("Missing parameter: " + name));
+		}
+		return Maybe.complete(value.trim());
+	}
+
+	private Maybe<String> loggerNameParameter(ParameterProvider parameters, String name) {
+		String value = parameters.getParameter(name);
+		if (value == null) {
 			return Maybe.empty(InvalidArgument.create("Missing parameter: " + name));
 		}
 		return Maybe.complete(value.trim());

@@ -286,7 +286,7 @@
 				<div class="form-section-title">Runtime Level</div>
 				<label class="field">
 					<span>Logger</span>
-					<input id="add-log-level-name" spellcheck="false" list="loggers" name="name" placeholder="logger name" required>
+					<input id="add-log-level-name" spellcheck="false" list="loggers" name="name" placeholder="logger name or *">
 				</label>
 				<div>
 					<button type="button" class="level-menu-trigger" data-action="set" data-name-input="add-log-level-name">Add level</button>
@@ -437,7 +437,7 @@
 			];
 			for (const name of sortedNames(names)) {
 				const option = document.createElement("option");
-				option.value = name;
+				option.value = loggerNameInputValue(name);
 				datalist.append(option);
 			}
 		}
@@ -445,7 +445,7 @@
 		function row(entry) {
 			const tr = document.createElement("tr");
 			tr.dataset.name = entry.name;
-			tr.append(cell(entry.name));
+			tr.append(cell(loggerNameLabel(entry.name)));
 			tr.append(levelCell(entry.effective, "col-effective"));
 			tr.append(levelCell(entry.runtime, "col-runtime"));
 			tr.append(levelCell(entry.packaged, "col-packaged"));
@@ -495,7 +495,7 @@
 		}
 
 		function sortedNames(names) {
-			return [...new Set(names.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+			return [...new Set(names)].filter(name => name != null).sort((a, b) => a.localeCompare(b));
 		}
 
 		function findEntry(name) {
@@ -506,9 +506,22 @@
 			if (!state.knownLoggerNames) {
 				state.knownLoggerNames = [];
 			}
-			if (name && !state.knownLoggerNames.includes(name)) {
+			if (name != null && !state.knownLoggerNames.includes(name)) {
 				state.knownLoggerNames.push(name);
 			}
+		}
+
+		function loggerNameLabel(name) {
+			return name === "" ? "*" : name;
+		}
+
+		function loggerNameInputValue(name) {
+			return name === "" ? "*" : name;
+		}
+
+		function normalizeLoggerNameInput(value) {
+			const normalized = (value || "").trim();
+			return normalized === "*" ? "" : normalized;
 		}
 
 		function applySet(name, level) {
@@ -557,11 +570,11 @@
 		}
 
 		function loggerName(trigger) {
-			if (trigger.dataset.name) {
+			if (Object.prototype.hasOwnProperty.call(trigger.dataset, "name")) {
 				return trigger.dataset.name.trim();
 			}
 			const input = document.getElementById(trigger.dataset.nameInput);
-			return input ? input.value.trim() : "";
+			return input ? normalizeLoggerNameInput(input.value) : "";
 		}
 
 		function openLevelMenu(trigger) {
@@ -608,7 +621,7 @@
 			}
 
 			const name = loggerName(trigger);
-			if (!name) {
+			if (name == null) {
 				document.getElementById(trigger.dataset.nameInput)?.reportValidity();
 				return;
 			}
