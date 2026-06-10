@@ -16,7 +16,11 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.function.Function;
 
+import com.braintribe.logging.Logger;
+
 public class FilesystemLogLevelPersistence implements LogLevelPersistence {
+	private static final Logger log = Logger.getLogger(FilesystemLogLevelPersistence.class);
+
 	private File logLevelFile;
 	private Function<String, String> propertyLookup;
 
@@ -87,7 +91,7 @@ public class FilesystemLogLevelPersistence implements LogLevelPersistence {
 		try (Reader reader = new InputStreamReader(new FileInputStream(logLevelFile), StandardCharsets.UTF_8)) {
 			properties.load(reader);
 		} catch (IOException e) {
-			throw new RuntimeException("Could not read log levels from " + logLevelFile.getAbsolutePath(), e);
+			log.warn("Could not read log levels from " + logLevelFile.getAbsolutePath(), e);
 		}
 
 		return properties;

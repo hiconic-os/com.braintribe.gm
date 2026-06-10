@@ -35,6 +35,8 @@ public class LogLevelManager {
 	public void applyEffectiveLogLevels() {
 		Map<String, String> deployedLevels = deployedLogLevels.getLogLevels();
 		Map<String, String> persistentLevels = persistentLogLevels.getLogLevels();
+		logInvalidLogLevels("packaged", deployedLevels);
+		logInvalidLogLevels("runtime", persistentLevels);
 		Map<String, String> effectiveLevels = logLevelConfiguration.resolveEffectiveLogLevels(deployedLevels, persistentLevels);
 		Set<String> configuredLevels = new LinkedHashSet<>(logLevelFramework.getConfiguredLogLevels().keySet());
 
@@ -145,11 +147,33 @@ public class LogLevelManager {
 			message.append('=');
 			message.append(entry.getValue());
 			message.append(" (");
-			message.append(persistentLevels.containsKey(entry.getKey()) ? "runtime" : deployedLevels.containsKey(entry.getKey()) ? "packaged" : "effective");
+			message.append(appliedSource(entry.getKey(), deployedLevels, persistentLevels));
 			message.append(')');
 		}
 
 		logger.info(message.toString());
+	}
+
+	private String appliedSource(String name, Map<String, String> deployedLevels, Map<String, String> persistentLevels) {
+		if (persistentLevels != null && persistentLevels.containsKey(name) && LogLevelConfiguration.isSupportedLogLevel(persistentLevels.get(name))) {
+			return "runtime";
+		}
+		if (deployedLevels != null && deployedLevels.containsKey(name) && LogLevelConfiguration.isSupportedLogLevel(deployedLevels.get(name))) {
+			return "packaged";
+		}
+		return "effective";
+	}
+
+	private void logInvalidLogLevels(String source, Map<String, String> levels) {
+		if (levels == null || levels.isEmpty()) {
+			return;
+		}
+
+		for (Map.Entry<String, String> entry: levels.entrySet()) {
+			if (!LogLevelConfiguration.isSupportedLogLevel(entry.getValue())) {
+				logger.warn("Ignoring unsupported " + source + " log level [" + entry.getValue() + "] for logger [" + entry.getKey() + "]");
+			}
+		}
 	}
 
 }

@@ -2,6 +2,7 @@ package com.braintribe.logging.level;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -10,16 +11,22 @@ public class LogLevelConfiguration {
 	public static final String SOURCE_BASE = "base";
 	public static final String SOURCE_DEPLOYMENT = "deployment";
 	public static final String SOURCE_PERSISTENCE = "persistence";
+	public static final String LEVEL_TRACE = "TRACE";
+	public static final String LEVEL_DEBUG = "DEBUG";
+	public static final String LEVEL_INFO = "INFO";
+	public static final String LEVEL_WARN = "WARN";
+	public static final String LEVEL_ERROR = "ERROR";
+	public static final String LEVEL_FATAL = "FATAL";
 
 	public Map<String, String> resolveEffectiveLogLevels(Map<String, String> deployedLevels, Map<String, String> persistentLevels) {
 		Map<String, String> effectiveLevels = new LinkedHashMap<>();
 
 		if (deployedLevels != null) {
-			effectiveLevels.putAll(deployedLevels);
+			putNormalized(effectiveLevels, deployedLevels);
 		}
 
 		if (persistentLevels != null) {
-			effectiveLevels.putAll(persistentLevels);
+			putNormalized(effectiveLevels, persistentLevels);
 		}
 
 		return effectiveLevels;
@@ -69,6 +76,38 @@ public class LogLevelConfiguration {
 			if (name != null) {
 				entries.put(name, new LogLevelEntry(name));
 			}
+		}
+	}
+
+	private void putNormalized(Map<String, String> target, Map<String, String> source) {
+		for (Map.Entry<String, String> entry: source.entrySet()) {
+			String level = normalizeLogLevel(entry.getValue());
+			if (level != null) {
+				target.put(entry.getKey(), level);
+			}
+		}
+	}
+
+	public static boolean isSupportedLogLevel(String level) {
+		return normalizeLogLevel(level) != null;
+	}
+
+	public static String normalizeLogLevel(String level) {
+		if (level == null) {
+			return null;
+		}
+
+		String normalized = level.trim().toUpperCase(Locale.ROOT);
+		switch (normalized) {
+			case LEVEL_TRACE:
+			case LEVEL_DEBUG:
+			case LEVEL_INFO:
+			case LEVEL_WARN:
+			case LEVEL_ERROR:
+			case LEVEL_FATAL:
+				return normalized;
+			default:
+				return null;
 		}
 	}
 
