@@ -1,0 +1,689 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Log Levels</title>
+	<style>
+		html {
+			height: 100%;
+		}
+
+		body {
+			font-family: Arial, sans-serif;
+			margin: 24px;
+			color: #202124;
+			background: #f7f7f4;
+			height: calc(100% - 48px);
+			overflow: hidden;
+			display: grid;
+			grid-template-rows: auto auto minmax(0, 1fr);
+		}
+
+		h1 {
+			font-size: 28px;
+			margin: 0 0 12px 0;
+		}
+
+		.layout {
+			display: grid;
+			grid-template-columns: minmax(260px, max-content) minmax(0, 1fr);
+			gap: 16px;
+			align-items: start;
+			min-height: 0;
+		}
+
+		.formbar {
+			display: grid;
+			gap: 12px;
+			width: 320px;
+			max-width: 100%;
+			background: #eeeeea;
+			border: 1px solid #d3d3cc;
+			border-radius: 6px;
+			padding: 12px;
+			max-height: 100%;
+			overflow: auto;
+		}
+
+		.form-section {
+			display: grid;
+			gap: 7px;
+			padding-bottom: 12px;
+			border-bottom: 1px solid #d3d3cc;
+		}
+
+		.form-section:last-child {
+			padding-bottom: 0;
+			border-bottom: 0;
+		}
+
+		.form-section-title {
+			font-size: 11px;
+			font-weight: 600;
+			color: #5f5f59;
+			text-transform: uppercase;
+		}
+
+		label.field {
+			display: grid;
+			gap: 3px;
+			font-weight: 400;
+		}
+
+		label.field span {
+			font-size: 11px;
+			color: #666660;
+			line-height: 14px;
+		}
+
+		select,
+		input,
+		button {
+			font: inherit;
+		}
+
+		select,
+		input {
+			font-size: 13px;
+			padding: 4px 24px 4px 6px;
+			background: white;
+			border: 1px solid #b8b8b2;
+			border-radius: 4px;
+		}
+
+		.table-wrap {
+			min-width: 0;
+			min-height: 0;
+			height: 100%;
+			max-width: 100%;
+			overflow: auto;
+			background: white;
+			border: 1px solid #d3d3cc;
+			border-radius: 6px;
+			padding: 8px;
+		}
+
+		table {
+			border-collapse: collapse;
+			width: max(780px, max-content);
+			max-width: none;
+			background: white;
+		}
+
+		th,
+		td {
+			border: 1px solid #d6d6d1;
+			padding: 4px 6px;
+			text-align: left;
+			vertical-align: middle;
+			white-space: nowrap;
+		}
+
+		th {
+			background: #ecece7;
+		}
+
+		.col-effective {
+			background: #dceeff;
+		}
+
+		.col-runtime {
+			background: #ffe8b8;
+		}
+
+		.col-packaged {
+			background: #d9f0dc;
+		}
+
+		input {
+			margin: 2px;
+		}
+
+		button {
+			margin: 2px;
+			padding: 4px 10px;
+			background: #1769aa;
+			border: 1px solid #105287;
+			border-radius: 4px;
+			color: white;
+			cursor: pointer;
+			font-size: 13px;
+		}
+
+		button:hover,
+		button:focus {
+			background: #105287;
+		}
+
+		.level-pill {
+			display: inline-block;
+			min-width: 62px;
+			border-radius: 10px;
+			padding: 2px 8px;
+			text-align: center;
+			font-weight: 700;
+			font-size: 12px;
+			line-height: 18px;
+			border: 1px solid transparent;
+		}
+
+		#level-menu-overlay {
+			display: none;
+			position: fixed;
+			z-index: 1000;
+			background: white;
+			border: 1px solid #8f8f88;
+			border-radius: 6px;
+			padding: 4px;
+			box-shadow: 0 6px 18px rgba(0, 0, 0, .24);
+			max-height: calc(100vh - 8px);
+			overflow: auto;
+		}
+
+		#level-menu-overlay.open {
+			display: block;
+		}
+
+		.level-menu-item {
+			display: block;
+			width: 100%;
+			margin: 2px 0;
+			text-align: left;
+			font-weight: 700;
+		}
+
+		.level-pill.level-trace,
+		.level-menu-item.level-trace {
+			background: #7d4bd1;
+			color: white;
+			border-color: #6439ad;
+		}
+
+		.level-pill.level-debug,
+		.level-menu-item.level-debug {
+			background: #1769aa;
+			color: white;
+			border-color: #105287;
+		}
+
+		.level-pill.level-info,
+		.level-menu-item.level-info {
+			background: #238246;
+			color: white;
+			border-color: #196635;
+		}
+
+		.level-pill.level-warn,
+		.level-menu-item.level-warn {
+			background: #d18b00;
+			color: #1f1700;
+			border-color: #aa7000;
+		}
+
+		.level-pill.level-error,
+		.level-menu-item.level-error {
+			background: #c83224;
+			color: white;
+			border-color: #9d2118;
+		}
+
+		.level-pill.level-fatal,
+		.level-menu-item.level-fatal {
+			background: #8e1f47;
+			color: white;
+			border-color: #6f1737;
+		}
+
+		.level-menu-item:hover,
+		.level-menu-item:focus {
+			filter: brightness(.92);
+		}
+
+		.error {
+			background: white;
+			border: 1px solid #d6d6d1;
+			padding: 12px;
+			max-width: 900px;
+		}
+
+		@media (max-width: 760px) {
+			body {
+				margin: 12px;
+				height: calc(100% - 24px);
+			}
+
+			.layout {
+				grid-template-columns: minmax(0, 1fr);
+				overflow: auto;
+			}
+
+			.formbar {
+				width: auto;
+				max-height: none;
+				overflow: visible;
+			}
+
+			.table-wrap {
+				height: auto;
+				max-height: none;
+			}
+		}
+	</style>
+</head>
+<body>
+	<h1>Log Levels</h1>
+
+	<div id="error" class="error" hidden></div>
+
+	<div class="layout">
+		<aside class="formbar">
+			<form class="app-selector form-section">
+				<div class="form-section-title">Scope</div>
+				<label class="field"><span>Application</span><select id="application-select" name="app"></select></label>
+			</form>
+
+			<div class="form-section">
+				<div class="form-section-title">Runtime Level</div>
+				<label class="field">
+					<span>Logger</span>
+					<input id="add-log-level-name" spellcheck="false" list="loggers" name="name" placeholder="logger name" required>
+				</label>
+				<div>
+					<button type="button" class="level-menu-trigger" data-action="set" data-name-input="add-log-level-name">Add level</button>
+				</div>
+			</div>
+
+			<div class="form-section">
+				<div class="form-section-title">Reset</div>
+				<div>
+					<button type="button" class="log-level-action" data-action="clearPersistence">Reset All</button>
+				</div>
+			</div>
+
+		</aside>
+
+		<div class="table-wrap">
+			<table>
+				<thead>
+					<tr>
+						<th>Logger</th>
+						<th class="col-effective">Effective</th>
+						<th class="col-runtime">Runtime</th>
+						<th class="col-packaged">Packaged</th>
+						<th>Actions</th>
+					</tr>
+				</thead>
+				<tbody id="log-level-rows"></tbody>
+			</table>
+		</div>
+	</div>
+
+	<datalist id="loggers"></datalist>
+
+	<div id="level-menu-overlay">
+		<button type="button" class="level-menu-item level-trace" data-level="TRACE">TRACE</button>
+		<button type="button" class="level-menu-item level-debug" data-level="DEBUG">DEBUG</button>
+		<button type="button" class="level-menu-item level-info" data-level="INFO">INFO</button>
+		<button type="button" class="level-menu-item level-warn" data-level="WARN">WARN</button>
+		<button type="button" class="level-menu-item level-error" data-level="ERROR">ERROR</button>
+		<button type="button" class="level-menu-item level-fatal" data-level="FATAL">FATAL</button>
+	</div>
+
+	<script>
+		let state = { selectedApplication: null, applications: [], entries: [], knownLoggerNames: [] };
+		let activeLevelTrigger = null;
+
+		function selectedAppFromUrl() {
+			return new URL(window.location.href).searchParams.get("app") || "";
+		}
+
+		function stateUrl() {
+			const url = new URL(window.location.href);
+			url.searchParams.set("action", "state");
+			const app = document.getElementById("application-select").value || selectedAppFromUrl();
+			if (app) {
+				url.searchParams.set("app", app);
+			} else {
+				url.searchParams.delete("app");
+			}
+			return url;
+		}
+
+		function actionUrl() {
+			const url = new URL(window.location.href);
+			url.searchParams.delete("action");
+			const app = document.getElementById("application-select").value || state.selectedApplication;
+			if (app) {
+				url.searchParams.set("app", app);
+			} else {
+				url.searchParams.delete("app");
+			}
+			return url;
+		}
+
+		async function loadState() {
+			const response = await fetch(stateUrl(), { credentials: "same-origin" });
+			if (!response.ok) {
+				throw new Error(await responseMessage(response));
+			}
+			state = await response.json();
+			render();
+			updateBrowserUrl();
+		}
+
+		async function postAction(fields) {
+			const data = new URLSearchParams();
+			Object.entries(fields).forEach(([name, value]) => data.set(name, value == null ? "" : value));
+			const response = await fetch(actionUrl(), {
+				method: "POST",
+				body: data,
+				credentials: "same-origin",
+				headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" }
+			});
+			if (!response.ok) {
+				throw new Error(await responseMessage(response));
+			}
+		}
+
+		async function responseMessage(response) {
+			const text = await response.text();
+			return text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() || response.statusText || response.status;
+		}
+
+		function updateBrowserUrl() {
+			const url = new URL(window.location.href);
+			url.searchParams.delete("action");
+			if (state.selectedApplication) {
+				url.searchParams.set("app", state.selectedApplication);
+			} else {
+				url.searchParams.delete("app");
+			}
+			window.history.replaceState(null, "", url);
+		}
+
+		function render() {
+			document.getElementById("error").hidden = true;
+			renderApplications();
+			renderRows();
+			renderDatalist();
+		}
+
+		function renderApplications() {
+			const select = document.getElementById("application-select");
+			select.replaceChildren();
+			for (const application of state.applications || []) {
+				const option = document.createElement("option");
+				option.value = application;
+				option.textContent = application;
+				option.selected = application === state.selectedApplication;
+				select.append(option);
+			}
+		}
+
+		function renderRows() {
+			const body = document.getElementById("log-level-rows");
+			body.replaceChildren();
+			for (const entry of sortedEntries()) {
+				body.append(row(entry));
+			}
+		}
+
+		function renderDatalist() {
+			const datalist = document.getElementById("loggers");
+			datalist.replaceChildren();
+			const names = [
+				...(state.knownLoggerNames || []),
+				...(state.entries || []).map(entry => entry.name)
+			];
+			for (const name of sortedNames(names)) {
+				const option = document.createElement("option");
+				option.value = name;
+				datalist.append(option);
+			}
+		}
+
+		function row(entry) {
+			const tr = document.createElement("tr");
+			tr.dataset.name = entry.name;
+			tr.append(cell(entry.name));
+			tr.append(levelCell(entry.effective, "col-effective"));
+			tr.append(levelCell(entry.runtime, "col-runtime"));
+			tr.append(levelCell(entry.packaged, "col-packaged"));
+			const actions = cell("");
+			const change = document.createElement("button");
+			change.type = "button";
+			change.className = "level-menu-trigger";
+			change.dataset.action = "set";
+			change.dataset.name = entry.name;
+			change.textContent = "Change level";
+			actions.append(change);
+			const reset = document.createElement("button");
+			reset.type = "button";
+			reset.className = "log-level-action";
+			reset.dataset.action = "resetToDeployment";
+			reset.dataset.name = entry.name;
+			reset.textContent = "Reset";
+			actions.append(reset);
+			tr.append(actions);
+			return tr;
+		}
+
+		function cell(text) {
+			const td = document.createElement("td");
+			td.textContent = text || "";
+			return td;
+		}
+
+		function levelCell(level, className) {
+			const td = document.createElement("td");
+			td.className = className;
+			if (level) {
+				td.append(levelPill(level));
+			}
+			return td;
+		}
+
+		function levelPill(level) {
+			const span = document.createElement("span");
+			span.className = "level-pill level-" + level.toLowerCase();
+			span.textContent = level;
+			return span;
+		}
+
+		function sortedEntries() {
+			return [...(state.entries || [])].sort((a, b) => a.name.localeCompare(b.name));
+		}
+
+		function sortedNames(names) {
+			return [...new Set(names.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+		}
+
+		function findEntry(name) {
+			return (state.entries || []).find(entry => entry.name === name);
+		}
+
+		function rememberLoggerName(name) {
+			if (!state.knownLoggerNames) {
+				state.knownLoggerNames = [];
+			}
+			if (name && !state.knownLoggerNames.includes(name)) {
+				state.knownLoggerNames.push(name);
+			}
+		}
+
+		function applySet(name, level) {
+			let entry = findEntry(name);
+			if (!entry) {
+				entry = { name, effective: null, runtime: null, packaged: null };
+				state.entries.push(entry);
+			}
+			entry.runtime = level;
+			entry.effective = level;
+			rememberLoggerName(name);
+			document.getElementById("add-log-level-name").value = "";
+			renderRows();
+			renderDatalist();
+		}
+
+		function applyReset(name) {
+			const entry = findEntry(name);
+			if (!entry) {
+				return;
+			}
+			entry.runtime = null;
+			entry.effective = entry.packaged;
+			if (!entry.packaged) {
+				state.entries = state.entries.filter(candidate => candidate.name !== name);
+			}
+			renderRows();
+		}
+
+		function applyResetAll() {
+			for (const entry of state.entries || []) {
+				entry.runtime = null;
+				entry.effective = entry.packaged;
+			}
+			state.entries = (state.entries || []).filter(entry => entry.packaged);
+			renderRows();
+		}
+
+		function levelOverlay() {
+			return document.getElementById("level-menu-overlay");
+		}
+
+		function closeLevelMenu() {
+			levelOverlay().classList.remove("open");
+			activeLevelTrigger = null;
+		}
+
+		function loggerName(trigger) {
+			if (trigger.dataset.name) {
+				return trigger.dataset.name.trim();
+			}
+			const input = document.getElementById(trigger.dataset.nameInput);
+			return input ? input.value.trim() : "";
+		}
+
+		function openLevelMenu(trigger) {
+			const overlay = levelOverlay();
+			activeLevelTrigger = trigger;
+			const margin = 4;
+			overlay.style.left = "0px";
+			overlay.style.top = "0px";
+			overlay.style.maxHeight = (window.innerHeight - margin * 2) + "px";
+			overlay.classList.add("open");
+
+			const rect = trigger.getBoundingClientRect();
+			const width = overlay.offsetWidth;
+			const height = overlay.offsetHeight;
+			const candidates = [
+				{ left: rect.left, top: rect.bottom + margin },
+				{ left: rect.right - width, top: rect.bottom + margin },
+				{ left: rect.left, top: rect.top - height - margin },
+				{ left: rect.right - width, top: rect.top - height - margin }
+			];
+			let pos = candidates.find(candidate =>
+				candidate.left >= margin &&
+				candidate.top >= margin &&
+				candidate.left + width <= window.innerWidth - margin &&
+				candidate.top + height <= window.innerHeight - margin
+			);
+			if (!pos) {
+				pos = { left: rect.left, top: rect.bottom + margin };
+				pos.left = Math.min(Math.max(margin, pos.left), Math.max(margin, window.innerWidth - width - margin));
+				if (pos.top + height > window.innerHeight - margin) {
+					pos.top = rect.top - height - margin;
+				}
+				pos.top = Math.min(Math.max(margin, pos.top), Math.max(margin, window.innerHeight - height - margin));
+			}
+			overlay.style.left = pos.left + "px";
+			overlay.style.top = pos.top + "px";
+		}
+
+		async function setLevelAndSubmit(level) {
+			const trigger = activeLevelTrigger;
+			closeLevelMenu();
+			if (!trigger) {
+				return;
+			}
+
+			const name = loggerName(trigger);
+			if (!name) {
+				document.getElementById(trigger.dataset.nameInput)?.reportValidity();
+				return;
+			}
+
+			await postAction({ action: "set", name, level });
+			applySet(name, level);
+		}
+
+		async function handleAction(button) {
+			const action = button.dataset.action;
+			if (action === "clearPersistence") {
+				await postAction({ action });
+				applyResetAll();
+				return;
+			}
+
+			if (action === "resetToDeployment") {
+				const name = button.dataset.name;
+				await postAction({ action, name });
+				applyReset(name);
+			}
+		}
+
+		function showError(error) {
+			const element = document.getElementById("error");
+			element.textContent = String(error && error.message ? error.message : error);
+			element.hidden = false;
+		}
+
+		document.getElementById("application-select").addEventListener("change", () => {
+			state.selectedApplication = document.getElementById("application-select").value;
+			loadState().catch(showError);
+		});
+
+		document.addEventListener("submit", event => {
+			if (event.target.closest(".app-selector")) {
+				event.preventDefault();
+			}
+		});
+
+		document.addEventListener("click", event => {
+			const trigger = event.target.closest(".level-menu-trigger");
+			if (trigger) {
+				event.preventDefault();
+				event.stopPropagation();
+				if (activeLevelTrigger === trigger && levelOverlay().classList.contains("open")) {
+					closeLevelMenu();
+				} else {
+					openLevelMenu(trigger);
+				}
+				return;
+			}
+
+			const actionButton = event.target.closest(".log-level-action");
+			if (actionButton) {
+				event.preventDefault();
+				handleAction(actionButton).catch(showError);
+				return;
+			}
+
+			const item = event.target.closest("#level-menu-overlay .level-menu-item");
+			if (item) {
+				event.preventDefault();
+				setLevelAndSubmit(item.dataset.level).catch(showError);
+				return;
+			}
+
+			if (!event.target.closest("#level-menu-overlay")) {
+				closeLevelMenu();
+			}
+		});
+
+		window.addEventListener("resize", closeLevelMenu);
+		window.addEventListener("scroll", closeLevelMenu, true);
+		loadState().catch(showError);
+	</script>
+</body>
+</html>
