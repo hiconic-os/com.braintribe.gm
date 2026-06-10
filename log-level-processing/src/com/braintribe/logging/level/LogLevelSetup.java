@@ -63,7 +63,7 @@ public class LogLevelSetup {
 
 	public LogLevelPersistence packagedLogLevelPersistence() {
 		if (packagedLogLevelPersistence == null) {
-			packagedLogLevelPersistence = new FilesystemLogLevelPersistence(confFile(PACKAGED_LOG_LEVELS_FILE));
+			packagedLogLevelPersistence = new FilesystemLogLevelPersistence(confFile(PACKAGED_LOG_LEVELS_FILE), requirePropertyLookup());
 		}
 
 		return packagedLogLevelPersistence;

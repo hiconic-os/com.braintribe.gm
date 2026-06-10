@@ -29,7 +29,7 @@ public class JulLogLevelFramework implements LogLevelFramework {
 			Logger logger = logManager.getLogger(name);
 
 			if (logger != null && logger.getLevel() != null) {
-				levels.put(name, fromJulLevel(logger.getLevel()));
+				levels.put(fromJulLoggerName(name), fromJulLevel(logger.getLevel()));
 			}
 		}
 
@@ -43,7 +43,7 @@ public class JulLogLevelFramework implements LogLevelFramework {
 
 		Enumeration<String> names = logManager.getLoggerNames();
 		while (names.hasMoreElements()) {
-			loggerNames.add(names.nextElement());
+			loggerNames.add(fromJulLoggerName(names.nextElement()));
 		}
 
 		for (Package pkg: Package.getPackages()) {
@@ -60,7 +60,7 @@ public class JulLogLevelFramework implements LogLevelFramework {
 		}
 
 		for (Map.Entry<String, String> entry: levels.entrySet()) {
-			Logger.getLogger(entry.getKey()).setLevel(toJulLevel(entry.getValue()));
+			Logger.getLogger(toJulLoggerName(entry.getKey())).setLevel(toJulLevel(entry.getValue()));
 		}
 	}
 
@@ -71,8 +71,16 @@ public class JulLogLevelFramework implements LogLevelFramework {
 		}
 
 		for (String loggerName: loggerNames) {
-			Logger.getLogger(loggerName).setLevel(null);
+			Logger.getLogger(toJulLoggerName(loggerName)).setLevel(null);
 		}
+	}
+
+	private static String toJulLoggerName(String loggerName) {
+		return LogLevelNames.ROOT.equals(loggerName) ? "" : loggerName;
+	}
+
+	private static String fromJulLoggerName(String loggerName) {
+		return loggerName == null || loggerName.isEmpty() ? LogLevelNames.ROOT : loggerName;
 	}
 
 	public static Level toJulLevel(String levelName) {

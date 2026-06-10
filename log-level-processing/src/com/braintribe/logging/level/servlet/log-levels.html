@@ -286,7 +286,7 @@
 				<div class="form-section-title">Runtime Level</div>
 				<label class="field">
 					<span>Logger</span>
-					<input id="add-log-level-name" spellcheck="false" list="loggers" name="name" placeholder="logger name or *">
+					<input id="add-log-level-name" spellcheck="false" list="loggers" name="name" placeholder="logger name or ROOT" required>
 				</label>
 				<div>
 					<button type="button" class="level-menu-trigger" data-action="set" data-name-input="add-log-level-name">Add level</button>
@@ -331,6 +331,7 @@
 
 	<script>
 		let state = { selectedApplication: null, applications: [], entries: [], knownLoggerNames: [] };
+		const rootLoggerName = "ROOT";
 		let activeLevelTrigger = null;
 
 		function selectedAppFromUrl() {
@@ -437,7 +438,7 @@
 			];
 			for (const name of sortedNames(names)) {
 				const option = document.createElement("option");
-				option.value = loggerNameInputValue(name);
+				option.value = name;
 				datalist.append(option);
 			}
 		}
@@ -445,7 +446,7 @@
 		function row(entry) {
 			const tr = document.createElement("tr");
 			tr.dataset.name = entry.name;
-			tr.append(cell(loggerNameLabel(entry.name)));
+			tr.append(cell(entry.name));
 			tr.append(levelCell(entry.effective, "col-effective"));
 			tr.append(levelCell(entry.runtime, "col-runtime"));
 			tr.append(levelCell(entry.packaged, "col-packaged"));
@@ -491,11 +492,21 @@
 		}
 
 		function sortedEntries() {
-			return [...(state.entries || [])].sort((a, b) => a.name.localeCompare(b.name));
+			return [...(state.entries || [])].sort((a, b) => compareLoggerNames(a.name, b.name));
 		}
 
 		function sortedNames(names) {
-			return [...new Set(names)].filter(name => name != null).sort((a, b) => a.localeCompare(b));
+			return [...new Set(names)].filter(name => name != null).sort(compareLoggerNames);
+		}
+
+		function compareLoggerNames(a, b) {
+			if (a === rootLoggerName) {
+				return b === rootLoggerName ? 0 : -1;
+			}
+			if (b === rootLoggerName) {
+				return 1;
+			}
+			return a.localeCompare(b);
 		}
 
 		function findEntry(name) {
@@ -509,19 +520,6 @@
 			if (name != null && !state.knownLoggerNames.includes(name)) {
 				state.knownLoggerNames.push(name);
 			}
-		}
-
-		function loggerNameLabel(name) {
-			return name === "" ? "*" : name;
-		}
-
-		function loggerNameInputValue(name) {
-			return name === "" ? "*" : name;
-		}
-
-		function normalizeLoggerNameInput(value) {
-			const normalized = (value || "").trim();
-			return normalized === "*" ? "" : normalized;
 		}
 
 		function applySet(name, level) {
@@ -574,7 +572,7 @@
 				return trigger.dataset.name.trim();
 			}
 			const input = document.getElementById(trigger.dataset.nameInput);
-			return input ? normalizeLoggerNameInput(input.value) : "";
+			return input ? input.value.trim() : "";
 		}
 
 		function openLevelMenu(trigger) {
@@ -621,7 +619,7 @@
 			}
 
 			const name = loggerName(trigger);
-			if (name == null) {
+			if (!name) {
 				document.getElementById(trigger.dataset.nameInput)?.reportValidity();
 				return;
 			}
