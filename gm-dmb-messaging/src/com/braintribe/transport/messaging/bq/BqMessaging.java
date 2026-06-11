@@ -42,6 +42,7 @@ import com.braintribe.logging.Logger;
 	private final Map<ClassLoader, Integer> openConnectionsPerClassLoader = new HashMap<>();
 
 	private ExecutorService reaperExecutor;
+	private BqMessageReaper reaper;
 	private Future<Void> reaperExecutorFuture;
 	private ClassLoader reaperClassLoader;
 
@@ -60,7 +61,7 @@ import com.braintribe.logging.Logger;
 
 			openConnections.put(connectionId, System.currentTimeMillis());
 
-			switchExecutorServices(connectionId, true);
+			s_switchExecutorServices(connectionId, true);
 
 			log.debug(() -> "Connection [ #" + connectionId + " ] opened. Total active connections: [ " + openConnections.size() + " ] ");
 
@@ -72,7 +73,7 @@ import com.braintribe.logging.Logger;
 		synchronized (openConnections) {
 			openConnections.remove(connectionId);
 
-			switchExecutorServices(connectionId, false);
+			s_switchExecutorServices(connectionId, false);
 
 			log.debug(() -> "Connection[ #" + connectionId + " ] closed. Total active connections: [ " + openConnections.size() + " ] ");
 		}
@@ -149,34 +150,29 @@ import com.braintribe.logging.Logger;
 
 	private BlockingQueue<BqMessage> requireTopicMessagesQueue(String destinationName, String subscriptionId) {
 		Map<String, BlockingQueue<BqMessage>> destinationRepo = topicMessages.computeIfAbsent(destinationName, k -> new ConcurrentHashMap<>());
-		
+
 		return destinationRepo.computeIfAbsent(subscriptionId, k -> new PriorityBlockingQueue<>());
 	}
 
 	/**
-	 * <p>
 	 * Starts, stops or restarts this component {@link ExecutorService} {@link #reaperExecutor}), based on the state of current connections.
-	 * 
 	 * <p>
 	 * Starts if:
 	 * <ul>
 	 * <li>A connection is being opened and there is no {@link #reaperExecutor} initialized.</li>
 	 * </ul>
-	 * 
 	 * <p>
 	 * Stops if:
 	 * <ul>
 	 * <li>A connection is being closed and there are no more connections.</li>
 	 * </ul>
-	 * 
 	 * <p>
 	 * Restarts if:
 	 * <ul>
 	 * <li>The connection being closed is the last connection based on the class loader which last initialized {@link #reaperExecutor}.</li>
 	 * </ul>
-	 * 
 	 */
-	private void switchExecutorServices(Long connectionId, boolean opening) {
+	private void s_switchExecutorServices(Long connectionId, boolean opening) {
 
 		// Instantiation and shutdown (shutdownNow()) of executors are solely controlled by this method.
 
@@ -185,21 +181,18 @@ import com.braintribe.logging.Logger;
 
 		ClassLoader connectionClassLoader = Thread.currentThread().getContextClassLoader();
 		Integer connectionsPerClassLoader = openConnectionsPerClassLoader.get(connectionClassLoader);
-		if (connectionsPerClassLoader == null) {
+		if (connectionsPerClassLoader == null)
 			connectionsPerClassLoader = 0;
-		}
 
-		if (opening) {
+		if (opening)
 			connectionsPerClassLoader++;
-		} else if (connectionsPerClassLoader > 0) {
+		else if (connectionsPerClassLoader > 0)
 			connectionsPerClassLoader--;
-		}
 
-		if (connectionsPerClassLoader > 0) {
+		if (connectionsPerClassLoader > 0)
 			openConnectionsPerClassLoader.put(connectionClassLoader, connectionsPerClassLoader);
-		} else {
+		else
 			openConnectionsPerClassLoader.remove(connectionClassLoader);
-		}
 
 		if (opening && reaperExecutor == null) {
 
@@ -218,7 +211,9 @@ import com.braintribe.logging.Logger;
 					try {
 						if (reaperExecutorFuture != null) {
 							try {
+								reaper.cancel();
 								reaperExecutorFuture.get(reaperExecutorReturnTimeout, reaperExecutorReturnTimeoutUnit);
+
 							} catch (TimeoutException t) {
 								log.warn("Running  \"" + reaperExecutorName + "\" task failed to terminate after " + reaperExecutorReturnTimeout + " "
 										+ reaperExecutorReturnTimeoutUnit + ".");
@@ -232,9 +227,12 @@ import com.braintribe.logging.Logger;
 						log.warn("Failed to shutdown running \"" + reaperExecutorName + "\" tasks.", e);
 					}
 
+					// This should shut down as it only starts a single task - the reaper - which we have stopped
+					reaperExecutor.shutdownNow();
+
+					reaper = null;
 					reaperExecutor = null;
 					reaperExecutorFuture = null;
-
 				}
 
 				// The disconnecting connection was the last one based on the class loader which started
@@ -245,14 +243,14 @@ import com.braintribe.logging.Logger;
 					startExecutorService(openConnectionsPerClassLoader.keySet().iterator().next(), connectionId, opening);
 			}
 		}
-
 	}
 
 	private void startExecutorService(ClassLoader connectionClassLoader, Long connectionId, boolean opening) {
 		ClassLoader originalClassLoader = pushClassLoader(connectionClassLoader);
 		try {
 			reaperExecutor = VirtualThreadExecutorBuilder.newPool().concurrency(1).description("Thread Pool Message Reaper").build();
-			reaperExecutorFuture = reaperExecutor.submit(new BqMessageReaper());
+			reaper = new BqMessageReaper();
+			reaperExecutorFuture = reaperExecutor.submit(reaper);
 			reaperClassLoader = connectionClassLoader;
 
 			log.debug(() -> reaperExecutorName + " " + (opening ? "re" : "") + "started upon " + (opening ? "opening" : "closing")
@@ -336,7 +334,6 @@ import com.braintribe.logging.Logger;
 
 		@Override
 		public Object apply(String propertyName) {
-
 			Objects.requireNonNull(propertyName, "Property must not be null");
 
 			BqMessageProperty property = BqMessageProperty.valueOf(propertyName);
@@ -365,7 +362,6 @@ import com.braintribe.logging.Logger;
 				default:
 					throw new IllegalArgumentException("Unmapped property " + propertyName);
 			}
-
 		}
 
 	}
@@ -377,23 +373,35 @@ import com.braintribe.logging.Logger;
 	 */
 	private class BqMessageReaper implements Callable<Void> {
 
+		private volatile boolean run = true;
+		private final Object monitor = new Object();
+
 		@Override
 		public Void call() {
 			log.trace(() -> "Messages reaper initialized");
 
 			try {
-				while (true) {
+				while (run) {
 					log.trace(() -> "Scheduled messages reaper to run within " + reaperExecutorInterval + " ms");
 
-					Thread.sleep(reaperExecutorInterval);
+					synchronized (monitor) {
+						monitor.wait(reaperExecutorInterval);
+					}
 					reapExpiredMessages();
 				}
 
 			} catch (InterruptedException e) {
-				log.trace(() -> "Messages reaper thread interrupted.");
+				log.warn("Messages reaper thread interrupted.");
 			}
 
 			return null;
+		}
+
+		public void cancel() {
+			run = false;
+			synchronized (monitor) {
+				monitor.notifyAll();
+			}
 		}
 
 		private void reapExpiredMessages() {
