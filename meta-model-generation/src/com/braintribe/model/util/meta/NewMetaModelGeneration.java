@@ -154,7 +154,7 @@ public class NewMetaModelGeneration {
 	 * @param ignoredFlag
 	 *            this is there just to create different signature from {@link #NewMetaModelGeneration(Iterable)}
 	 */
-	public NewMetaModelGeneration(Iterable<GmMetaModel> initMetaModels, boolean ignoredFlag) {
+	public NewMetaModelGeneration(Iterable<GmMetaModel> initMetaModels, @SuppressWarnings("unused") boolean ignoredFlag) {
 		this.entityFactory = EntityType::create;
 
 		for (GmMetaModel metaModel : initMetaModels) {

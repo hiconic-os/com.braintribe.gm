@@ -17,9 +17,13 @@ package com.braintribe.model.resource;
 
 import static java.util.Objects.requireNonNull;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Set;
 import java.util.UUID;
@@ -171,6 +175,36 @@ public interface Resource extends StandardStringIdentifiable {
 	// ###############################################
 	// #. . . . Creating Transient Resource . . . . ##
 	// ###############################################
+
+	/**
+	 * Creates a new transient {@link Resource} for given text using UTF-8 encoding.
+	 * <p>
+	 * @see #createTransient(InputStreamProvider)
+	 */
+	static Resource createTransient(String text) {
+		return createTransient( //
+				() -> new ByteArrayInputStream(text.getBytes(StandardCharsets.UTF_8)));
+	}
+
+	/**
+	 * Creates a new transient {@link Resource} for given text and charset.
+	 * <p>
+	 * @see #createTransient(InputStreamProvider)
+	 */
+	static Resource createTransient(String text, String charsetName) {
+		return createTransient( //
+				() -> new ByteArrayInputStream(text.getBytes(charsetName)));
+	}
+
+	/**
+	 * Creates a new transient {@link Resource} for given {@link File}.
+	 * <p>
+	 * @see #createTransient(InputStreamProvider)
+	 */
+	static Resource createTransient(File file) {
+		return createTransient( //
+				() -> new FileInputStream(file));
+	}
 
 	/**
 	 * Creates a new {@link Resource} backed by a new {@link TransientSource} for given {@link InputStreamProvider}.
