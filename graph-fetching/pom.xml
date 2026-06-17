@@ -1,4 +1,4 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0" encoding="UTF-8"?><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.braintribe.gm</groupId>
@@ -9,7 +9,6 @@
     <version>2.0.18</version>
     <properties/>
     <dependencies>
-        <!-- no dependencies -->
         <dependency>
             <groupId>com.braintribe.gm</groupId>
             <artifactId>gm-session-api</artifactId>
@@ -19,7 +18,6 @@
             <groupId>com.braintribe.gm</groupId>
             <artifactId>record-model</artifactId>
             <version>${V.com.braintribe.gm}</version>
-            <?tag asset ?>
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
@@ -29,6 +27,11 @@
         <dependency>
             <groupId>com.braintribe.gm</groupId>
             <artifactId>query-model-processing</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>graph-fetching-api</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
     </dependencies>
