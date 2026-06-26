@@ -21,11 +21,10 @@ import com.braintribe.logging.Logger;
 public class FilesystemLogLevelPersistence implements LogLevelPersistence {
 	private static final Logger log = Logger.getLogger(FilesystemLogLevelPersistence.class);
 
-	private File logLevelFile;
+	private final File logLevelFile;
 	private Function<String, String> propertyLookup;
 
 	public FilesystemLogLevelPersistence(File logLevelFile) {
-		super();
 		this.logLevelFile = logLevelFile;
 	}
 
@@ -84,17 +83,31 @@ public class FilesystemLogLevelPersistence implements LogLevelPersistence {
 	private Properties loadProperties() {
 		Properties properties = new Properties();
 
-		if (logLevelFile == null || logLevelFile.exists() == false) {
+		if (logLevelFile == null) {
+			log.info("No log level file configured, returning empty log levels");
+			return properties;
+		}
+
+		if (!logLevelFile.exists()) {
+			log.info("Log level file " + logFilePath() + " does not exist, returning empty log levels");
 			return properties;
 		}
 
 		try (Reader reader = new InputStreamReader(new FileInputStream(logLevelFile), StandardCharsets.UTF_8)) {
 			properties.load(reader);
 		} catch (IOException e) {
-			log.warn("Could not read log levels from " + logLevelFile.getAbsolutePath(), e);
+			log.warn("Could not read log levels from " + logFilePath(), e);
 		}
 
 		return properties;
+	}
+
+	private String logFilePath() {
+		try {
+			return logLevelFile.getCanonicalPath();
+		} catch (IOException e) {
+			return logLevelFile.getAbsolutePath();
+		}
 	}
 
 	private void storeProperties(Properties properties) {
@@ -110,7 +123,7 @@ public class FilesystemLogLevelPersistence implements LogLevelPersistence {
 		try (Writer writer = new OutputStreamWriter(new FileOutputStream(logLevelFile), StandardCharsets.UTF_8)) {
 			properties.store(writer, null);
 		} catch (IOException e) {
-			throw new RuntimeException("Could not write log levels to " + logLevelFile.getAbsolutePath(), e);
+			throw new RuntimeException("Could not write log levels to " + logFilePath(), e);
 		}
 	}
 
