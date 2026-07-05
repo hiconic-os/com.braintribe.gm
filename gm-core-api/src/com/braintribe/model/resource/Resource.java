@@ -30,6 +30,7 @@ import java.util.UUID;
 
 import com.braintribe.model.generic.StandardStringIdentifiable;
 import com.braintribe.model.generic.annotation.ForwardDeclaration;
+import com.braintribe.model.generic.annotation.GwtIncompatible;
 import com.braintribe.model.generic.annotation.SelectiveInformation;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
@@ -201,6 +202,7 @@ public interface Resource extends StandardStringIdentifiable {
 	 * <p>
 	 * @see #createTransient(InputStreamProvider)
 	 */
+	@GwtIncompatible("java.io is not supported in GWT")
 	static Resource createTransient(File file) {
 		return createTransient( //
 				() -> new FileInputStream(file));
