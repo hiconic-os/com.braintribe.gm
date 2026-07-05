@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.braintribe.gm</groupId>
+		<artifactId>parent</artifactId>
+		<version>[2.0,2.1)</version>
+	</parent>
+	<artifactId>security-aspect-test</artifactId>
+	<version>2.0.1</version>
+	<properties>
+	</properties>
+	<dependencies>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>security-aspect</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>aop-access</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>basic-persistence-gm-session</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>meta-model-generation</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>gm-core4-jvm</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
+        <!-- [BTT-6399] Needed for DevQA unit test execution. The dependency for JUnitTools should be placed before the GmTestTools. -->
+        <dependency>
+            <groupId>com.braintribe.testing</groupId>
+            <artifactId>junit-tools</artifactId>
+            <version>${V.com.braintribe.testing}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>gm-test-tools</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>meta-model-tools</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>	</dependencies>
+</project>
