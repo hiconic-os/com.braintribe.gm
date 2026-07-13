@@ -1,0 +1,142 @@
+{
+  "name": "hiconic-modeled-templates",
+  "displayName": "hiconic Modeled Templates",
+  "description": "Syntax highlighting for hiconic modeled templates, including HTML, JSON, YAML, XML, Markdown, CSS, JavaScript and TypeScript hosts.",
+  "version": "0.1.3",
+  "publisher": "hiconic",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "modeled-template",
+        "aliases": ["Modeled Template", "mt"],
+        "extensions": [".mt"],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "modeled-template-html",
+        "aliases": ["Modeled Template HTML", "html.mt"],
+        "extensions": [".html.mt", ".htm.mt"],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "modeled-template-json",
+        "aliases": ["Modeled Template JSON", "json.mt"],
+        "extensions": [".json.mt", ".jsonc.mt"],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "modeled-template-yaml",
+        "aliases": ["Modeled Template YAML", "yaml.mt"],
+        "extensions": [".yaml.mt", ".yml.mt"],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "modeled-template-xml",
+        "aliases": ["Modeled Template XML", "xml.mt"],
+        "extensions": [".xml.mt"],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "modeled-template-markdown",
+        "aliases": ["Modeled Template Markdown", "md.mt"],
+        "extensions": [".md.mt", ".markdown.mt"],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "modeled-template-css",
+        "aliases": ["Modeled Template CSS", "css.mt"],
+        "extensions": [".css.mt"],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "modeled-template-javascript",
+        "aliases": ["Modeled Template JavaScript", "js.mt"],
+        "extensions": [".js.mt", ".mjs.mt", ".cjs.mt"],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "modeled-template-typescript",
+        "aliases": ["Modeled Template TypeScript", "ts.mt"],
+        "extensions": [".ts.mt"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "modeled-template",
+        "scopeName": "source.modeled-template",
+        "path": "./syntaxes/plain.tmLanguage.json"
+      },
+      {
+        "language": "modeled-template-html",
+        "scopeName": "text.html.modeled-template",
+        "path": "./syntaxes/html.tmLanguage.json",
+        "embeddedLanguages": { "text.html.basic": "html" }
+      },
+      {
+        "language": "modeled-template-json",
+        "scopeName": "source.json.modeled-template",
+        "path": "./syntaxes/json.tmLanguage.json",
+        "embeddedLanguages": { "source.json": "json" }
+      },
+      {
+        "language": "modeled-template-yaml",
+        "scopeName": "source.yaml.modeled-template",
+        "path": "./syntaxes/yaml.tmLanguage.json",
+        "embeddedLanguages": { "source.yaml": "yaml" }
+      },
+      {
+        "language": "modeled-template-xml",
+        "scopeName": "text.xml.modeled-template",
+        "path": "./syntaxes/xml.tmLanguage.json",
+        "embeddedLanguages": { "text.xml": "xml" }
+      },
+      {
+        "language": "modeled-template-markdown",
+        "scopeName": "text.html.markdown.modeled-template",
+        "path": "./syntaxes/markdown.tmLanguage.json",
+        "embeddedLanguages": { "text.html.markdown": "markdown" }
+      },
+      {
+        "language": "modeled-template-css",
+        "scopeName": "source.css.modeled-template",
+        "path": "./syntaxes/css.tmLanguage.json",
+        "embeddedLanguages": { "source.css": "css" }
+      },
+      {
+        "language": "modeled-template-javascript",
+        "scopeName": "source.js.modeled-template",
+        "path": "./syntaxes/javascript.tmLanguage.json",
+        "embeddedLanguages": { "source.js": "javascript" }
+      },
+      {
+        "language": "modeled-template-typescript",
+        "scopeName": "source.ts.modeled-template",
+        "path": "./syntaxes/typescript.tmLanguage.json",
+        "embeddedLanguages": { "source.ts": "typescript" }
+      },
+      {
+        "scopeName": "source.modeled-template.injection",
+        "path": "./syntaxes/modeled-template.injection.tmLanguage.json",
+        "injectTo": [
+          "source.modeled-template",
+          "text.html.modeled-template",
+          "source.json.modeled-template",
+          "source.yaml.modeled-template",
+          "text.xml.modeled-template",
+          "text.html.markdown.modeled-template",
+          "source.css.modeled-template",
+          "source.js.modeled-template",
+          "source.ts.modeled-template"
+        ]
+      }
+    ]
+  }
+}

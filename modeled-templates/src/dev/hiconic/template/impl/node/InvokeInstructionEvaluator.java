@@ -7,10 +7,12 @@ import java.util.Set;
 
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.essential.InvalidArgument;
+import com.braintribe.model.generic.value.ValueDescriptor;
 
 import dev.hiconic.template.api.TemplateEvaluationContext;
 import dev.hiconic.template.api.TemplateNodeEvaluator;
 import dev.hiconic.template.api.ValidationContext;
+import dev.hiconic.template.impl.TemplateValues;
 import dev.hiconic.template.model.core.decl.RuntimeArguments;
 import dev.hiconic.template.model.core.decl.RuntimePropertySpecification;
 import dev.hiconic.template.model.core.decl.RuntimePropertyValue;
@@ -20,9 +22,17 @@ public class InvokeInstructionEvaluator implements TemplateNodeEvaluator<InvokeI
 	@Override
 	public void evaluate(TemplateEvaluationContext context, InvokeInstruction node) {
 		Map<String, Object> parameters = new LinkedHashMap<>();
-		for (RuntimePropertyValue value : node.getArguments().getValues())
-			parameters.put(value.getSpecification().getName(), value.getValue());
-		context.withVariables(parameters, () -> context.evaluate(node.getBody()));
+		for (RuntimePropertySpecification specification : node.getDeclaration().getArgumentType().getProperties()) {
+			ValueDescriptor descriptor = RuntimePropertySpecification.defaultValue.property().getVdDirect(specification);
+			parameters.put(specification.getName(), TemplateValues.evaluate(context, descriptor == null
+					? specification.getDefaultValue() : context.evaluate(descriptor)));
+		}
+		for (RuntimePropertyValue value : node.getArguments().getValues()) {
+			ValueDescriptor descriptor = RuntimePropertyValue.value.property().getVdDirect(value);
+			parameters.put(value.getSpecification().getName(), TemplateValues.evaluate(context, descriptor == null
+					? value.getValue() : context.evaluate(descriptor)));
+		}
+		context.withVariables(parameters, () -> context.evaluate(node.getDeclaration().getBlock()));
 	}
 
 	@Override
@@ -31,8 +41,6 @@ public class InvokeInstructionEvaluator implements TemplateNodeEvaluator<InvokeI
 			return InvalidArgument.create("InvokeInstruction.name must not be blank");
 		if (node.getArguments() == null)
 			return InvalidArgument.mandatoryPropertyNull(InvokeInstruction.T, InvokeInstruction.arguments.name());
-		if (node.getBody() == null)
-			return InvalidArgument.mandatoryPropertyNull(InvokeInstruction.T, InvokeInstruction.body.name());
 		RuntimeArguments arguments = node.getArguments();
 		if (node.getDeclaration() == null)
 			return InvalidArgument.mandatoryPropertyNull(InvokeInstruction.T, InvokeInstruction.declaration.name());

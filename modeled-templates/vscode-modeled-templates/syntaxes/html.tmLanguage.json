@@ -1,0 +1,6 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Modeled Template HTML",
+  "scopeName": "text.html.modeled-template",
+  "patterns": [{ "include": "text.html.basic" }]
+}

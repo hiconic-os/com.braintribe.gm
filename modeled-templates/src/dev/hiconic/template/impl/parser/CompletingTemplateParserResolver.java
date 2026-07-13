@@ -23,6 +23,16 @@ public class CompletingTemplateParserResolver implements TemplateParserResolver 
 	}
 
 	@Override
+	public void beginParse() {
+		delegate.beginParse();
+	}
+
+	@Override
+	public void endParse() {
+		delegate.endParse();
+	}
+
+	@Override
 	public Maybe<OutputNode> resolveOutput(String expression, TextRange range) {
 		return delegate.resolveOutput(expression, range);
 	}

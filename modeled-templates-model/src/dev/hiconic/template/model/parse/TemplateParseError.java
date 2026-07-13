@@ -10,10 +10,14 @@ public interface TemplateParseError extends ParseError {
 
 	PropertyLiteral range = PropertyLiteral.of(T, "range");
 	PropertyLiteral fragment = PropertyLiteral.of(T, "fragment");
+	PropertyLiteral modelPath = PropertyLiteral.of(T, "modelPath");
 
 	TextRange getRange();
 	void setRange(TextRange range);
 
 	String getFragment();
 	void setFragment(String fragment);
+
+	String getModelPath();
+	void setModelPath(String modelPath);
 }

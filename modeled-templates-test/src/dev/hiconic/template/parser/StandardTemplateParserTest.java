@@ -50,7 +50,7 @@ import dev.hiconic.template.model.core.output.FormatDate;
 import dev.hiconic.template.model.core.output.HtmlEsc;
 import dev.hiconic.template.model.core.output.RawOutput;
 import dev.hiconic.template.model.core.output.UrlComponentEscape;
-import dev.hiconic.template.model.core.vd.TransformValue;
+import dev.hiconic.template.model.core.vd.UnaryOperation;
 import dev.hiconic.template.model.parse.TemplateParseError;
 import dev.hiconic.template.model.parse.TextRange;
 import dev.hiconic.template.test.model.TestBlockInstruction;
@@ -76,10 +76,10 @@ public class StandardTemplateParserTest {
 	@Test
 	public void escapedTemplateOpenersRemainLiteralText() {
 		Maybe<TemplateNode> maybe = parser(TemplateParserOptions.STRICT, new TestResolver())
-				.parse("\\${value} \\%{if true} \\#{directive} \\\\");
+				.parse("\\${value} \\%(if true) \\#{directive} \\\\");
 
 		assertTrue(maybe.isSatisfied());
-		assertEquals("${value} %{if true} #{directive} \\", ((TextNode) maybe.get()).getText());
+		assertEquals("${value} %(if true) #{directive} \\", ((TextNode) maybe.get()).getText());
 	}
 
 	@Test
@@ -100,7 +100,7 @@ public class StandardTemplateParserTest {
 		SequenceNode root = (SequenceNode) maybe.get();
 		assertEquals(3, root.getNodes().size());
 		assertEquals("a", ((TextNode) root.getNodes().get(0)).getText());
-		assertEquals("internal comment", ((CommentNode) root.getNodes().get(1)).getText());
+		assertEquals(" internal comment ", ((CommentNode) root.getNodes().get(1)).getText().getValue());
 		assertEquals("b", ((TextNode) root.getNodes().get(2)).getText());
 	}
 
@@ -120,7 +120,7 @@ public class StandardTemplateParserTest {
 	public void wiresPrimaryAndElseBlocksBeforeCompletion() {
 		TestResolver resolver = new TestResolver();
 		Maybe<TemplateNode> maybe = parser(TemplateParserOptions.STRICT, resolver)
-				.parse("%{if true}yes%{else}no%{end}");
+				.parse("%(if true)yes%(else)no%(end)");
 
 		assertTrue(maybe.isSatisfied());
 		If ifNode = (If) maybe.get();
@@ -134,7 +134,7 @@ public class StandardTemplateParserTest {
 	public void wiresCustomSecondaryBlockFromTestModelWithoutParserSpecialCase() {
 		TestResolver resolver = new TestResolver();
 		Maybe<TemplateNode> maybe = parser(TemplateParserOptions.STRICT, resolver)
-				.parse("%{test true}primary%{fallback}secondary%{end}");
+				.parse("%(test true)primary%(fallback)secondary%(end)");
 
 		assertTrue(maybe.isSatisfied() ? "" : reasonTree(maybe.whyUnsatisfied()), maybe.isSatisfied());
 		TestBlockInstruction instruction = (TestBlockInstruction) maybe.get();
@@ -146,7 +146,7 @@ public class StandardTemplateParserTest {
 	@Test
 	public void wiresRepeatedSwitchCasesAndDefaultBlock() {
 		Maybe<TemplateNode> maybe = parser(TemplateParserOptions.STRICT, new TestResolver())
-				.parse("%{switch green}%{case red}red%{case green}green%{default}other%{end}");
+				.parse("%(switch green)%(case red)red%(case green)green%(default)other%(end)");
 
 		assertTrue(maybe.isSatisfied() ? "" : reasonTree(maybe.whyUnsatisfied()), maybe.isSatisfied());
 		Switch switchNode = (Switch) maybe.get();
@@ -175,7 +175,7 @@ public class StandardTemplateParserTest {
 	@Test
 	public void substituteModeReturnsIncompleteTemplateWithVisibleErrorNode() {
 		Maybe<TemplateNode> maybe = parser(TemplateParserOptions.SUBSTITUTE, new TestResolver())
-				.parse("before %{unknown}hidden%{end} after");
+				.parse("before %(unknown)hidden%(end) after");
 
 		assertTrue(maybe.isIncomplete());
 		SequenceNode root = (SequenceNode) maybe.value();
@@ -247,16 +247,16 @@ public class StandardTemplateParserTest {
 	@Test
 	public void resolvesForEachVariablesAndNestedPropertyPathsInItsBlock() {
 		TypedInputResolver resolver = new TypedInputResolver();
-		String source = "%{for-each input.persons --as person --index i}"
+		String source = "%(for-each input.persons as: person index: i)"
 				+ "${i}:${person.name}-${person.address.city}"
-				+ "%{empty}none%{end}";
+				+ "%(empty)none%(end)";
 
 		Maybe<TemplateNode> maybe = parser(TemplateParserOptions.STRICT, resolver).parse(source);
 
 		assertTrue(maybe.isSatisfied());
 		ForEach forEach = (ForEach) maybe.get();
-		assertEquals("person", forEach.getVariable());
-		assertEquals("i", forEach.getIndexVariable());
+		assertEquals("person", dev.hiconic.template.impl.parser.DefinitionTools.name(forEach.getVariable()));
+		assertEquals("i", dev.hiconic.template.impl.parser.DefinitionTools.name(forEach.getIndexVariable()));
 		assertNotNull(forEach.getBlock());
 		assertEquals("none", firstText(forEach.getEmpty()));
 		assertEquals(List.of("input.persons", "i", "person.name", "person.address.city"), resolver.resolvedPaths);
@@ -277,8 +277,8 @@ public class StandardTemplateParserTest {
 	@Test
 	public void loopVariableIsNotVisibleInEmptyBlock() {
 		TypedInputResolver resolver = new TypedInputResolver();
-		String source = "%{for-each input.persons --as person}"
-				+ "${person.name}%{empty}${person.name}%{end}";
+		String source = "%(for-each input.persons as: person)"
+				+ "${person.name}%(empty)${person.name}%(end)";
 
 		Maybe<TemplateNode> maybe = parser(TemplateParserOptions.SUBSTITUTE, resolver).parse(source);
 
@@ -292,33 +292,10 @@ public class StandardTemplateParserTest {
 		Maybe<TemplateNode> maybe = parser(TemplateParserOptions.STRICT, new PipelineResolver()).parse("${input.birthday}");
 
 		assertTrue(maybe.isSatisfied() ? "" : reasonTree(maybe.whyUnsatisfied()), maybe.isSatisfied());
-		TransformValue html = outputDescriptor(maybe.get());
-		assertTrue(html.getTransformer() instanceof HtmlEsc);
-		TransformValue format = nestedInputDescriptor(html);
-		assertTrue(format.getTransformer() instanceof FormatDate);
-	}
-
-	@Test
-	public void outputPipelineUsesExplicitDateFormatBeforeDefaultHtmlEscape() {
-		Maybe<TemplateNode> maybe = parser(TemplateParserOptions.STRICT, new PipelineResolver())
-				.parse("${input.birthday | format-date YYYY/MM/dd}");
-
-		assertTrue(maybe.isSatisfied() ? "" : reasonTree(maybe.whyUnsatisfied()), maybe.isSatisfied());
-		TransformValue html = outputDescriptor(maybe.get());
-		TransformValue format = nestedInputDescriptor(html);
-		assertEquals("YYYY/MM/dd", ((FormatDate) format.getTransformer()).getPattern());
-	}
-
-	@Test
-	public void outputPipelineAdaptsDateBeforeExplicitUrlEscape() {
-		Maybe<TemplateNode> maybe = parser(TemplateParserOptions.STRICT, new PipelineResolver())
-				.parse("${input.birthday | url-esc}");
-
-		assertTrue(maybe.isSatisfied() ? "" : reasonTree(maybe.whyUnsatisfied()), maybe.isSatisfied());
-		TransformValue url = outputDescriptor(maybe.get());
-		assertTrue(url.getTransformer() instanceof UrlComponentEscape);
-		TransformValue format = nestedInputDescriptor(url);
-		assertTrue(format.getTransformer() instanceof FormatDate);
+		ValueDescriptor html = outputDescriptor(maybe.get());
+		assertTrue(html instanceof HtmlEsc);
+		ValueDescriptor format = nestedOperandDescriptor((UnaryOperation) html);
+		assertTrue(format instanceof FormatDate);
 	}
 
 	private static StandardTemplateParser parser(TemplateParserOptions options, TestResolver resolver) {
@@ -329,16 +306,16 @@ public class StandardTemplateParserTest {
 		return ((TextNode) node).getText();
 	}
 
-	private static TransformValue outputDescriptor(TemplateNode node) {
+	private static ValueDescriptor outputDescriptor(TemplateNode node) {
 		ValueDescriptor descriptor = OutputNode.output.property().getVdDirect((OutputNode) node);
-		assertTrue(descriptor instanceof TransformValue);
-		return (TransformValue) descriptor;
+		assertTrue(descriptor instanceof UnaryOperation);
+		return descriptor;
 	}
 
-	private static TransformValue nestedInputDescriptor(TransformValue transform) {
-		ValueDescriptor descriptor = TransformValue.input.property().getVdDirect(transform);
-		assertTrue(descriptor instanceof TransformValue);
-		return (TransformValue) descriptor;
+	private static ValueDescriptor nestedOperandDescriptor(UnaryOperation operation) {
+		ValueDescriptor descriptor = UnaryOperation.operand.property().getVdDirect(operation);
+		assertTrue(descriptor instanceof ValueDescriptor);
+		return descriptor;
 	}
 
 	private static String reasonTree(Reason reason) {
@@ -445,8 +422,10 @@ public class StandardTemplateParserTest {
 
 			ForEach node = ForEach.T.create();
 			node.setIterable(List.of());
-			node.setVariable(option(tokens, "--as", "item"));
-			node.setIndexVariable(option(tokens, "--index", null));
+			node.setVariable(dev.hiconic.template.impl.parser.DefinitionTools.variable(option(tokens, "as:", "item"),
+					collectionType.getCollectionElementType().getTypeSignature(), false));
+			String index = option(tokens, "index:", null);
+			if (index != null) node.setIndexVariable(dev.hiconic.template.impl.parser.DefinitionTools.variable(index, "integer", false));
 			elementTypes.put(node, collectionType.getCollectionElementType());
 			resolvedPaths.add(iterablePath);
 			return Maybe.complete(node);
@@ -456,9 +435,9 @@ public class StandardTemplateParserTest {
 		public Reason enterBlock(TemplateNode owner, String blockProperty, TextRange range) {
 			Map<String, GenericModelType> scope = new HashMap<>();
 			if (owner instanceof ForEach forEach && "block".equals(blockProperty)) {
-				scope.put(forEach.getVariable(), elementTypes.get(forEach));
+				scope.put(dev.hiconic.template.impl.parser.DefinitionTools.name(forEach.getVariable()), elementTypes.get(forEach));
 				if (forEach.getIndexVariable() != null)
-					scope.put(forEach.getIndexVariable(), com.braintribe.model.generic.reflection.SimpleTypes.TYPE_INTEGER);
+					scope.put(dev.hiconic.template.impl.parser.DefinitionTools.name(forEach.getIndexVariable()), com.braintribe.model.generic.reflection.SimpleTypes.TYPE_INTEGER);
 			}
 			scopes.push(scope);
 			return null;

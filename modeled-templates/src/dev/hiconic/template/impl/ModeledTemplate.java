@@ -65,7 +65,7 @@ public class ModeledTemplate<I> implements Template<I> {
 					+ " but was " + input.getClass().getName());
 		RuntimeTemplateEvaluationContext context =
 				new RuntimeTemplateEvaluationContext(registry, output, charset, allowNoEscape, defaults, resolvedDefaults);
-		context.declareVariable(rootVariable, input);
+		context.declareReadonlyVariable(rootVariable, input);
 		context.evaluate(rootNode);
 		context.flush();
 	}

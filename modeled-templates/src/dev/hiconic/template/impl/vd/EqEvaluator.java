@@ -1,7 +1,5 @@
 package dev.hiconic.template.impl.vd;
 
-import java.util.Objects;
-
 import com.braintribe.gm.model.reason.Maybe;
 
 import dev.hiconic.template.api.TemplateEvaluationContext;
@@ -13,9 +11,6 @@ public class EqEvaluator implements VdEvaluator<Eq, Boolean> {
 	public Maybe<Boolean> transform(TemplateEvaluationContext context, Eq eq) {
 		Object left = eq.getLeft();
 		Object right = eq.getRight();
-		boolean equal = left instanceof Number && right instanceof Number
-				? NumericOperations.compare(left, right) == 0
-				: Objects.equals(left, right);
-		return Maybe.complete(equal);
+		return Maybe.complete(VdValidation.equal(left, right));
 	}
 }

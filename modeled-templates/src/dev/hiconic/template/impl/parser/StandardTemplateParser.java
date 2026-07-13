@@ -22,9 +22,17 @@ import dev.hiconic.template.model.core.OutputNode;
 import dev.hiconic.template.model.core.SequenceNode;
 import dev.hiconic.template.model.core.TemplateNode;
 import dev.hiconic.template.model.core.TextNode;
+import dev.hiconic.template.model.core.SourceText;
 import dev.hiconic.template.model.core.instr.BlockInstructionNode;
+import dev.hiconic.template.model.core.instr.BlockNode;
+import dev.hiconic.template.model.core.instr.DirectiveNode;
+import dev.hiconic.template.model.core.instr.SilentNode;
 import dev.hiconic.template.model.core.instr.Switch;
 import dev.hiconic.template.model.core.instr.SwitchCase;
+import dev.hiconic.template.model.core.instr.InstructionNode;
+import dev.hiconic.template.model.core.instr.WhitespaceAction;
+import dev.hiconic.template.model.core.instr.WhitespacePolicy;
+import dev.hiconic.template.model.core.instr.StatementInstructionNode;
 import dev.hiconic.template.model.parse.TemplateParseError;
 import dev.hiconic.template.model.parse.TextPosition;
 import dev.hiconic.template.model.parse.TextRange;
@@ -42,31 +50,36 @@ public class StandardTemplateParser implements TemplateParser {
 
 	@Override
 	public Maybe<TemplateNode> parse(String source) {
-		State state = new State(Objects.requireNonNull(source, "source"));
-		Chunk rootChunk = state.parseSequence(Set.of());
-		SequenceNode rootSequence = rootChunk.sequence();
+		resolver.beginParse();
+		try {
+			State state = new State(Objects.requireNonNull(source, "source"));
+			Chunk rootChunk = state.parseSequence(Set.of());
+			SequenceNode rootSequence = rootChunk.sequence();
 
-		if (rootChunk.marker() != null)
-			state.addError("Unexpected block marker '" + rootChunk.marker().name() + "'", rootChunk.marker().range(), null);
+			if (rootChunk.marker() != null)
+				state.addError("Unexpected block marker '" + rootChunk.marker().name() + "'", rootChunk.marker().range(), null);
 
-		Reason wiringError = resolver.completeAndValidate(validationContext, rootSequence, state.range(0, source.length()));
-		if (wiringError != null) {
-			state.addError("Template wiring or completion failed", state.range(0, source.length()), wiringError);
-			if (options.recoveryMode() != ParseRecoveryMode.STRICT)
-				rootSequence.getNodes().add(state.errorNode("Template wiring or completion failed", state.range(0, source.length())));
+			Reason wiringError = resolver.completeAndValidate(validationContext, rootSequence, state.range(0, source.length()));
+			if (wiringError != null) {
+				state.addError("Template wiring or completion failed", state.range(0, source.length()), wiringError);
+				if (options.recoveryMode() != ParseRecoveryMode.STRICT)
+					rootSequence.getNodes().add(state.errorNode("Template wiring or completion failed", state.range(0, source.length())));
+			}
+
+			TemplateNode root = state.compact(rootSequence);
+			if (state.errors.isEmpty())
+				return Maybe.complete(root);
+
+			ParseError aggregate = ParseError.create("Template contains " + state.errors.size() + " error(s)");
+			aggregate.getReasons().addAll(state.errors);
+
+			if (options.recoveryMode() == ParseRecoveryMode.STRICT)
+				return Maybe.empty(aggregate);
+
+			return Maybe.incomplete(root, aggregate);
+		} finally {
+			resolver.endParse();
 		}
-
-		TemplateNode root = state.compact(rootSequence);
-		if (state.errors.isEmpty())
-			return Maybe.complete(root);
-
-		ParseError aggregate = ParseError.create("Template contains " + state.errors.size() + " error(s)");
-		aggregate.getReasons().addAll(state.errors);
-
-		if (options.recoveryMode() == ParseRecoveryMode.STRICT)
-			return Maybe.empty(aggregate);
-
-		return Maybe.incomplete(root, aggregate);
 	}
 
 	private final class State {
@@ -75,6 +88,7 @@ public class StandardTemplateParser implements TemplateParser {
 		private final int[] columns;
 		private final List<Reason> errors = new ArrayList<>();
 		private int offset;
+		private WhitespaceAction pendingWhitespace = WhitespaceAction.preserve;
 
 		private State(String source) {
 			this.source = source;
@@ -86,6 +100,7 @@ public class StandardTemplateParser implements TemplateParser {
 		private Chunk parseSequence(Set<String> stopMarkers) {
 			List<TemplateNode> nodes = new ArrayList<>();
 			int sequenceStart = offset;
+			predeclareSequence(stopMarkers);
 
 			while (offset < source.length()) {
 				int markerStart = findNextMarker(offset);
@@ -97,22 +112,24 @@ public class StandardTemplateParser implements TemplateParser {
 
 				addText(nodes, offset, markerStart);
 				char sigil = source.charAt(markerStart);
-				int close = findMarkerEnd(markerStart + 2);
+				char closing = sigil == '%' ? ')' : '}';
+				int close = findMarkerEnd(markerStart + 2, closing);
 				if (close < 0) {
 					TextRange range = range(markerStart, source.length());
-					nodes.add(recover("Unterminated '" + sigil + "{' construct", range, null));
+					nodes.add(recover("Unterminated '" + sigil + (sigil == '%' ? "(" : "{") + "' construct", range, null));
 					offset = source.length();
 					break;
 				}
 
-				boolean blockFree = sigil == '%' && close + 1 < source.length() && source.charAt(close + 1) == '%'
-						&& (close + 2 >= source.length() || source.charAt(close + 2) != '{');
-				int constructEnd = close + (blockFree ? 2 : 1);
-				String content = source.substring(markerStart + 2, close).trim();
+				boolean blockFree = false;
+				int constructEnd = close + 1;
+				String rawContent = source.substring(markerStart + 2, close);
+				String content = rawContent.trim();
 				TextRange constructRange = range(markerStart, constructEnd);
+				TextRange contentRange = range(markerStart + 2, close);
 				offset = constructEnd;
 
-				if (sigil == '%' || sigil == '#') {
+				if (sigil == '%') {
 					String markerName = firstWord(content);
 					if (stopMarkers.contains(markerName))
 						return chunk(nodes, sequenceStart, new Marker(markerName, content, constructRange));
@@ -124,21 +141,25 @@ public class StandardTemplateParser implements TemplateParser {
 				}
 
 				if (sigil == '$') {
-					addResolved(nodes, resolver.resolveOutput(content, constructRange), constructRange, "output");
+					addResolved(nodes, resolver.resolveOutput(rawContent, contentRange), constructRange, "output");
 					continue;
 				}
 
-				if (sigil == '#' && !"declare-instruction".equals(firstWord(content))) {
+				if (sigil == '#') {
 					CommentNode comment = CommentNode.T.create();
-					comment.setText(content);
+					SourceText text = SourceText.T.create();
+					text.setValue(rawContent);
+					comment.setText(text);
+					applyWhitespaceBefore(nodes, comment);
 					nodes.add(comment);
+					applyWhitespaceAfter(comment);
 					continue;
 				}
 
-				Maybe<? extends TemplateNode> resolved = resolver.resolveDirective(sigil, content, blockFree, constructRange);
+				Maybe<? extends TemplateNode> resolved = resolver.resolveDirective(sigil, rawContent, blockFree, contentRange);
 				TemplateNode node = valueOrError(resolved, constructRange, "directive");
 				if (node == null) {
-					if (sigil == '%' && !blockFree) {
+					if (sigil == '%') {
 						Chunk skippedBlock = parseSequence(Set.of("end"));
 						if (skippedBlock.marker() == null)
 							addError("Missing block end after invalid directive", constructRange, null);
@@ -148,7 +169,10 @@ public class StandardTemplateParser implements TemplateParser {
 				}
 
 				boolean blockInstruction = isBlockInstruction(node);
+				applyWhitespaceBefore(nodes, node);
 				if (blockInstruction && !blockFree) {
+					Reason scopeCompletion = resolver.completeScope(node, constructRange);
+					if (scopeCompletion != null) addError("Could not complete instruction scope", constructRange, scopeCompletion);
 					enterBlock(node, "block", constructRange);
 					Chunk body;
 					try {
@@ -156,11 +180,14 @@ public class StandardTemplateParser implements TemplateParser {
 					} finally {
 						resolver.exitBlock(node, "block");
 					}
-					BlockInstructionNode.block.property().setDirect(node, compact(body.sequence()));
+					if (node instanceof SilentNode && node instanceof DirectiveNode directive
+							&& directive.getWhitespace() == null)
+						trimSilentBlockBoundaries(body.sequence());
+					BlockNode.block.property().setDirect(node, compact(body.sequence()));
 
 					Marker marker = body.marker();
 					if (marker == null) {
-						addError("Missing '%{end}' for block", constructRange, null);
+						addError("Missing '%(end)' for block", constructRange, null);
 					}
 					while (marker != null && !"end".equals(marker.name())) {
 						Marker secondaryMarker = marker;
@@ -175,12 +202,9 @@ public class StandardTemplateParser implements TemplateParser {
 							nodes.add(errorNode("Could not wire secondary block '" + marker.name() + "'", marker.range()));
 						marker = secondary.marker();
 						if (marker == null)
-							addError("Missing '%{end}' after '%{" + secondaryMarker.name() + "}'",
+							addError("Missing '%(end)' after '%(" + secondaryMarker.name() + ")'",
 									secondaryMarker.range(), null);
 					}
-				} else if (blockInstruction && blockFree) {
-					nodes.add(recover("Block instruction must not use block-free '%{...}%'' syntax", constructRange, null));
-					continue;
 				}
 
 				Reason completionError = resolver.completeAndValidate(validationContext, node, constructRange);
@@ -188,9 +212,50 @@ public class StandardTemplateParser implements TemplateParser {
 					nodes.add(node);
 				else
 					nodes.add(recover("Completion or validation failed for '" + firstWord(content) + "'", constructRange, completionError));
+				applyWhitespaceAfter(node);
 			}
 
 			return chunk(nodes, sequenceStart, null);
+		}
+
+		private void predeclareSequence(Set<String> stopMarkers) {
+			int cursor = offset;
+			int depth = 0;
+			while (cursor < source.length()) {
+				int markerStart = findNextMarker(cursor);
+				if (markerStart < 0)
+					return;
+				char sigil = source.charAt(markerStart);
+				char closing = sigil == '%' ? ')' : '}';
+				int close = findMarkerEnd(markerStart + 2, closing);
+				if (close < 0)
+					return;
+				boolean blockFree = false;
+				int constructEnd = close + 1;
+				String content = source.substring(markerStart + 2, close).trim();
+				String markerName = firstWord(content);
+
+				if (sigil == '%' && isMarker(content)) {
+					if ("end".equals(markerName)) {
+						if (depth == 0 && stopMarkers.contains("end"))
+							return;
+						if (depth > 0)
+							depth--;
+					} else if (depth == 0 && stopMarkers.contains(markerName)) {
+						return;
+					}
+				} else if (depth == 0 && sigil == '%' && "declare-instruction".equals(markerName)) {
+					TextRange range = range(markerStart, constructEnd);
+					Reason reason = resolver.predeclareDirective(sigil, source.substring(markerStart + 2, close),
+							range(markerStart + 2, close));
+					if (reason != null)
+						addError("Could not predeclare directive", range, reason);
+					depth++;
+				} else if (sigil == '%' && isKnownBlockStart(markerName)) {
+					depth++;
+				}
+				cursor = constructEnd;
+			}
 		}
 
 		private void enterBlock(TemplateNode owner, String property, TextRange range) {
@@ -215,8 +280,8 @@ public class StandardTemplateParser implements TemplateParser {
 
 		private boolean isBlockInstruction(TemplateNode node) {
 			return isSwitch(node)
-					|| BlockInstructionNode.T.isAssignableFrom(node.entityType())
-					|| node.entityType().findProperty(BlockInstructionNode.block.name()) != null;
+					|| BlockNode.T.isAssignableFrom(node.entityType())
+					|| node.entityType().findProperty(BlockNode.block.name()) != null;
 		}
 
 		private boolean isSwitch(TemplateNode node) {
@@ -331,9 +396,74 @@ public class StandardTemplateParser implements TemplateParser {
 		private void addText(List<TemplateNode> nodes, int start, int end) {
 			if (start == end)
 				return;
+			String value = applyLeadingWhitespace(source.substring(start, end), pendingWhitespace);
+			pendingWhitespace = WhitespaceAction.preserve;
+			if (value.isEmpty())
+				return;
 			TextNode text = TextNode.T.create();
-			text.setText(unescapeTemplateText(source.substring(start, end)));
+			text.setText(unescapeTemplateText(value));
 			nodes.add(text);
+		}
+
+		private void applyWhitespaceBefore(List<TemplateNode> nodes, TemplateNode node) {
+			WhitespaceAction action = whitespace(node, true);
+			if (action == WhitespaceAction.preserve || nodes.isEmpty())
+				return;
+			TemplateNode previous = nodes.get(nodes.size() - 1);
+			if (!(previous instanceof TextNode text))
+				return;
+			String trimmed = applyTrailingWhitespace(text.getText(), action);
+			if (trimmed.isEmpty()) nodes.remove(nodes.size() - 1); else text.setText(trimmed);
+		}
+
+		private void applyWhitespaceAfter(TemplateNode node) {
+			pendingWhitespace = whitespace(node, false);
+		}
+
+		private void trimSilentBlockBoundaries(SequenceNode sequence) {
+			List<TemplateNode> nodes = sequence.getNodes();
+			if (nodes.isEmpty()) return;
+			if (nodes.get(0) instanceof TextNode first) {
+				String value = applyLeadingWhitespace(first.getText(), WhitespaceAction.trimLine);
+				if (value.isEmpty()) nodes.remove(0); else first.setText(value);
+			}
+			if (!nodes.isEmpty() && nodes.get(nodes.size() - 1) instanceof TextNode last) {
+				String value = applyTrailingWhitespace(last.getText(), WhitespaceAction.trimLine);
+				if (value.isEmpty()) nodes.remove(nodes.size() - 1); else last.setText(value);
+			}
+		}
+
+		private WhitespaceAction whitespace(TemplateNode node, boolean before) {
+			if (!(node instanceof DirectiveNode directive))
+				return node instanceof SilentNode ? WhitespaceAction.trimLine : WhitespaceAction.preserve;
+			WhitespacePolicy policy = directive.getWhitespace();
+			if (policy == null)
+				return node instanceof SilentNode ? WhitespaceAction.trimLine : WhitespaceAction.preserve;
+			WhitespaceAction action = before ? policy.getBefore() : policy.getAfter();
+			return action == null ? WhitespaceAction.preserve : action;
+		}
+
+		private String applyLeadingWhitespace(String text, WhitespaceAction action) {
+			if (action == WhitespaceAction.preserve) return text;
+			int i = 0;
+			if (action == WhitespaceAction.trim) {
+				while (i < text.length() && Character.isWhitespace(text.charAt(i))) i++;
+			} else {
+				while (i < text.length() && (text.charAt(i) == ' ' || text.charAt(i) == '\t' || text.charAt(i) == '\r')) i++;
+				if (i < text.length() && text.charAt(i) == '\n') i++; else return text;
+			}
+			return text.substring(i);
+		}
+
+		private String applyTrailingWhitespace(String text, WhitespaceAction action) {
+			int i = text.length();
+			if (action == WhitespaceAction.trim) {
+				while (i > 0 && Character.isWhitespace(text.charAt(i - 1))) i--;
+			} else {
+				while (i > 0 && (text.charAt(i - 1) == ' ' || text.charAt(i - 1) == '\t' || text.charAt(i - 1) == '\r')) i--;
+				if (i > 0 && text.charAt(i - 1) == '\n') i--; else return text;
+			}
+			return text.substring(0, i);
 		}
 
 		private String unescapeTemplateText(String text) {
@@ -341,8 +471,8 @@ public class StandardTemplateParser implements TemplateParser {
 			for (int i = 0; i < text.length(); i++) {
 				char ch = text.charAt(i);
 				boolean escapedMarker = ch == '\\' && i + 2 < text.length()
-						&& (text.charAt(i + 1) == '$' || text.charAt(i + 1) == '%' || text.charAt(i + 1) == '#')
-						&& text.charAt(i + 2) == '{';
+						&& ((text.charAt(i + 1) == '$' || text.charAt(i + 1) == '#') && text.charAt(i + 2) == '{'
+								|| text.charAt(i + 1) == '%' && text.charAt(i + 2) == '(');
 				boolean escapedBackslash = ch == '\\' && i + 1 < text.length() && text.charAt(i + 1) == '\\';
 				if (!escapedMarker && !escapedBackslash) {
 					if (result != null)
@@ -371,13 +501,14 @@ public class StandardTemplateParser implements TemplateParser {
 		private int findNextMarker(int from) {
 			for (int i = from; i + 1 < source.length(); i++) {
 				char ch = source.charAt(i);
-				if ((ch == '$' || ch == '%' || ch == '#') && source.charAt(i + 1) == '{' && !isEscaped(i))
+				if (((ch == '$' || ch == '#') && source.charAt(i + 1) == '{'
+						|| ch == '%' && source.charAt(i + 1) == '(') && !isEscaped(i))
 					return i;
 			}
 			return -1;
 		}
 
-		private int findMarkerEnd(int from) {
+		private int findMarkerEnd(int from, char closing) {
 			char quote = 0;
 			int nestedBraces = 0;
 			int nestedBrackets = 0;
@@ -394,7 +525,7 @@ public class StandardTemplateParser implements TemplateParser {
 				} else if (ch == '{') {
 					nestedBraces++;
 				} else if (ch == '}') {
-					if (nestedBraces == 0 && nestedBrackets == 0 && nestedParentheses == 0)
+					if (closing == '}' && nestedBraces == 0 && nestedBrackets == 0 && nestedParentheses == 0)
 						return i;
 					if (nestedBraces > 0)
 						nestedBraces--;
@@ -405,6 +536,8 @@ public class StandardTemplateParser implements TemplateParser {
 				} else if (ch == '(') {
 					nestedParentheses++;
 				} else if (ch == ')') {
+					if (closing == ')' && nestedParentheses == 0 && nestedBraces == 0 && nestedBrackets == 0)
+						return i;
 					nestedParentheses = Math.max(0, nestedParentheses - 1);
 				}
 			}
@@ -422,6 +555,11 @@ public class StandardTemplateParser implements TemplateParser {
 			String word = firstWord(content);
 			return "end".equals(word) || "else".equals(word) || "empty".equals(word)
 					|| "default".equals(word) || "case".equals(word);
+		}
+
+		private boolean isKnownBlockStart(String name) {
+			return "if".equals(name) || "for-each".equals(name) || "for-each-entry".equals(name) || "switch".equals(name)
+					|| "declare-instruction".equals(name);
 		}
 
 		private String firstWord(String content) {

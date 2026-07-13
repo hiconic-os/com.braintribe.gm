@@ -11,6 +11,7 @@ import com.braintribe.gm.model.reason.essential.ParseError;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.reflection.EnumType;
 import com.braintribe.model.generic.reflection.GenericModelType;
+import com.braintribe.model.generic.reflection.EssentialTypes;
 import com.braintribe.model.generic.reflection.GenericModelTypeReflection;
 import com.braintribe.model.generic.reflection.SimpleTypes;
 import com.braintribe.model.meta.GmCustomType;
@@ -43,6 +44,8 @@ public class StandardLiteralParser {
 	public Maybe<ParsedLiteral> parse(String source, GenericModelType expectedType) {
 		String literal = source.trim();
 		try {
+			if ("null".equals(literal))
+				return complete(NullLiteral.INSTANCE, expectedType == null ? EssentialTypes.TYPE_OBJECT : expectedType);
 			if (literal.contains("::"))
 				return parseQualifiedEnum(literal, expectedType);
 			if (literal.startsWith("\""))
@@ -66,13 +69,27 @@ public class StandardLiteralParser {
 			if (literal.endsWith("M") || literal.endsWith("m"))
 				return complete(new BigDecimal(literal.substring(0, literal.length() - 1)), SimpleTypes.TYPE_DECIMAL);
 			if (literal.matches("[+-]?\\d+"))
-				return complete(Integer.valueOf(literal), SimpleTypes.TYPE_INTEGER);
+				return inferredNumber(literal, expectedType, true);
 			if (literal.matches("[+-]?(?:\\d+\\.\\d*|\\d*\\.\\d+)(?:[eE][+-]?\\d+)?"))
-				return complete(Double.valueOf(literal), SimpleTypes.TYPE_DOUBLE);
+				return inferredNumber(literal, expectedType, false);
 			return error("Not a literal: " + source);
 		} catch (IllegalArgumentException | DateTimeParseException e) {
 			return error("Invalid literal '" + source + "': " + e.getMessage());
 		}
+	}
+
+	private Maybe<ParsedLiteral> inferredNumber(String literal, GenericModelType expectedType, boolean integral) {
+		if (expectedType == SimpleTypes.TYPE_LONG)
+			return complete(Long.valueOf(literal), SimpleTypes.TYPE_LONG);
+		if (expectedType == SimpleTypes.TYPE_FLOAT)
+			return complete(Float.valueOf(literal), SimpleTypes.TYPE_FLOAT);
+		if (expectedType == SimpleTypes.TYPE_DECIMAL)
+			return complete(new BigDecimal(literal), SimpleTypes.TYPE_DECIMAL);
+		if (expectedType == SimpleTypes.TYPE_DOUBLE)
+			return complete(Double.valueOf(literal), SimpleTypes.TYPE_DOUBLE);
+		return integral
+				? complete(Integer.valueOf(literal), SimpleTypes.TYPE_INTEGER)
+				: complete(Double.valueOf(literal), SimpleTypes.TYPE_DOUBLE);
 	}
 
 	private Maybe<ParsedLiteral> parseTyped(String type, String value) {

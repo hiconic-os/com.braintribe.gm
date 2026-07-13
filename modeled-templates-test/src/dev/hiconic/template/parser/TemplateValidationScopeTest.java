@@ -35,13 +35,19 @@ public class TemplateValidationScopeTest {
 	}
 
 	@Test
-	public void duplicateDeclarationIsRejectedOnlyInSameScope() {
+	public void duplicateDeclarationIsRejectedAcrossVisibleScopesButAllowedAfterExit() {
 		TemplateValidationScope scope = new TemplateValidationScope(Map.of());
 		assertTrue(scope.declare("value", SimpleTypes.TYPE_STRING).isSatisfied());
 		assertTrue(scope.declare("value", SimpleTypes.TYPE_INTEGER).isUnsatisfied());
 
 		scope.enter();
-		assertTrue(scope.declare("value", SimpleTypes.TYPE_INTEGER).isSatisfied());
-		assertEquals(SimpleTypes.TYPE_INTEGER, scope.resolve("value").get());
+		assertTrue(scope.declare("value", SimpleTypes.TYPE_INTEGER).isUnsatisfied());
+		scope.exit();
+
+		scope.enter();
+		assertTrue(scope.declare("other", SimpleTypes.TYPE_INTEGER).isSatisfied());
+		scope.exit();
+		scope.enter();
+		assertTrue(scope.declare("other", SimpleTypes.TYPE_BOOLEAN).isSatisfied());
 	}
 }

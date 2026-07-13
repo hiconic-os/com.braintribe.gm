@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 import com.braintribe.gm.model.reason.Maybe;
+import com.braintribe.model.generic.reflection.SimpleTypes;
 
 import dev.hiconic.template.impl.parser.ParsedLiteral;
 import dev.hiconic.template.impl.parser.StandardLiteralParser;
@@ -13,6 +14,16 @@ import dev.hiconic.template.test.model.TestColor;
 
 public class StandardLiteralParserTest {
 	private final StandardLiteralParser parser = new StandardLiteralParser();
+
+	@Test
+	public void preservesExplicitLongAndFloatNumberTypes() {
+		assertEquals(SimpleTypes.TYPE_LONG, parser.parse("long:42").get().type());
+		assertEquals(42L, parser.parse("long:42").get().value());
+		assertEquals(SimpleTypes.TYPE_FLOAT, parser.parse("float:1.5").get().type());
+		assertEquals(1.5f, parser.parse("float:1.5").get().value());
+		assertEquals(SimpleTypes.TYPE_LONG, parser.parse("42", SimpleTypes.TYPE_LONG).get().type());
+		assertEquals(SimpleTypes.TYPE_FLOAT, parser.parse("1.5", SimpleTypes.TYPE_FLOAT).get().type());
+	}
 
 	@Test
 	public void decodesAllStringEscapeForms() {

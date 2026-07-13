@@ -2,6 +2,7 @@ package dev.hiconic.template.impl.node;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Map;
 
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.essential.InvalidArgument;
@@ -19,11 +20,11 @@ public class SwitchEvaluator implements TemplateNodeEvaluator<Switch> {
 		if (cases != null)
 			for (SwitchCase candidate : cases)
 				if (Objects.equals(node.getValue(), candidate.getValue())) {
-					context.evaluate(candidate.getBlock());
+					context.withVariables(Map.of(), () -> context.evaluate(candidate.getBlock()));
 					return;
 				}
 		if (node.getDefaultBlock() != null)
-			context.evaluate(node.getDefaultBlock());
+			context.withVariables(Map.of(), () -> context.evaluate(node.getDefaultBlock()));
 	}
 
 	@Override

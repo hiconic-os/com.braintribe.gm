@@ -1,9 +1,12 @@
 package dev.hiconic.template.impl.node;
 
+import java.util.Map;
+
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.essential.InvalidArgument;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.TypeCode;
+import com.braintribe.model.generic.value.ValueDescriptor;
 
 import dev.hiconic.template.api.TemplateEvaluationContext;
 import dev.hiconic.template.api.TemplateNodeEvaluator;
@@ -13,10 +16,12 @@ import dev.hiconic.template.model.core.instr.If;
 public class IfEvaluator implements TemplateNodeEvaluator<If> {
 	@Override
 	public void evaluate(TemplateEvaluationContext context, If node) {
-		if (node.getCondition())
-			context.evaluate(node.getBlock());
+		ValueDescriptor descriptor = If.condition.property().getVdDirect(node);
+		boolean condition = descriptor == null ? node.getCondition() : Boolean.TRUE.equals(context.evaluate(descriptor));
+		if (condition)
+			context.withVariables(Map.of(), () -> context.evaluate(node.getBlock()));
 		else if (node.getElse() != null)
-			context.evaluate(node.getElse());
+			context.withVariables(Map.of(), () -> context.evaluate(node.getElse()));
 	}
 
 	@Override

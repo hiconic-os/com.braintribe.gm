@@ -1,6 +1,7 @@
 package dev.hiconic.template.impl.parser;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -9,9 +10,14 @@ import java.util.Map;
 import java.util.Set;
 
 import com.braintribe.gm.model.reason.Maybe;
+import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.essential.ParseError;
 import com.braintribe.model.generic.reflection.CollectionType;
 import com.braintribe.model.generic.reflection.GenericModelType;
+import com.braintribe.model.generic.reflection.MapType;
+import com.braintribe.model.generic.value.ValueDescriptor;
+import com.braintribe.model.generic.collection.PlainList;
+import com.braintribe.model.generic.collection.PlainSet;
 
 import dev.hiconic.template.api.ValidationContext;
 import dev.hiconic.template.model.core.decl.DeclareInstruction;
@@ -20,12 +26,20 @@ import dev.hiconic.template.model.core.decl.RuntimePropertySpecification;
 import dev.hiconic.template.model.core.decl.RuntimePropertyValue;
 import dev.hiconic.template.model.core.decl.RuntimeTypeSpecification;
 import dev.hiconic.template.model.core.instr.InvokeInstruction;
+import dev.hiconic.template.model.parse.TemplateParseError;
+import dev.hiconic.template.model.parse.TextRange;
 
 public class RuntimeInstructionNormalizer {
 	private final ValidationContext validationContext;
+	private final ArgumentValueResolver valueResolver;
 
 	public RuntimeInstructionNormalizer(ValidationContext validationContext) {
+		this(validationContext, null);
+	}
+
+	public RuntimeInstructionNormalizer(ValidationContext validationContext, ArgumentValueResolver valueResolver) {
 		this.validationContext = validationContext;
+		this.valueResolver = valueResolver;
 	}
 
 	public Maybe<InvokeInstruction> normalize(DeclareInstruction declaration, List<ParsedArgument> parsedArguments) {
@@ -72,20 +86,39 @@ public class RuntimeInstructionNormalizer {
 				return error("Unknown argument type: " + property.getTypeSignature());
 			boolean variadic = parsed.name() == null
 					&& positionalIndex == positional.size()
-					&& expectedType instanceof CollectionType;
+					&& expectedType instanceof CollectionType
+					&& !(expectedType instanceof MapType)
+					&& !isLinearCollectionLiteral(parsed.source());
+			GenericModelType parsedExpectedType = variadic
+					? ((CollectionType) expectedType).getCollectionElementType()
+					: expectedType;
+			if (parsed.source() != null) {
+				if (valueResolver == null)
+					return error("Cannot resolve argument '" + property.getName() + "'");
+				Maybe<ParsedValueExpression> resolved = valueResolver.resolve(parsed.source(), parsedExpectedType, parsed.range());
+				if (resolved.isUnsatisfied())
+					return Maybe.empty(located(resolved.whyUnsatisfied(), parsed.range()));
+				parsed = new ParsedArgument(parsed.name(), resolved.get().value(), resolved.get().type(), parsed.range());
+			}
 			if (variadic) {
 				CollectionType collectionType = (CollectionType) expectedType;
 				GenericModelType elementType = collectionType.getCollectionElementType();
-				List<Object> values = new ArrayList<>();
+				Collection<Object> values = linearCollection(collectionType);
 				while (true) {
-					if (parsed.type() == null || !elementType.isAssignableFrom(parsed.type()))
+					if (!NullLiteral.is(parsed.value())
+							&& (parsed.type() == null || !elementType.isAssignableFrom(parsed.type())))
 						return error("Argument '" + property.getName() + "' expects elements of "
 								+ elementType.getTypeSignature() + " but got "
 								+ (parsed.type() == null ? "<unknown>" : parsed.type().getTypeSignature()));
-					values.add(parsed.value());
+					values.add(NullLiteral.materialize(parsed.value()));
 					if (i + 1 >= parsedArguments.size() || parsedArguments.get(i + 1).name() != null)
 						break;
 					parsed = parsedArguments.get(++i);
+					if (parsed.source() != null) {
+						Maybe<ParsedValueExpression> resolved = valueResolver.resolve(parsed.source(), elementType, parsed.range());
+						if (resolved.isUnsatisfied()) return Maybe.empty(located(resolved.whyUnsatisfied(), parsed.range()));
+						parsed = new ParsedArgument(parsed.name(), resolved.get().value(), resolved.get().type(), parsed.range());
+					}
 				}
 
 				RuntimePropertyValue value = RuntimePropertyValue.T.create();
@@ -94,13 +127,17 @@ public class RuntimeInstructionNormalizer {
 				arguments.getValues().add(value);
 				continue;
 			}
-			if (parsed.type() == null || !expectedType.isAssignableFrom(parsed.type()))
+			if (!NullLiteral.is(parsed.value())
+					&& (parsed.type() == null || !expectedType.isAssignableFrom(parsed.type())))
 				return error("Argument '" + property.getName() + "' expects " + expectedType.getTypeSignature()
 						+ " but got " + (parsed.type() == null ? "<unknown>" : parsed.type().getTypeSignature()));
 
 			RuntimePropertyValue value = RuntimePropertyValue.T.create();
 			value.setSpecification(property);
-			value.setValue(parsed.value());
+			if (parsed.value() instanceof ValueDescriptor descriptor)
+				RuntimePropertyValue.value.property().setVdDirect(value, descriptor);
+			else
+				value.setValue(NullLiteral.materialize(parsed.value()));
 			arguments.getValues().add(value);
 		}
 
@@ -110,14 +147,36 @@ public class RuntimeInstructionNormalizer {
 						+ declaration.getName());
 
 		InvokeInstruction invocation = InvokeInstruction.T.create();
-		invocation.setName(declaration.getName());
+		invocation.setName(declaration.getName().getName());
 		invocation.setDeclaration(declaration);
 		invocation.setArguments(arguments);
 		invocation.setBody(declaration.getBlock());
 		return Maybe.complete(invocation);
 	}
 
+	private static boolean isLinearCollectionLiteral(String source) {
+		if (source == null) return false;
+		String literal = source.trim();
+		return literal.startsWith("[") || literal.startsWith("list<") || literal.startsWith("set<");
+	}
+
+	private static Collection<Object> linearCollection(CollectionType type) {
+		return type.getCollectionKind() == CollectionType.CollectionKind.set
+				? new PlainSet<>((com.braintribe.model.generic.reflection.SetType) type)
+				: new PlainList<>((com.braintribe.model.generic.reflection.ListType) type);
+	}
+
 	private Maybe<InvokeInstruction> error(String message) {
 		return Maybe.empty(ParseError.create(message));
+	}
+
+	private static Reason located(Reason cause, TextRange range) {
+		if (range == null || cause instanceof TemplateParseError) return cause;
+		TemplateParseError error = TemplateParseError.T.create();
+		error.setText("Invalid declared-instruction argument at line " + range.getStart().getLine()
+				+ ", column " + range.getStart().getColumn());
+		error.setRange(range);
+		error.causedBy(cause);
+		return error;
 	}
 }

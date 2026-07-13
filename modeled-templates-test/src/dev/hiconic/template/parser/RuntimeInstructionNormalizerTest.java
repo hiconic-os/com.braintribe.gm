@@ -70,7 +70,7 @@ public class RuntimeInstructionNormalizerTest {
 		type.setProperties(new ArrayList<>(List.of(name, count)));
 
 		DeclareInstruction declaration = DeclareInstruction.T.create();
-		declaration.setName("render");
+		declaration.setName(dev.hiconic.template.impl.parser.DefinitionTools.symbol("render"));
 		declaration.setArgumentType(type);
 		return declaration;
 	}

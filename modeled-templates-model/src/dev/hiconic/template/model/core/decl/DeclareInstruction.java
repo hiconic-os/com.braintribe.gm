@@ -6,20 +6,24 @@ import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 import com.braintribe.model.generic.reflection.PropertyLiteral;
 
-import dev.hiconic.template.model.core.instr.BlockInstructionNode;
+import dev.hiconic.template.model.core.instr.BlockNode;
+import dev.hiconic.template.model.core.instr.SilentNode;
+import dev.hiconic.template.model.core.Symbol;
+import com.braintribe.model.generic.annotation.meta.PositionalArguments;
 
-public interface DeclareInstruction extends DeclarationNode, BlockInstructionNode {
+@PositionalArguments({"name", "parameters"})
+public interface DeclareInstruction extends DeclarationNode, BlockNode, SilentNode {
 	EntityType<DeclareInstruction> T = EntityTypes.T(DeclareInstruction.class);
 	
 	PropertyLiteral name = PropertyLiteral.of(T, "name");
 	PropertyLiteral parameters = PropertyLiteral.of(T, "parameters");
 	PropertyLiteral argumentType = PropertyLiteral.of(T, "argumentType");
 	
-	String getName();
-	void setName(String name);
+	Symbol getName();
+	void setName(Symbol name);
 	
-	List<Parameter> getParameters();
-	void setParameters(List<Parameter> parameters);
+	List<VariableDefinition> getParameters();
+	void setParameters(List<VariableDefinition> parameters);
 
 	RuntimeTypeSpecification getArgumentType();
 	void setArgumentType(RuntimeTypeSpecification argumentType);
