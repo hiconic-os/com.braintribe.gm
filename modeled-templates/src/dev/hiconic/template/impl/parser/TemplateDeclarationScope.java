@@ -28,9 +28,9 @@ public class TemplateDeclarationScope {
 	}
 
 	public Maybe<DeclareInstruction> declare(DeclareInstruction declaration) {
-		if (declaration.getName() == null || declaration.getName().isBlank())
+		if (declaration.getName() == null || declaration.getName().getName().isBlank())
 			return Maybe.empty(ParseError.create("Instruction declaration name must not be blank"));
-		if (scopes.peek().putIfAbsent(declaration.getName(), declaration) != null)
+		if (scopes.peek().putIfAbsent(declaration.getName().getName(), declaration) != null)
 			return Maybe.empty(ParseError.create(
 					"Instruction already declared in current scope: " + declaration.getName()));
 		return Maybe.complete(declaration);
@@ -43,5 +43,9 @@ public class TemplateDeclarationScope {
 				return Maybe.complete(declaration);
 		}
 		return Maybe.empty(ParseError.create("Unknown custom instruction: " + name));
+	}
+
+	public DeclareInstruction resolveLocal(String name) {
+		return scopes.peek().get(name);
 	}
 }

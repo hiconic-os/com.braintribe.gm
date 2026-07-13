@@ -1,0 +1,6 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Modeled Template JSON",
+  "scopeName": "source.json.modeled-template",
+  "patterns": [{ "include": "source.json" }]
+}

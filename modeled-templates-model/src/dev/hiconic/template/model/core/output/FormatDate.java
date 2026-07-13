@@ -5,8 +5,10 @@ import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 import com.braintribe.model.generic.reflection.PropertyLiteral;
 
-@PositionalArguments("pattern")
-public interface FormatDate extends Transformer {
+import dev.hiconic.template.model.core.vd.UnaryOperation;
+
+@PositionalArguments({"operand", "pattern"})
+public interface FormatDate extends UnaryOperation {
 	EntityType<FormatDate> T = EntityTypes.T(FormatDate.class);
 
 	PropertyLiteral pattern = PropertyLiteral.of(T, "pattern");

@@ -1,0 +1,193 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Modeled Template Injection",
+  "scopeName": "source.modeled-template.injection",
+  "injectionSelector": "L:source.modeled-template, L:text.html.modeled-template, L:source.json.modeled-template, L:source.yaml.modeled-template, L:text.xml.modeled-template, L:text.html.markdown.modeled-template, L:source.css.modeled-template, L:source.js.modeled-template, L:source.ts.modeled-template",
+  "patterns": [
+    { "include": "#escaped-opener" },
+    { "include": "#comment" },
+    { "include": "#directive" },
+    { "include": "#output" }
+  ],
+  "repository": {
+    "escaped-opener": {
+      "name": "constant.character.escape.modeled-template",
+      "match": "\\\\(?:\\$\\{|%\\(|#\\{)"
+    },
+    "comment": {
+      "name": "comment.block.modeled-template",
+      "begin": "(?<!\\\\)(#)(\\{)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.comment.modeled-template" },
+        "2": { "name": "punctuation.section.block.begin.modeled-template" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.block.end.modeled-template" }
+      },
+      "patterns": [
+        {
+          "name": "comment.block.modeled-template",
+          "begin": "\\{",
+          "end": "\\}"
+        }
+      ]
+    },
+    "directive": {
+      "name": "meta.directive.modeled-template",
+      "begin": "(?<!\\\\)(%)(\\()\\s*([A-Za-z_][A-Za-z0-9_-]*)?",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.directive.modeled-template" },
+        "2": { "name": "punctuation.section.parens.begin.modeled-template" },
+        "3": { "name": "entity.name.function.directive.modeled-template" }
+      },
+      "end": "\\)",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.parens.end.modeled-template" }
+      },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+    "output": {
+      "name": "meta.output.modeled-template",
+      "begin": "(?<!\\\\)(\\$)(\\{)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.output.modeled-template" },
+        "2": { "name": "punctuation.section.block.begin.modeled-template" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.block.end.modeled-template" }
+      },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+    "expression": {
+      "patterns": [
+        { "include": "#string" },
+        { "include": "#entity" },
+        { "include": "#inferred-entity" },
+        { "include": "#collection-type" },
+        { "include": "#enum" },
+        { "include": "#named-argument" },
+        { "include": "#number" },
+        { "include": "#boolean" },
+		{ "include": "#null" },
+        { "include": "#operators" },
+        { "include": "#path" }
+      ]
+    },
+    "entity": {
+      "name": "meta.entity.expression.modeled-template",
+      "begin": "(\\()\\s*([A-Za-z_][A-Za-z0-9_.-]*)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.section.parens.begin.modeled-template" },
+        "2": { "name": "entity.name.type.modeled-template" }
+      },
+      "end": "\\)",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.parens.end.modeled-template" }
+      },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+    "inferred-entity": {
+      "name": "meta.inferred-entity.modeled-template",
+      "begin": "\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.block.begin.modeled-template" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.block.end.modeled-template" }
+      },
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+    "collection-type": {
+      "name": "meta.type.collection.modeled-template",
+      "begin": "\\b(list|set|map)(<)",
+      "beginCaptures": {
+        "1": { "name": "support.type.collection.modeled-template" },
+        "2": { "name": "punctuation.definition.typeparameters.begin.modeled-template" }
+      },
+      "end": ">",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.typeparameters.end.modeled-template" }
+      },
+      "patterns": [
+        { "include": "#collection-type" },
+        {
+          "name": "entity.name.type.modeled-template",
+          "match": "[A-Za-z_][A-Za-z0-9_.-]*"
+        },
+        {
+          "name": "punctuation.separator.typeparameters.modeled-template",
+          "match": ","
+        }
+      ]
+    },
+    "string": {
+      "name": "string.quoted.double.modeled-template",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.modeled-template" }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.modeled-template" }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.modeled-template",
+          "match": "\\\\(?:[\\\\\"nrtbf]|u[0-9A-Fa-f]{4})"
+        },
+        { "include": "#output" },
+        { "include": "#directive" }
+      ]
+    },
+    "enum": {
+      "name": "constant.language.enum.modeled-template",
+      "match": "::[A-Za-z_][A-Za-z0-9_-]*"
+    },
+    "named-argument": {
+      "match": "\\b([A-Za-z_][A-Za-z0-9_-]*)(:)(?!:)",
+      "captures": {
+        "1": { "name": "variable.parameter.modeled-template" },
+        "2": { "name": "punctuation.separator.key-value.modeled-template" }
+      }
+    },
+    "number": {
+      "name": "constant.numeric.modeled-template",
+      "match": "(?<![A-Za-z0-9_.])-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?[lLfF]?\\b"
+    },
+    "boolean": {
+      "name": "constant.language.boolean.modeled-template",
+      "match": "\\b(?:true|false)\\b"
+    },
+	"null": {
+	  "name": "constant.language.null.modeled-template",
+	  "match": "\\bnull\\b"
+	},
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.pipeline.modeled-template",
+          "match": "\\|"
+        },
+        {
+          "name": "keyword.operator.optional-access.modeled-template",
+          "match": "\\?\\.|\\?(?=\\[)"
+        }
+      ]
+    },
+    "path": {
+      "name": "variable.other.readwrite.modeled-template",
+      "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?:(?:\\?\\.|\\.)[A-Za-z_][A-Za-z0-9_]*|\\??\\[[^\\]\\r\\n]+\\])+|\\b(?:input|_)[A-Za-z0-9_]*\\b"
+    }
+  }
+}

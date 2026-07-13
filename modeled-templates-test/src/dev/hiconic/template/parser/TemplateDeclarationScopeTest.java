@@ -35,7 +35,7 @@ public class TemplateDeclarationScopeTest {
 
 	private static DeclareInstruction declaration(String name) {
 		DeclareInstruction declaration = DeclareInstruction.T.create();
-		declaration.setName(name);
+		declaration.setName(dev.hiconic.template.impl.parser.DefinitionTools.symbol(name));
 		return declaration;
 	}
 }

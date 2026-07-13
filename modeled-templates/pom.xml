@@ -35,6 +35,11 @@
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
+            <artifactId>essential-meta-data-model</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
             <artifactId>essential-reason-model</artifactId>
             <version>${V.com.braintribe.gm}</version>
             <?tag asset ?>

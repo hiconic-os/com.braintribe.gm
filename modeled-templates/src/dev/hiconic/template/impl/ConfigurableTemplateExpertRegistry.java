@@ -14,18 +14,19 @@ import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.value.ValueDescriptor;
 
 import dev.hiconic.template.api.TemplateExpertRegistry;
+import dev.hiconic.template.api.ScalarEntityParser;
 import dev.hiconic.template.api.TemplateNodeEvaluator;
-import dev.hiconic.template.api.TemplateValueTransformer;
-import dev.hiconic.template.api.TransformerBinding;
+import dev.hiconic.template.api.ValueConversion;
+import dev.hiconic.template.api.ValueConversionBinding;
 import dev.hiconic.template.api.VdEvaluator;
 import dev.hiconic.template.model.core.TemplateNode;
-import dev.hiconic.template.model.core.output.Transformer;
 
 public class ConfigurableTemplateExpertRegistry implements TemplateExpertRegistry {
 	private final Map<EntityType<?>, TemplateNodeEvaluator<?>> evaluators = new HashMap<>();
 	private final Map<EntityType<?>, VdEvaluator<?, ?>> vdEvaluators = new HashMap<>();
-	private final Map<TransformerKey, TemplateValueTransformer<?, ?, ?>> transformers = new HashMap<>();
-	private final List<TransformerBinding> transformerBindings = new ArrayList<>();
+	private final Map<EntityType<?>, ScalarEntityParser<?>> scalarParsers = new HashMap<>();
+	private final Map<ConversionKey, ValueConversion<?, ?, ?>> conversions = new HashMap<>();
+	private final List<ValueConversionBinding> conversionBindings = new ArrayList<>();
 
 	public ConfigurableTemplateExpertRegistry() {
 	}
@@ -33,8 +34,9 @@ public class ConfigurableTemplateExpertRegistry implements TemplateExpertRegistr
 	private ConfigurableTemplateExpertRegistry(ConfigurableTemplateExpertRegistry source) {
 		evaluators.putAll(source.evaluators);
 		vdEvaluators.putAll(source.vdEvaluators);
-		transformers.putAll(source.transformers);
-		transformerBindings.addAll(source.transformerBindings);
+		scalarParsers.putAll(source.scalarParsers);
+		conversions.putAll(source.conversions);
+		conversionBindings.addAll(source.conversionBindings);
 	}
 
 	public ConfigurableTemplateExpertRegistry copy() {
@@ -42,23 +44,23 @@ public class ConfigurableTemplateExpertRegistry implements TemplateExpertRegistr
 	}
 
 	@Override
-	public <T extends Transformer, I, O> void registerTransformer(EntityType<T> transformerType, GenericModelType inType,
-			GenericModelType outType, TemplateValueTransformer<I, T, O> transformer) {
-		registerTransformer(transformerType, inType, outType, transformer, false);
+	public <V extends ValueDescriptor, I, O> void registerConversion(EntityType<V> descriptorType, GenericModelType inType,
+			GenericModelType outType, ValueConversion<I, V, O> conversion) {
+		registerConversion(descriptorType, inType, outType, conversion, false);
 	}
 
 	@Override
-	public <T extends Transformer, I, O> void registerDefaultTransformer(EntityType<T> transformerType, GenericModelType inType,
-			GenericModelType outType, TemplateValueTransformer<I, T, O> transformer) {
-		registerTransformer(transformerType, inType, outType, transformer, true);
+	public <V extends ValueDescriptor, I, O> void registerDefaultConversion(EntityType<V> descriptorType, GenericModelType inType,
+			GenericModelType outType, ValueConversion<I, V, O> conversion) {
+		registerConversion(descriptorType, inType, outType, conversion, true);
 	}
 
-	private <T extends Transformer, I, O> void registerTransformer(EntityType<T> transformerType, GenericModelType inType,
-			GenericModelType outType, TemplateValueTransformer<I, T, O> transformer, boolean defaultConversion) {
-		TransformerKey key = new TransformerKey(transformerType, inType, outType);
-		transformers.put(key, transformer);
-		transformerBindings.removeIf(binding -> key.matches(binding));
-		transformerBindings.add(new TransformerBinding(transformerType, inType, outType, transformer, defaultConversion));
+	private <V extends ValueDescriptor, I, O> void registerConversion(EntityType<V> descriptorType, GenericModelType inType,
+			GenericModelType outType, ValueConversion<I, V, O> conversion, boolean defaultConversion) {
+		ConversionKey key = new ConversionKey(descriptorType, inType, outType);
+		conversions.put(key, conversion);
+		conversionBindings.removeIf(binding -> key.matches(binding));
+		conversionBindings.add(new ValueConversionBinding(descriptorType, inType, outType, conversion, defaultConversion));
 	}
 
 	@Override
@@ -67,14 +69,19 @@ public class ConfigurableTemplateExpertRegistry implements TemplateExpertRegistr
 	}
 
 	@Override
-	public <V extends ValueDescriptor, O> void registerVdEvaluator(EntityType<V> descriptorType, VdEvaluator<V, O> evaluator) {
-		vdEvaluators.put(descriptorType, evaluator);
+	public <E extends com.braintribe.model.generic.GenericEntity> void registerScalarParser(EntityType<E> entityType, ScalarEntityParser<E> parser) {
+		scalarParsers.put(entityType, parser);
 	}
 
 	@Override
-	public <T extends Transformer, I, O> void registerInstruction(EntityType<T> transformerType, GenericModelType inType,
-			GenericModelType outType, TemplateValueTransformer<I, T, O> transformer) {
-		registerTransformer(transformerType, inType, outType, transformer);
+	public ScalarEntityParser<?> findScalarParser(EntityType<?> entityType) { return scalarParsers.get(entityType); }
+
+	@Override
+	public List<EntityType<?>> scalarEntityTypes() { return List.copyOf(scalarParsers.keySet()); }
+
+	@Override
+	public <V extends ValueDescriptor, O> void registerVdEvaluator(EntityType<V> descriptorType, VdEvaluator<V, O> evaluator) {
+		vdEvaluators.put(descriptorType, evaluator);
 	}
 
 	@Override
@@ -96,76 +103,76 @@ public class ConfigurableTemplateExpertRegistry implements TemplateExpertRegistr
 		return List.copyOf(result);
 	}
 
-	public TemplateValueTransformer<?, ?, ?> findTransformer(EntityType<?> transformerType, GenericModelType inputType,
+	public ValueConversion<?, ?, ?> findConversion(EntityType<?> descriptorType, GenericModelType inputType,
 			GenericModelType outputType) {
-		return transformers.get(new TransformerKey(transformerType, inputType, outputType));
+		return conversions.get(new ConversionKey(descriptorType, inputType, outputType));
 	}
 
 	@Override
-	public TransformerBinding findTransformer(EntityType<?> transformerType, GenericModelType inputType) {
-		for (TransformerBinding binding : transformerBindings)
-			if (binding.transformerType().isAssignableFrom(transformerType)
+	public ValueConversionBinding findConversion(EntityType<?> descriptorType, GenericModelType inputType) {
+		for (ValueConversionBinding binding : conversionBindings)
+			if (binding.descriptorType().isAssignableFrom(descriptorType)
 					&& binding.inputType().isAssignableFrom(inputType))
 				return binding;
 		return null;
 	}
 
 	@Override
-	public List<TransformerBinding> findTransformers(EntityType<?> transformerType) {
-		List<TransformerBinding> result = new ArrayList<>();
-		for (TransformerBinding binding : transformerBindings)
-			if (binding.transformerType().isAssignableFrom(transformerType))
+	public List<ValueConversionBinding> findConversions(EntityType<?> descriptorType) {
+		List<ValueConversionBinding> result = new ArrayList<>();
+		for (ValueConversionBinding binding : conversionBindings)
+			if (binding.descriptorType().isAssignableFrom(descriptorType))
 				result.add(binding);
 		return Collections.unmodifiableList(result);
 	}
 
 	@Override
-	public List<TransformerBinding> defaultTransformers() {
-		List<TransformerBinding> result = new ArrayList<>();
-		for (TransformerBinding binding : transformerBindings)
+	public List<ValueConversionBinding> defaultConversions() {
+		List<ValueConversionBinding> result = new ArrayList<>();
+		for (ValueConversionBinding binding : conversionBindings)
 			if (binding.defaultConversion())
 				result.add(binding);
 		return Collections.unmodifiableList(result);
 	}
 
 	@Override
-	public List<EntityType<? extends Transformer>> transformerTypes() {
-		Set<EntityType<? extends Transformer>> result = new LinkedHashSet<>();
-		for (TransformerBinding binding : transformerBindings)
-			result.add(binding.transformerType());
+	public List<EntityType<? extends ValueDescriptor>> conversionTypes() {
+		Set<EntityType<? extends ValueDescriptor>> result = new LinkedHashSet<>();
+		for (ValueConversionBinding binding : conversionBindings)
+			result.add(binding.descriptorType());
 		return List.copyOf(result);
 	}
 
-	private static final class TransformerKey {
-		private final EntityType<?> transformerType;
+	private static final class ConversionKey {
+		private final EntityType<?> descriptorType;
 		private final GenericModelType inputType;
 		private final GenericModelType outputType;
 
-		private TransformerKey(EntityType<?> transformerType, GenericModelType inputType, GenericModelType outputType) {
-			this.transformerType = transformerType;
+		private ConversionKey(EntityType<?> descriptorType, GenericModelType inputType, GenericModelType outputType) {
+			this.descriptorType = descriptorType;
 			this.inputType = inputType;
 			this.outputType = outputType;
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(transformerType, inputType, outputType);
+			return Objects.hash(descriptorType, inputType, outputType);
 		}
 
 		@Override
 		public boolean equals(Object obj) {
 			if (this == obj)
 				return true;
-			if (!(obj instanceof TransformerKey))
+			if (!(obj instanceof ConversionKey))
 				return false;
-			TransformerKey other = (TransformerKey) obj;
-			return Objects.equals(transformerType, other.transformerType)
+			ConversionKey other = (ConversionKey) obj;
+			return Objects.equals(descriptorType, other.descriptorType)
 					&& Objects.equals(inputType, other.inputType)
 					&& Objects.equals(outputType, other.outputType);
 		}
 
-		private boolean matches(TransformerBinding binding) {
-			return Objects.equals(transformerType, binding.transformerType())
+		private boolean matches(ValueConversionBinding binding) {
+			return Objects.equals(descriptorType, binding.descriptorType())
 					&& Objects.equals(inputType, binding.inputType())
 					&& Objects.equals(outputType, binding.outputType());
 		}

@@ -6,7 +6,7 @@ import java.util.Map;
 
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.essential.InvalidArgument;
-import com.braintribe.model.bvd.navigation.PropertyPath;
+import dev.hiconic.template.model.core.vd.TemplatePropertyPath;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.CollectionType;
 import com.braintribe.model.generic.reflection.GenericModelType;
@@ -22,6 +22,9 @@ import dev.hiconic.template.api.TemplateNodeEvaluator;
 import dev.hiconic.template.api.ValidationContext;
 import dev.hiconic.template.api.VdEvaluator;
 import dev.hiconic.template.model.core.TemplateNode;
+import dev.hiconic.template.model.core.instr.InvokeInstruction;
+import dev.hiconic.template.model.parse.TemplateParseError;
+import dev.hiconic.template.model.parse.TextRange;
 
 public class ExpertModelCompleter {
 	private final TemplateExpertRegistry registry;
@@ -32,34 +35,42 @@ public class ExpertModelCompleter {
 
 	public Reason completeAndValidate(ValidationContext context, TemplateNode root) {
 		IdentityHashMap<GenericEntity, Boolean> visited = new IdentityHashMap<>();
-		return visit(context, root, visited);
+		return visit(context, root, root.entityType().getShortName(), visited);
 	}
 
-	private Reason visit(ValidationContext context, GenericEntity entity, IdentityHashMap<GenericEntity, Boolean> visited) {
+	private Reason visit(ValidationContext context, GenericEntity entity, String modelPath,
+			IdentityHashMap<GenericEntity, Boolean> visited) {
 		if (visited.put(entity, Boolean.TRUE) != null)
 			return null;
 		if (entity instanceof Escape)
 			return null;
 
 		for (Property property : entity.entityType().getProperties()) {
+			String propertyPath = modelPath + "." + property.getName();
+			// A declared instruction may be forward-referenced while its body is
+			// still being parsed. Its signature is already complete; the declaration
+			// itself is completed when it occurs in the surrounding template.
+			if (entity instanceof InvokeInstruction && InvokeInstruction.declaration.name().equals(property.getName()))
+				continue;
 			ValueDescriptor descriptor = property.getVdDirect(entity);
 			if (descriptor != null) {
-				Reason reason = completeDescriptor(context, descriptor, visited);
+				Reason reason = completeDescriptor(context, descriptor, propertyPath, visited);
 				if (reason != null)
-					return atProperty(entity, property, reason);
+					return atProperty(context, entity, property, propertyPath, reason);
 
-				GenericModelType valueType = descriptor.valueType();
+				GenericModelType valueType = context.getType(entity, property);
 				if (!property.getType().isAssignableFrom(valueType))
-					return InvalidArgument.create(entity.entityType().getShortName() + "." + property.getName()
+					return atProperty(context, entity, property, propertyPath,
+							InvalidArgument.create(entity.entityType().getShortName() + "." + property.getName()
 							+ " expects " + property.getType().getTypeSignature() + " but descriptor evaluates to "
-							+ valueType.getTypeSignature());
+							+ valueType.getTypeSignature()));
 				continue;
 			}
 
 			Object value = property.getDirect(entity);
-			Reason reason = visitValue(context, value, property.getType(), visited);
+			Reason reason = visitValue(context, value, property.getType(), propertyPath, visited);
 			if (reason != null)
-				return atProperty(entity, property, reason);
+				return atProperty(context, entity, property, propertyPath, reason);
 		}
 
 		if (entity instanceof TemplateNode) {
@@ -72,12 +83,12 @@ public class ExpertModelCompleter {
 		return null;
 	}
 
-	private Reason visitValue(ValidationContext context, Object value, GenericModelType expectedType,
+	private Reason visitValue(ValidationContext context, Object value, GenericModelType expectedType, String modelPath,
 			IdentityHashMap<GenericEntity, Boolean> visited) {
 		ValueDescriptor heldDescriptor = VdHolder.getValueDescriptorIfPossible(value);
 		if (heldDescriptor != null) {
 			ValueDescriptor descriptor = heldDescriptor;
-			Reason reason = completeDescriptor(context, descriptor, visited);
+			Reason reason = completeDescriptor(context, descriptor, modelPath, visited);
 			if (reason != null)
 				return reason;
 			if (expectedType != null && !expectedType.isAssignableFrom(descriptor.valueType()))
@@ -87,13 +98,14 @@ public class ExpertModelCompleter {
 		}
 		if (value instanceof GenericEntity) {
 			GenericEntity nested = (GenericEntity) value;
-			return visit(context, nested, visited);
+			return visit(context, nested, modelPath, visited);
 		}
 		if (value instanceof Collection<?>) {
 			Collection<?> collection = (Collection<?>) value;
 			GenericModelType elementType = collectionElementType(expectedType);
+			int index = 0;
 			for (Object element : collection) {
-				Reason reason = visitValue(context, element, elementType, visited);
+				Reason reason = visitValue(context, element, elementType, modelPath + "[" + index++ + "]", visited);
 				if (reason != null)
 					return reason;
 			}
@@ -103,9 +115,9 @@ public class ExpertModelCompleter {
 			GenericModelType keyType = mapType == null ? null : mapType.getKeyType();
 			GenericModelType valueType = mapType == null ? null : mapType.getValueType();
 			for (Map.Entry<?, ?> entry : map.entrySet()) {
-				Reason reason = visitValue(context, entry.getKey(), keyType, visited);
+				Reason reason = visitValue(context, entry.getKey(), keyType, modelPath + "[key]", visited);
 				if (reason == null)
-					reason = visitValue(context, entry.getValue(), valueType, visited);
+					reason = visitValue(context, entry.getValue(), valueType, modelPath + "[" + entry.getKey() + "]", visited);
 				if (reason != null)
 					return reason;
 			}
@@ -113,12 +125,12 @@ public class ExpertModelCompleter {
 		return null;
 	}
 
-	private Reason completeDescriptor(ValidationContext context, ValueDescriptor descriptor,
+	private Reason completeDescriptor(ValidationContext context, ValueDescriptor descriptor, String modelPath,
 			IdentityHashMap<GenericEntity, Boolean> visited) {
-		if (descriptor instanceof Escape || descriptor instanceof Variable || descriptor instanceof PropertyPath)
+		if (descriptor instanceof Escape || descriptor instanceof Variable || descriptor instanceof TemplatePropertyPath)
 			return null;
 
-		Reason nested = visit(context, descriptor, visited);
+		Reason nested = visit(context, descriptor, modelPath, visited);
 		if (nested != null)
 			return nested;
 
@@ -135,9 +147,19 @@ public class ExpertModelCompleter {
 		return type instanceof CollectionType ? ((CollectionType) type).getCollectionElementType() : null;
 	}
 
-	private Reason atProperty(GenericEntity entity, Property property, Reason cause) {
-		InvalidArgument reason = InvalidArgument.create(
-				"Invalid value at " + entity.entityType().getShortName() + "." + property.getName());
+	private Reason atProperty(ValidationContext context, GenericEntity entity, Property property,
+			String modelPath, Reason cause) {
+		TextRange range = context.getRange(entity, property);
+		if (range == null) {
+			InvalidArgument reason = InvalidArgument.create("Invalid value at " + modelPath);
+			reason.causedBy(cause);
+			return reason;
+		}
+		TemplateParseError reason = TemplateParseError.T.create();
+		reason.setText("Invalid value at " + modelPath + " at line " + range.getStart().getLine()
+				+ ", column " + range.getStart().getColumn());
+		reason.setModelPath(modelPath);
+		reason.setRange(range);
 		reason.causedBy(cause);
 		return reason;
 	}

@@ -1,5 +1,7 @@
 package dev.hiconic.template.impl.vd;
 
+import java.util.Objects;
+
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.essential.InvalidArgument;
 import com.braintribe.model.generic.GenericEntity;
@@ -9,9 +11,18 @@ import com.braintribe.model.generic.reflection.PropertyLiteral;
 import com.braintribe.model.generic.reflection.TypeCode;
 
 import dev.hiconic.template.api.ValidationContext;
+import dev.hiconic.template.model.core.TypeReference;
 
 final class VdValidation {
 	private VdValidation() {
+	}
+
+	static boolean equal(Object left, Object right) {
+		if (left instanceof Number && right instanceof Number)
+			return NumericOperations.compare(left, right) == 0;
+		if (left instanceof TypeReference leftType && right instanceof TypeReference rightType)
+			return Objects.equals(leftType.getTypeSignature(), rightType.getTypeSignature());
+		return Objects.equals(left, right);
 	}
 
 	static Reason requireNumeric(ValidationContext context, GenericEntity entity, PropertyLiteral... properties) {

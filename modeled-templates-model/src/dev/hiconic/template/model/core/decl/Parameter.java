@@ -5,6 +5,7 @@ import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 import com.braintribe.model.generic.reflection.PropertyLiteral;
 
+@Deprecated
 public interface Parameter extends GenericEntity {
 	EntityType<Parameter> T = EntityTypes.T(Parameter.class);
 	

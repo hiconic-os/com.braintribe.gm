@@ -16,7 +16,8 @@ public class OutputNodeEvaluator implements TemplateNodeEvaluator<OutputNode> {
 	public void evaluate(TemplateEvaluationContext context, OutputNode node) {
 		ValueDescriptor descriptor = OutputNode.output.property().getVdDirect(node);
 		SafeOutput output = descriptor == null ? node.getOutput() : (SafeOutput) context.evaluate(descriptor);
-		context.append(output.getText());
+		if (output != null)
+			context.append(output.getText());
 	}
 
 	@Override

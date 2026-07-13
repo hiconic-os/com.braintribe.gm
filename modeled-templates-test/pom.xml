@@ -33,13 +33,12 @@
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
-            <artifactId>version-model</artifactId>
+            <artifactId>model-oracle</artifactId>
             <version>${V.com.braintribe.gm}</version>
-            <?tag asset ?>
         </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
-            <artifactId>version-model-test</artifactId>
+            <artifactId>cascading-meta-data</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
     </dependencies>

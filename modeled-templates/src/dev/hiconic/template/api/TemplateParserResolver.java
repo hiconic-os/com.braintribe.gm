@@ -12,6 +12,14 @@ import dev.hiconic.template.model.parse.TextRange;
  * structure.
  */
 public interface TemplateParserResolver {
+	/** Starts a parser run; implementations may reset per-document state here. */
+	default void beginParse() {
+	}
+
+	/** Ends a parser run and releases per-document state. */
+	default void endParse() {
+	}
+
 	Maybe<OutputNode> resolveOutput(String expression, TextRange range);
 
 	/**
@@ -21,12 +29,22 @@ public interface TemplateParserResolver {
 	Maybe<? extends TemplateNode> resolveDirective(char sigil, String invocation, boolean blockFree, TextRange range);
 
 	/**
+	 * Registers a declaration signature before the containing sequence is parsed.
+	 * This makes declarations lexical rather than order-dependent and permits
+	 * recursive as well as mutually recursive declared instructions.
+	 */
+	default Reason predeclareDirective(char sigil, String invocation, TextRange range) {
+		return null;
+	}
+
+	/**
 	 * Opens the validation scope for a block before its content is parsed.
 	 * Loop-variable types and similar symbols belong here.
 	 */
 	default Reason enterBlock(TemplateNode owner, String blockProperty, TextRange range) {
 		return null;
 	}
+	default Reason completeScope(TemplateNode owner, TextRange range) { return null; }
 
 	default void exitBlock(TemplateNode owner, String blockProperty) {
 	}

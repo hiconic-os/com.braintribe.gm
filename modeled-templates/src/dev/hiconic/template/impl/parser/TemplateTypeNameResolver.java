@@ -9,6 +9,7 @@ import java.util.function.Function;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.essential.ParseError;
 import com.braintribe.model.generic.reflection.EntityType;
+import com.braintribe.model.generic.annotation.meta.Alias;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.value.ValueDescriptor;
 import com.braintribe.model.meta.GmCustomType;
@@ -16,6 +17,7 @@ import com.braintribe.model.meta.GmEntityType;
 import com.braintribe.model.processing.meta.cmd.CmdResolver;
 
 import dev.hiconic.template.model.core.instr.InstructionNode;
+import dev.hiconic.template.model.core.decl.DeclarationNode;
 
 public class TemplateTypeNameResolver {
 	public enum Usage {
@@ -42,9 +44,34 @@ public class TemplateTypeNameResolver {
 	}
 
 	public Maybe<EntityType<?>> resolve(String name, Usage usage) {
+		Maybe<EntityType<?>> explicitAlias = resolveExplicitAlias(name, usage);
+		if (explicitAlias.isSatisfied())
+			return explicitAlias;
 		if (isLowerKebabCase(name))
 			return resolveFunctionalAlias(name, usage);
 		return resolveModelType(name, usage);
+	}
+
+	private Maybe<EntityType<?>> resolveExplicitAlias(String name, Usage usage) {
+		List<EntityType<?>> matches = cmdResolver.getModelOracle().getTypes().onlyEntities().<EntityType<?>>asTypes()
+				.filter(type -> accepts(type, usage))
+				.filter(type -> hasConfiguredAlias(type, name))
+				.toList();
+		return unique(name, matches);
+	}
+
+	private boolean hasConfiguredAlias(EntityType<?> type, String name) {
+		if (hasExplicitAlias(type, name)) return true;
+		return cmdResolver.getMetaData().lenient(true).entityType(type)
+				.meta(com.braintribe.model.meta.data.mapping.Alias.T).list().stream()
+				.anyMatch(alias -> name.equals(alias.getName()));
+	}
+
+	public static boolean hasExplicitAlias(EntityType<?> type, String name) {
+		for (Alias alias : type.getJavaType().getAnnotationsByType(Alias.class))
+			if (name.equals(alias.value()))
+				return true;
+		return false;
 	}
 
 	private Maybe<EntityType<?>> resolveModelType(String name, Usage usage) {
@@ -99,7 +126,7 @@ public class TemplateTypeNameResolver {
 		return switch (usage) {
 			case ENTITY -> true;
 			case VALUE_DESCRIPTOR -> ValueDescriptor.T.isAssignableFrom(type);
-			case INSTRUCTION -> InstructionNode.T.isAssignableFrom(type);
+			case INSTRUCTION -> dev.hiconic.template.model.core.instr.DirectiveNode.T.isAssignableFrom(type);
 		};
 	}
 

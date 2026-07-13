@@ -14,6 +14,7 @@ public interface RuntimePropertySpecification extends GenericEntity {
 	PropertyLiteral typeSignature = PropertyLiteral.of(T, "typeSignature");
 	PropertyLiteral positionalIndex = PropertyLiteral.of(T, "positionalIndex");
 	PropertyLiteral required = PropertyLiteral.of(T, "required");
+	PropertyLiteral defaultValue = PropertyLiteral.of(T, "defaultValue");
 	PropertyLiteral metaData = PropertyLiteral.of(T, "metaData");
 
 	String getName();
@@ -27,6 +28,9 @@ public interface RuntimePropertySpecification extends GenericEntity {
 
 	boolean getRequired();
 	void setRequired(boolean required);
+
+	Object getDefaultValue();
+	void setDefaultValue(Object defaultValue);
 
 	List<GenericEntity> getMetaData();
 	void setMetaData(List<GenericEntity> metaData);

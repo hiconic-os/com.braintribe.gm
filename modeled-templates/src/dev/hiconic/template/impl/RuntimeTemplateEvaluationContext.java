@@ -5,9 +5,11 @@ import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.util.Objects;
+import java.util.List;
+import java.util.Map;
 
 import com.braintribe.gm.model.reason.Maybe;
-import com.braintribe.model.bvd.navigation.PropertyPath;
+import com.braintribe.gm.model.reason.ReasonException;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.value.ValueDescriptor;
@@ -19,6 +21,14 @@ import dev.hiconic.template.api.TemplateNodeEvaluator;
 import dev.hiconic.template.api.VdEvaluator;
 import dev.hiconic.template.model.core.TemplateEvaluationDefaults;
 import dev.hiconic.template.model.core.TemplateNode;
+import dev.hiconic.template.model.evaluation.NullPathElement;
+import dev.hiconic.template.model.evaluation.PathEvaluationError;
+import dev.hiconic.template.model.core.vd.TemplateVariable;
+import dev.hiconic.template.model.core.vd.TemplatePropertyPath;
+import dev.hiconic.template.model.core.path.PropertyAccess;
+import dev.hiconic.template.model.core.path.ListIndexAccess;
+import dev.hiconic.template.model.core.path.MapKeyAccess;
+import dev.hiconic.template.model.core.path.PathAccess;
 
 public class RuntimeTemplateEvaluationContext extends AbstractScopedTemplateEvaluationContext {
 	private final ConfigurableTemplateExpertRegistry registry;
@@ -52,10 +62,12 @@ public class RuntimeTemplateEvaluationContext extends AbstractScopedTemplateEval
 	@Override
 	public Object evaluate(ValueDescriptor vd) {
 		Objects.requireNonNull(vd, "vd");
+		if (vd instanceof TemplateVariable variable)
+			return getVariable(variable.getSymbol());
+		if (vd instanceof TemplatePropertyPath propertyPath)
+			return evaluateTemplatePropertyPath(propertyPath);
 		if (vd instanceof Variable variable)
 			return getVariable(variable.getName());
-		if (vd instanceof PropertyPath propertyPath)
-			return evaluatePropertyPath(propertyPath);
 
 		VdEvaluator<ValueDescriptor, Object> evaluator = vdEvaluator(vd);
 		if (evaluator == null)
@@ -63,7 +75,7 @@ public class RuntimeTemplateEvaluationContext extends AbstractScopedTemplateEval
 					+ vd.entityType().getTypeSignature());
 		Maybe<Object> maybe = evaluator.transform(this, vd);
 		if (maybe.isUnsatisfied())
-			throw new IllegalArgumentException(maybe.whyUnsatisfied().stringify());
+			throw new ReasonException(maybe.whyUnsatisfied());
 		return maybe.get();
 	}
 
@@ -105,24 +117,76 @@ public class RuntimeTemplateEvaluationContext extends AbstractScopedTemplateEval
 		output.flush();
 	}
 
-	private Object evaluatePropertyPath(PropertyPath propertyPath) {
-		Object current = propertyPath.getEntity();
-		if (current instanceof ValueDescriptor descriptor)
-			current = evaluate(descriptor);
-
-		for (String segment : propertyPath.getPropertyPath().split("\\.")) {
-			if (!(current instanceof GenericEntity entity))
-				throw new IllegalArgumentException("Cannot access property '" + segment + "' on "
-						+ (current == null ? "null" : current.getClass().getName()));
-			Property property = entity.entityType().findProperty(segment);
-			if (property == null)
-				throw new IllegalArgumentException("Unknown property '" + segment + "' on "
-						+ entity.entityType().getTypeSignature());
-			current = property.get(entity);
-			if (current instanceof ValueDescriptor descriptor)
-				current = evaluate(descriptor);
+	private Object evaluateTemplatePropertyPath(TemplatePropertyPath path) {
+		Object current = evaluate(path.getRoot());
+		String fullPath = TemplatePaths.render(path);
+		for (var step : path.getAccesses()) {
+			String segment = segment(step);
+			if (current == null) {
+				if (optional(step)) return null;
+				throw new ReasonException(NullPathElement.create(fullPath, segment, "read", range(path, step)));
+			}
+			if (step instanceof PropertyAccess access) {
+				if (!(current instanceof GenericEntity entity))
+				throw new ReasonException(PathEvaluationError.create(fullPath, segment, "read",
+						"Receiver of '" + segment + "' in path '" + fullPath + "' is not an entity", range(path, step)));
+				Property property = access.getProperty().getResolvedProperty();
+				if (property == null) {
+					property = entity.entityType().findProperty(segment);
+					if (property == null) throw new ReasonException(PathEvaluationError.create(fullPath, segment, "read",
+							"Unknown property '" + segment + "' in path '" + fullPath + "'", range(path, step)));
+					access.getProperty().setResolvedProperty(property);
+				}
+				current = property.get(entity);
+			} else if (step instanceof ListIndexAccess access) {
+				Object indexValue = evaluateAccessValue(access, ListIndexAccess.T.findProperty("index"));
+				if (!(current instanceof List<?> list) || !(indexValue instanceof Integer index))
+					throw accessError(path, step, fullPath, segment, "List access requires a list receiver and integer index");
+				if (index < 0 || index >= list.size()) {
+					if (access.getOptional()) return null;
+					throw accessError(path, step, fullPath, segment, "List index " + index + " is out of bounds");
+				}
+				current = list.get(index);
+			} else if (step instanceof MapKeyAccess access) {
+				if (!(current instanceof Map<?, ?> map))
+					throw accessError(path, step, fullPath, segment, "Map-key access requires a map receiver");
+				Object key = evaluateAccessValue(access, MapKeyAccess.T.findProperty("key"));
+				if (!map.containsKey(key)) {
+					if (access.getOptional()) return null;
+					throw accessError(path, step, fullPath, segment, "Map key does not exist");
+				}
+				current = map.get(key);
+			} else {
+				throw accessError(path, step, fullPath, segment, "Unsupported path access");
+			}
+			current = TemplateValues.evaluate(this, current);
 		}
 		return current;
+	}
+
+	private Object evaluateAccessValue(GenericEntity access, Property property) {
+		ValueDescriptor descriptor = property.getVdDirect(access);
+		return descriptor == null ? property.getDirect(access) : evaluate(descriptor);
+	}
+
+	private ReasonException accessError(TemplatePropertyPath path, PathAccess access, String fullPath,
+			String segment, String message) {
+		return new ReasonException(PathEvaluationError.create(fullPath, segment, "read",
+				message + " in path '" + fullPath + "'", range(path, access)));
+	}
+
+	private static boolean optional(PathAccess access) {
+		return access instanceof PropertyAccess property && property.getOptional()
+				|| access instanceof ListIndexAccess index && index.getOptional()
+				|| access instanceof MapKeyAccess key && key.getOptional();
+	}
+
+	private static String segment(PathAccess access) {
+		return TemplatePaths.segment(access);
+	}
+
+	private static dev.hiconic.template.model.parse.TextRange range(TemplatePropertyPath path, PathAccess access) {
+		return access.getSourceRange() == null ? path.getSourceRange() : access.getSourceRange();
 	}
 
 	@SuppressWarnings("unchecked")
