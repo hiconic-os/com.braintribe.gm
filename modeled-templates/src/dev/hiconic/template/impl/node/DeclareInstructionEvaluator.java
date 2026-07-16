@@ -16,6 +16,9 @@ import dev.hiconic.template.api.ValidationContext;
 import dev.hiconic.template.model.core.decl.DeclareInstruction;
 import dev.hiconic.template.model.core.decl.VariableDefinition;
 import static dev.hiconic.template.impl.parser.DefinitionTools.*;
+import dev.hiconic.template.model.core.SequenceNode;
+import dev.hiconic.template.model.core.TemplateNode;
+import dev.hiconic.template.model.core.TextNode;
 import dev.hiconic.template.model.core.decl.RuntimePropertySpecification;
 import dev.hiconic.template.model.core.decl.RuntimeTypeSpecification;
 
@@ -28,7 +31,12 @@ public class DeclareInstructionEvaluator implements TemplateNodeEvaluator<Declar
 	@Override
 	public Reason complete(ValidationContext context, DeclareInstruction node) {
 		Reason completion = completeSignature(context, node);
-		return completion == null ? validate(context, node) : completion;
+		if (completion != null)
+			return completion;
+		Reason validation = validate(context, node);
+		if (validation == null)
+			normalizeDeclarationIndent(node.getBlock());
+		return validation;
 	}
 
 	public Reason completeSignature(ValidationContext context, DeclareInstruction node) {
@@ -163,5 +171,116 @@ public class DeclareInstructionEvaluator implements TemplateNodeEvaluator<Declar
 						+ "' does not match declaration parameter at position " + i);
 		}
 		return null;
+	}
+
+	private static void normalizeDeclarationIndent(TemplateNode block) {
+		int indent = commonIndent(block);
+		if (indent > 0)
+			stripIndent(block, indent);
+	}
+
+	private static int commonIndent(TemplateNode node) {
+		IndentScan scan = new IndentScan();
+		scan.visit(node);
+		return scan.commonIndent();
+	}
+
+	private static void stripIndent(TemplateNode node, int indent) {
+		new IndentStrip(indent).visit(node);
+	}
+
+	private static final class IndentScan {
+		private int common = Integer.MAX_VALUE;
+		private boolean lineStart = true;
+		private boolean blank = true;
+		private int indent = 0;
+
+		private void visit(TemplateNode node) {
+			if (node instanceof SequenceNode sequence && sequence.getNodes() != null) {
+				for (TemplateNode child : sequence.getNodes())
+					visit(child);
+				return;
+			}
+			if (node instanceof TextNode text) {
+				visit(text.getText());
+			} else {
+				nonWhitespace();
+			}
+		}
+
+		private void visit(String text) {
+			if (text == null) return;
+			for (int i = 0; i < text.length(); i++) {
+				char ch = text.charAt(i);
+				if (ch == '\n') {
+					finishLine();
+				} else if (ch == '\r') {
+					// ignore CR; LF closes CRLF lines
+				} else if (lineStart && (ch == ' ' || ch == '\t')) {
+					indent++;
+				} else {
+					nonWhitespace();
+				}
+			}
+		}
+
+		private void nonWhitespace() {
+			if (lineStart) lineStart = false;
+			blank = false;
+		}
+
+		private void finishLine() {
+			if (!blank)
+				common = Math.min(common, indent);
+			lineStart = true;
+			blank = true;
+			indent = 0;
+		}
+
+		private int commonIndent() {
+			finishLine();
+			return common == Integer.MAX_VALUE ? 0 : common;
+		}
+	}
+
+	private static final class IndentStrip {
+		private final int indent;
+		private boolean lineStart = true;
+		private int removed = 0;
+
+		private IndentStrip(int indent) {
+			this.indent = indent;
+		}
+
+		private void visit(TemplateNode node) {
+			if (node instanceof SequenceNode sequence && sequence.getNodes() != null) {
+				for (TemplateNode child : sequence.getNodes())
+					visit(child);
+				return;
+			}
+			if (node instanceof TextNode text)
+				text.setText(strip(text.getText()));
+			else
+				lineStart = false;
+		}
+
+		private String strip(String text) {
+			if (text == null || text.isEmpty()) return text;
+			StringBuilder result = new StringBuilder(text.length());
+			for (int i = 0; i < text.length(); i++) {
+				char ch = text.charAt(i);
+				if (ch == '\n') {
+					result.append(ch);
+					lineStart = true;
+					removed = 0;
+				} else if (lineStart && removed < indent && (ch == ' ' || ch == '\t')) {
+					removed++;
+				} else {
+					result.append(ch);
+					if (ch != '\r') lineStart = false;
+				}
+			}
+			return result.toString();
+		}
 	}
 }

@@ -1,6 +1,7 @@
 package dev.hiconic.template.api;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -30,6 +31,7 @@ public final class TemplateFactory {
 	private final CmdResolver expertCmdResolver;
 	private final boolean allowNoEscape;
 	private final TemplateEvaluationDefaults defaults;
+	private final Map<String, Template<?>> templates;
 
 	TemplateFactory(List<Consumer<TemplateExpertRegistry>> configurers, TemplateParserOptions options,
 			String rootVariable, CmdResolver cmdResolver, boolean allowNoEscape) {
@@ -40,6 +42,13 @@ public final class TemplateFactory {
 	TemplateFactory(Supplier<ConfigurableTemplateExpertRegistry> registrySupplier, TemplateParserOptions options,
 			String rootVariable, CmdResolver inputCmdResolver, CmdResolver expertCmdResolver, boolean allowNoEscape,
 			TemplateEvaluationDefaults defaults) {
+		this(registrySupplier, options, rootVariable, inputCmdResolver, expertCmdResolver, allowNoEscape, defaults,
+				Map.of());
+	}
+
+	TemplateFactory(Supplier<ConfigurableTemplateExpertRegistry> registrySupplier, TemplateParserOptions options,
+			String rootVariable, CmdResolver inputCmdResolver, CmdResolver expertCmdResolver, boolean allowNoEscape,
+			TemplateEvaluationDefaults defaults, Map<String, Template<?>> templates) {
 		this.registry = new Lazy<>(registrySupplier);
 		this.options = Objects.requireNonNull(options, "options");
 		this.rootVariable = Objects.requireNonNull(rootVariable, "rootVariable");
@@ -47,6 +56,7 @@ public final class TemplateFactory {
 		this.expertCmdResolver = expertCmdResolver;
 		this.allowNoEscape = allowNoEscape;
 		this.defaults = Objects.requireNonNull(defaults, "defaults");
+		this.templates = Map.copyOf(templates);
 	}
 
 	public static TemplateFactoryBuilder builder() {
@@ -60,37 +70,52 @@ public final class TemplateFactory {
 
 	public TemplateFactory options(TemplateParserOptions options) {
 		return new TemplateFactory(this::prototypeRegistry, options, rootVariable, inputCmdResolver, expertCmdResolver,
-				allowNoEscape, defaults);
+				allowNoEscape, defaults, templates);
 	}
 
 	public TemplateFactory rootVariable(String rootVariable) {
 		return new TemplateFactory(this::prototypeRegistry, options, rootVariable, inputCmdResolver, expertCmdResolver,
-				allowNoEscape, defaults);
+				allowNoEscape, defaults, templates);
 	}
 
 	public TemplateFactory cmdResolver(CmdResolver cmdResolver) {
 		return new TemplateFactory(this::prototypeRegistry, options, rootVariable, cmdResolver, cmdResolver,
-				allowNoEscape, defaults);
+				allowNoEscape, defaults, templates);
 	}
 
 	public TemplateFactory inputCmdResolver(CmdResolver inputCmdResolver) {
 		return new TemplateFactory(this::prototypeRegistry, options, rootVariable, inputCmdResolver, expertCmdResolver,
-				allowNoEscape, defaults);
+				allowNoEscape, defaults, templates);
 	}
 
 	public TemplateFactory expertCmdResolver(CmdResolver expertCmdResolver) {
 		return new TemplateFactory(this::prototypeRegistry, options, rootVariable, inputCmdResolver, expertCmdResolver,
-				allowNoEscape, defaults);
+				allowNoEscape, defaults, templates);
 	}
 
 	public TemplateFactory allowNoEscape(boolean allowNoEscape) {
 		return new TemplateFactory(this::prototypeRegistry, options, rootVariable, inputCmdResolver, expertCmdResolver,
-				allowNoEscape, defaults);
+				allowNoEscape, defaults, templates);
 	}
 
 	public TemplateFactory defaults(TemplateEvaluationDefaults defaults) {
 		return new TemplateFactory(this::prototypeRegistry, options, rootVariable, inputCmdResolver, expertCmdResolver,
-				allowNoEscape, defaults);
+				allowNoEscape, defaults, templates);
+	}
+
+	public TemplateFactory withTemplate(String name, Template<?> template) {
+		Objects.requireNonNull(name, "name");
+		Objects.requireNonNull(template, "template");
+		if (name.isBlank())
+			throw new IllegalArgumentException("Template delegate name must not be blank");
+		if (!name.matches("[A-Za-z_][A-Za-z0-9_-]*"))
+			throw new IllegalArgumentException("Template delegate name is not a valid instruction name: " + name);
+		if (templates.containsKey(name))
+			throw new IllegalArgumentException("Template delegate already registered: " + name);
+		Map<String, Template<?>> derived = new LinkedHashMap<>(templates);
+		derived.put(name, template);
+		return new TemplateFactory(this::prototypeRegistry, options, rootVariable, inputCmdResolver, expertCmdResolver,
+				allowNoEscape, defaults, derived);
 	}
 
 	public TemplateFactory defaultLocale(Locale locale) {
@@ -115,7 +140,7 @@ public final class TemplateFactory {
 			ConfigurableTemplateExpertRegistry derived = prototypeRegistry();
 			configurer.accept(derived);
 			return derived;
-		}, options, rootVariable, inputCmdResolver, expertCmdResolver, allowNoEscape, defaults);
+		}, options, rootVariable, inputCmdResolver, expertCmdResolver, allowNoEscape, defaults, templates);
 	}
 
 	public <I extends GenericEntity> TypedTemplateFactory<I> withRoot(EntityType<I> rootType) {
@@ -191,6 +216,10 @@ public final class TemplateFactory {
 
 	TemplateEvaluationDefaults defaults() {
 		return defaults;
+	}
+
+	Map<String, Template<?>> templates() {
+		return templates;
 	}
 
 	private static GenericModelTypeReflection typeReflection() {

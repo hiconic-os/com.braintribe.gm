@@ -1,6 +1,8 @@
 package dev.hiconic.template.impl.parser;
 
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -31,6 +33,7 @@ import com.braintribe.model.generic.value.Variable;
 import com.braintribe.model.processing.meta.cmd.CmdResolver;
 
 import dev.hiconic.template.api.TemplateExpertRegistry;
+import dev.hiconic.template.api.Template;
 import dev.hiconic.template.api.TemplateParserResolver;
 import dev.hiconic.template.api.ValidationContext;
 import dev.hiconic.template.api.VdEvaluator;
@@ -49,6 +52,8 @@ import dev.hiconic.template.model.core.path.ListIndexAccess;
 import dev.hiconic.template.model.core.path.MapKeyAccess;
 import dev.hiconic.template.model.core.TemplateNode;
 import dev.hiconic.template.model.core.decl.DeclareInstruction;
+import dev.hiconic.template.model.core.decl.RuntimePropertySpecification;
+import dev.hiconic.template.model.core.decl.RuntimeTypeSpecification;
 import dev.hiconic.template.model.core.decl.VariableDefinition;
 import dev.hiconic.template.model.core.decl.Var;
 import dev.hiconic.template.model.core.instr.ForEach;
@@ -56,6 +61,8 @@ import dev.hiconic.template.model.core.instr.ForEachEntry;
 import dev.hiconic.template.model.core.instr.If;
 import dev.hiconic.template.model.core.instr.InstructionNode;
 import dev.hiconic.template.model.core.instr.BlockNode;
+import dev.hiconic.template.model.core.instr.BreakableNode;
+import dev.hiconic.template.model.core.instr.ContinuableNode;
 import dev.hiconic.template.model.core.instr.VariableDefiningNode;
 import dev.hiconic.template.model.core.instr.DirectiveNode;
 import dev.hiconic.template.model.core.instr.Switch;
@@ -65,6 +72,16 @@ import dev.hiconic.template.model.core.instr.Insert;
 import dev.hiconic.template.model.core.instr.Add;
 import dev.hiconic.template.model.core.instr.Put;
 import dev.hiconic.template.model.core.instr.Remove;
+import dev.hiconic.template.model.core.instr.RemoveAt;
+import dev.hiconic.template.model.core.instr.Break;
+import dev.hiconic.template.model.core.instr.BlockClause;
+import dev.hiconic.template.model.core.instr.Case;
+import dev.hiconic.template.model.core.instr.Continue;
+import dev.hiconic.template.model.core.instr.Default;
+import dev.hiconic.template.model.core.instr.While;
+import dev.hiconic.template.model.core.instr.Repeat;
+import dev.hiconic.template.model.core.instr.RenderTemplate;
+import dev.hiconic.template.model.core.instr.When;
 import dev.hiconic.template.model.core.instr.AssignmentTarget;
 import dev.hiconic.template.model.core.instr.PropertyAssignmentTarget;
 import dev.hiconic.template.model.core.instr.VariableAssignmentTarget;
@@ -76,6 +93,7 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 	private final TemplateExpertRegistry registry;
 	private final GenericModelType rootType;
 	private final String rootVariable;
+	private final Map<String, Template<?>> templates;
 	private final StandardLiteralParser literalParser;
 	private final StandardOutputExpressionParser outputParser;
 	private final TemplateValidationScope validationScope;
@@ -95,7 +113,10 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 	private final Map<GenericEntity, Map<Property, TextRange>> argumentRanges = new IdentityHashMap<>();
 	private final Map<GenericEntity, java.util.Set<Property>> nullArguments = new IdentityHashMap<>();
 	private final Map<String, EntityType<? extends InstructionNode>> standardInstructions = new HashMap<>();
-	private final TemplateTypeNameResolver typeNameResolver;
+	private final Deque<Boolean> breakableScopes = new ArrayDeque<>();
+	private final Deque<Boolean> continuableScopes = new ArrayDeque<>();
+	private final TemplateTypeNameResolver inputTypeNameResolver;
+	private final TemplateTypeNameResolver expertTypeNameResolver;
 	private TextRange activeRange;
 
 	public StandardTemplateApiResolver(ConfigurableTemplateExpertRegistry registry, GenericModelType rootType,
@@ -105,18 +126,29 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 
 	public StandardTemplateApiResolver(ConfigurableTemplateExpertRegistry registry, GenericModelType rootType,
 			String rootVariable, CmdResolver inputCmdResolver, CmdResolver expertCmdResolver) {
+		this(registry, rootType, rootVariable, inputCmdResolver, expertCmdResolver, Map.of());
+	}
+
+	public StandardTemplateApiResolver(ConfigurableTemplateExpertRegistry registry, GenericModelType rootType,
+			String rootVariable, CmdResolver inputCmdResolver, CmdResolver expertCmdResolver,
+			Map<String, Template<?>> templates) {
 		this.registry = registry;
 		this.rootType = rootType;
 		this.rootVariable = rootVariable;
+		this.templates = Map.copyOf(templates);
 		this.literalParser = inputCmdResolver == null ? new StandardLiteralParser() : new StandardLiteralParser(inputCmdResolver);
 		this.outputParser = new StandardOutputExpressionParser(registry, this);
 		this.validationScope = new TemplateValidationScope(Map.of(rootVariable, rootType));
 		this.completer = new ExpertModelCompleter(registry);
 		this.constraintValidator = new MetadataConstraintValidator(inputCmdResolver, expertCmdResolver);
-		this.typeNameResolver = expertCmdResolver == null ? null : new TemplateTypeNameResolver(expertCmdResolver);
+		this.inputTypeNameResolver = inputCmdResolver == null ? null : new TemplateTypeNameResolver(inputCmdResolver);
+		this.expertTypeNameResolver = expertCmdResolver == null ? null : new TemplateTypeNameResolver(expertCmdResolver);
 		standardInstructions.put("if", If.T);
 		standardInstructions.put("for-each", ForEach.T);
 		standardInstructions.put("for-each-entry", ForEachEntry.T);
+		standardInstructions.put("while", While.T);
+		standardInstructions.put("repeat", Repeat.T);
+		standardInstructions.put("render-template", RenderTemplate.T);
 		standardInstructions.put("switch", Switch.T);
 		standardInstructions.put("set", Set.T);
 		standardInstructions.put("append", Append.T);
@@ -124,6 +156,9 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 		standardInstructions.put("add", Add.T);
 		standardInstructions.put("put", Put.T);
 		standardInstructions.put("remove", Remove.T);
+		standardInstructions.put("remove-at", RemoveAt.T);
+		standardInstructions.put("break", Break.T);
+		standardInstructions.put("continue", Continue.T);
 		standardInstructions.put("var", Var.T);
 		if (registry.findScalarParser(Symbol.T) == null)
 			registry.registerScalarParser(Symbol.T, (source, context) -> source.matches("[A-Za-z_][A-Za-z0-9_-]*")
@@ -144,6 +179,7 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 		if (registry.findScalarParser(AssignmentTarget.T) == null)
 			registry.registerScalarParser(AssignmentTarget.T,
 					(dev.hiconic.template.api.ScalarEntityParser<AssignmentTarget>) (source, context) -> resolveAssignmentTarget(source));
+		declareTemplateDelegates();
 	}
 
 	@Override
@@ -153,6 +189,52 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 		argumentTypes.clear();
 		argumentRanges.clear();
 		nullArguments.clear();
+	}
+
+	private void declareTemplateDelegates() {
+		for (Map.Entry<String, Template<?>> entry : templates.entrySet()) {
+			DeclareInstruction declaration = delegateDeclaration(entry.getKey(), entry.getValue());
+			Maybe<DeclareInstruction> declared = declarationScope.declare(declaration);
+			if (declared.isUnsatisfied())
+				throw new IllegalArgumentException(declared.whyUnsatisfied().stringify());
+		}
+	}
+
+	private DeclareInstruction delegateDeclaration(String name, Template<?> template) {
+		VariableDefinition parameter = DefinitionTools.variable("input", template.rootType().getTypeSignature(), false);
+		parameter.setSymbol(symbols.intern("input"));
+
+		RuntimePropertySpecification property = RuntimePropertySpecification.T.create();
+		property.setName("input");
+		property.setTypeSignature(template.rootType().getTypeSignature());
+		property.setPositionalIndex(0);
+		property.setRequired(true);
+		property.setMetaData(new ArrayList<>());
+
+		RuntimeTypeSpecification argumentType = RuntimeTypeSpecification.T.create();
+		argumentType.setName(name + "Arguments");
+		argumentType.setProperties(new ArrayList<>());
+		argumentType.getProperties().add(property);
+
+		TemplateVariable input = TemplateVariable.T.create();
+		input.setName("input");
+		input.setSymbol(parameter.getSymbol());
+		input.setTypeSignature(template.rootType().getTypeSignature());
+		descriptorTypes.put(input, template.rootType());
+
+		RenderTemplate render = RenderTemplate.T.create();
+		render.setName(name);
+		RenderTemplate.input.property().setVdDirect(render, input);
+		render.setInputType(DefinitionTools.type(template.rootType().getTypeSignature()));
+
+		DeclareInstruction declaration = DeclareInstruction.T.create();
+		declaration.setName(symbols.intern(name));
+		declaration.setParameters(new ArrayList<>());
+		declaration.getParameters().add(parameter);
+		declaration.setVariableDefinitions(declaration.getParameters());
+		declaration.setArgumentType(argumentType);
+		declaration.setBlock(render);
+		return declaration;
 	}
 
 	@Override
@@ -165,6 +247,56 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 	public Maybe<? extends TemplateNode> resolveDirective(char sigil, String invocation, boolean blockFree, TextRange range) {
 		Located located = trim(invocation, range);
 		return withinRange(located.range(), () -> resolveDirectiveInternal(sigil, located.text(), blockFree));
+	}
+
+	@Override
+	public java.util.Set<String> clauseMarkers(GenericModelType expectedClauseType) {
+		if (!(expectedClauseType instanceof EntityType<?> expected))
+			return java.util.Set.of();
+		java.util.Set<String> markers = new LinkedHashSet<>();
+		addStandardClauseMarker(markers, expected, Case.T);
+		addStandardClauseMarker(markers, expected, When.T);
+		addStandardClauseMarker(markers, expected, Default.T);
+		if (expertTypeNameResolver != null)
+			markers.addAll(expertTypeNameResolver.aliasesForAssignableClauses(expected));
+		return markers;
+	}
+
+	private static void addStandardClauseMarker(java.util.Set<String> markers, EntityType<?> expected,
+			EntityType<? extends BlockClause> type) {
+		if (expected.isAssignableFrom(type))
+			markers.add(TemplateTypeNameResolver.toLowerKebabCase(type.getShortName()));
+	}
+
+	@Override
+	public Maybe<? extends GenericEntity> resolveClause(GenericModelType expectedClauseType, String marker,
+			String invocation, TextRange range) {
+		if (!(expectedClauseType instanceof EntityType<?> expected))
+			return Maybe.empty(ParseError.create("Clause target is not an entity type: "
+					+ expectedClauseType.getTypeSignature()));
+		Maybe<? extends EntityType<?>> type = resolveClauseType(expected, marker);
+		if (type.isUnsatisfied())
+			return Maybe.empty(type.whyUnsatisfied());
+		Maybe<List<ParsedArgument>> arguments = parseArguments(invocation, range, type.get());
+		return arguments.isSatisfied()
+				? reflectedEntityNormalizer.normalize(type.get(), arguments.get())
+				: Maybe.empty(arguments.whyUnsatisfied());
+	}
+
+	private Maybe<? extends EntityType<?>> resolveClauseType(EntityType<?> expected, String marker) {
+		for (EntityType<? extends BlockClause> type : List.of(Case.T, When.T, Default.T))
+			if (expected.isAssignableFrom(type)
+					&& marker.equals(TemplateTypeNameResolver.toLowerKebabCase(type.getShortName())))
+				return Maybe.complete(type);
+		if (expertTypeNameResolver == null)
+			return Maybe.empty(ParseError.create("Unknown block clause: " + marker));
+		Maybe<EntityType<?>> resolved = expertTypeNameResolver.resolve(marker, TemplateTypeNameResolver.Usage.CLAUSE);
+		if (resolved.isUnsatisfied())
+			return Maybe.empty(resolved.whyUnsatisfied());
+		return expected.isAssignableFrom(resolved.get())
+				? resolved
+				: Maybe.empty(ParseError.create("Clause '" + marker + "' is not assignable to "
+						+ expected.getTypeSignature()));
 	}
 
 	private Maybe<? extends TemplateNode> resolveDirectiveInternal(char sigil, String invocation, boolean blockFree) {
@@ -228,6 +360,9 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 	public Reason enterBlock(TemplateNode owner, String blockProperty, TextRange range) {
 		validationScope.enter();
 		declarationScope.enter();
+		boolean primaryBlock = "block".equals(blockProperty);
+		breakableScopes.push(primaryBlock && owner instanceof BreakableNode);
+		continuableScopes.push(primaryBlock && owner instanceof ContinuableNode);
 		if ("block".equals(blockProperty) && owner instanceof BlockNode block
 				&& block.getVariableDefinitions() != null) {
 			for (VariableDefinition definition : block.getVariableDefinitions()) {
@@ -242,6 +377,8 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 
 	@Override
 	public void exitBlock(TemplateNode owner, String blockProperty) {
+		continuableScopes.pop();
+		breakableScopes.pop();
 		declarationScope.exit();
 		validationScope.exit();
 	}
@@ -324,6 +461,8 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 
 	@SuppressWarnings("unchecked")
 	private GenericModelType expectedArgumentType(GenericEntity entity, Property property, GenericModelType reflectedType) {
+		if (entity instanceof When && property == When.condition.property())
+			return SimpleTypes.TYPE_BOOLEAN;
 		if (entity instanceof VariableDefinition definition && property == VariableDefinition.defaultValue.property()
 				&& definition.getType() != null)
 			return resolveType(definition.getType().getTypeSignature());
@@ -331,6 +470,15 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 			var evaluator = (dev.hiconic.template.api.TemplateNodeEvaluator<TemplateNode>) registry.findEvaluator(node.entityType());
 			if (evaluator != null) {
 				GenericModelType expected = evaluator.expectedArgumentType(this, node, property);
+				if (expected != null) return expected;
+			}
+		}
+		if (entity instanceof ValueDescriptor descriptor) {
+			@SuppressWarnings("unchecked")
+			VdEvaluator<ValueDescriptor, Object> evaluator =
+					(VdEvaluator<ValueDescriptor, Object>) registry.findVdEvaluator(descriptor.entityType());
+			if (evaluator != null) {
+				GenericModelType expected = evaluator.expectedArgumentType(this, descriptor, property);
 				if (expected != null) return expected;
 			}
 		}
@@ -359,8 +507,45 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 	}
 
 	@Override
+	public boolean canBreak() {
+		for (Boolean breakable : breakableScopes)
+			if (breakable) return true;
+		return false;
+	}
+
+	@Override
+	public boolean canContinue() {
+		for (Boolean continuable : continuableScopes)
+			if (continuable) return true;
+		return false;
+	}
+
+	@Override
+	public GenericModelType templateRootType(String name) {
+		Template<?> template = templates.get(name);
+		return template == null ? null : template.rootType();
+	}
+
+	@Override
 	public GenericModelType resolveType(String typeName) {
-		return GMF.getTypeReflection().findType(typeName);
+		String normalized = normalizeTypeSignature(typeName);
+		GenericModelType reflected = GMF.getTypeReflection().findType(normalized);
+		if (reflected != null)
+			return reflected;
+		GenericModelType resolved = resolveEntityType(inputTypeNameResolver, normalized);
+		if (resolved != null)
+			return resolved;
+		resolved = resolveEntityType(expertTypeNameResolver, normalized);
+		if (resolved != null)
+			return resolved;
+		return null;
+	}
+
+	private static GenericModelType resolveEntityType(TemplateTypeNameResolver resolver, String typeName) {
+		if (resolver == null)
+			return null;
+		Maybe<EntityType<?>> resolved = resolver.resolve(typeName, TemplateTypeNameResolver.Usage.ENTITY);
+		return resolved.isSatisfied() ? resolved.get() : null;
 	}
 
 	private Maybe<AssignmentTarget> resolveAssignmentTarget(String source) {
@@ -681,10 +866,6 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 		if (collection.isSatisfied()) return collection.get();
 		GenericModelType type = resolveType(typeName);
 		if (type != null) return type;
-		if (typeNameResolver != null) {
-			Maybe<EntityType<?>> entity = typeNameResolver.resolve(typeName, TemplateTypeNameResolver.Usage.ENTITY);
-			if (entity.isSatisfied()) return entity.get();
-		}
 		throw new IllegalArgumentException("Unknown literal type: " + typeName);
 	}
 
@@ -863,7 +1044,6 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 		if (registeredAliases.size() > 1)
 			return Maybe.empty(ParseError.create("Ambiguous entity type alias '" + name + "': "
 					+ registeredAliases.stream().map(GenericModelType::getTypeSignature).sorted().toList()));
-		if (typeNameResolver != null) return typeNameResolver.resolve(name, TemplateTypeNameResolver.Usage.ENTITY);
 		GenericModelType type = resolveType(name);
 		return type instanceof EntityType<?> entityType
 				? Maybe.complete(entityType)
@@ -1010,10 +1190,10 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 		EntityType<? extends InstructionNode> standard = standardInstructions.get(name);
 		if (standard != null)
 			return Maybe.complete(standard);
-		if (typeNameResolver == null)
+		if (expertTypeNameResolver == null)
 			return Maybe.empty(ParseError.create("Unknown directive: " + name));
 
-		Maybe<EntityType<?>> type = typeNameResolver.resolve(name, TemplateTypeNameResolver.Usage.INSTRUCTION);
+		Maybe<EntityType<?>> type = expertTypeNameResolver.resolve(name, TemplateTypeNameResolver.Usage.INSTRUCTION);
 		if (type.isUnsatisfied())
 			return Maybe.empty(type.whyUnsatisfied());
 		return Maybe.complete((EntityType<? extends DirectiveNode>) type.get());
@@ -1032,9 +1212,9 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 		if (matches.size() > 1)
 			return Maybe.empty(ParseError.create("Ambiguous value descriptor: " + name));
 
-		if (typeNameResolver == null)
+		if (expertTypeNameResolver == null)
 			return Maybe.empty(ParseError.create("Unknown value descriptor: " + name));
-		Maybe<EntityType<?>> type = typeNameResolver.resolve(name, TemplateTypeNameResolver.Usage.VALUE_DESCRIPTOR);
+		Maybe<EntityType<?>> type = expertTypeNameResolver.resolve(name, TemplateTypeNameResolver.Usage.VALUE_DESCRIPTOR);
 		if (type.isUnsatisfied())
 			return Maybe.empty(type.whyUnsatisfied());
 		return Maybe.complete((EntityType<? extends ValueDescriptor>) type.get());

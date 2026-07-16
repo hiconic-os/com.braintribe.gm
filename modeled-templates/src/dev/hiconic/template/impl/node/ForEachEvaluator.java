@@ -58,7 +58,16 @@ public class ForEachEvaluator implements TemplateNodeEvaluator<ForEach> {
 			variables.put(node.getVariable().getSymbol(), iterator.next());
 			if (node.getIndexVariable() != null)
 				variables.put(node.getIndexVariable().getSymbol(), index);
-			context.withSymbolVariables(variables, () -> context.evaluate(node.getBlock()));
+			try {
+				context.withSymbolVariables(variables, () -> context.evaluate(node.getBlock()));
+			} catch (FlowControlSignal signal) {
+				if (signal.kind() == FlowControlSignal.Kind.BREAK) break;
+				if (signal.kind() == FlowControlSignal.Kind.CONTINUE) {
+					index++;
+					continue;
+				}
+				throw signal;
+			}
 			index++;
 		}
 	}

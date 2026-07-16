@@ -27,4 +27,8 @@ public interface TemplateEvaluationContext {
 	boolean allowsNoEscape();
 	TemplateEvaluationDefaults defaults();
 	ResolvedTemplateDefaults resolvedDefaults();
+
+	default Template<?> resolveTemplate(String name) {
+		return null;
+	}
 }

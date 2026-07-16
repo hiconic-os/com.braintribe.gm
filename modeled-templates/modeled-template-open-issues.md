@@ -61,11 +61,17 @@ Die aktuelle Readonly-Regel schützt Binding-Wurzeln, ist aber bewusst nicht dee
 
 ## Priorität 5: Sprachumfang nach realem Bedarf
 
-Nicht entschieden beziehungsweise nicht implementiert:
+Teilweise erledigt:
 
-- condition-basierte Schleife (`while`/`for`) und `repeat n`;
-- gezielte Listenentfernung per Index (`remove-at`) gegenüber dem vorhandenen wertbasierten `remove`;
-- `break`/`continue` und deren Block-/Reason-Semantik;
+- `while condition` und `repeat n` sind als modellierte `BlockInstructionNode`s angelegt;
+- gezielte Listenentfernung per Index (`remove-at`) ist als `CollectionMutation` ergänzt;
+- `break`/`continue` sind modellierte `StatementInstructionNode`s und werden von `BreakableNode`/`ContinuableNode`-Capabilities konsumiert; der Parser validiert passende lexikalische Block-Owner.
+
+Noch offen beziehungsweise nicht entschieden:
+
+- condition-basierte `for`-Syntax über `while`/`repeat` hinaus;
+- feinere Runtime-Reasons für `break`/`continue`, falls ein Signal durch alle Owner bis zur Template-Wurzel propagiert;
+- Deklarations-/Makro-Semantik: ob eine declared instruction `break`/`continue` als Effekt annotieren und erst am Invoke-Ort gegen den dortigen Flow-Scope validieren darf;
 - Quote/Escape eines beliebigen Values/VDs als Datenwert;
 - weitere Operator-Zuckersyntax. Die derzeitige VD-Entity-Syntax bleibt vollständig und sollte nicht vorschnell verdoppelt werden.
 

@@ -58,7 +58,13 @@ public class ForEachEntryEvaluator implements TemplateNodeEvaluator<ForEachEntry
 			Map<Symbol, Object> variables = new LinkedHashMap<>(2);
 			if (node.getKey() != null) variables.put(node.getKey().getSymbol(), entry.getKey());
 			if (node.getValue() != null) variables.put(node.getValue().getSymbol(), entry.getValue());
-			context.withSymbolVariables(variables, () -> context.evaluate(node.getBlock()));
+			try {
+				context.withSymbolVariables(variables, () -> context.evaluate(node.getBlock()));
+			} catch (FlowControlSignal signal) {
+				if (signal.kind() == FlowControlSignal.Kind.BREAK) break;
+				if (signal.kind() == FlowControlSignal.Kind.CONTINUE) continue;
+				throw signal;
+			}
 		}
 	}
 

@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 
 import org.junit.Test;
@@ -16,8 +17,6 @@ import org.junit.Test;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.ReasonException;
-import com.braintribe.gm._ModeledTemplatesTestModel_;
-import com.braintribe.model.generic.GMF;
 import com.braintribe.model.meta.GmMetaModel;
 import com.braintribe.model.processing.meta.cmd.CmdResolverImpl;
 import com.braintribe.model.processing.meta.oracle.BasicModelOracle;
@@ -29,6 +28,7 @@ import dev.hiconic.template.model.core.SequenceNode;
 import dev.hiconic.template.model.evaluation.NullPathElement;
 import dev.hiconic.template.model.evaluation.PathEvaluationError;
 import dev.hiconic.template.model.parse.TemplateParseError;
+import dev.hiconic.template.test.model.ConstraintFixture;
 import dev.hiconic.template.test.model.TestAddress;
 import dev.hiconic.template.test.model.TestPerson;
 import dev.hiconic.template.test.model.TemplateTestInput;
@@ -273,6 +273,90 @@ public class TemplateApiTest {
 		person.setTags(new ArrayList<>(java.util.List.of("a")));
 		assertTrue(pathMutation.isSatisfied() ? "" : pathMutation.whyUnsatisfied().stringify(), pathMutation.isSatisfied());
 		assertEquals("ab", pathMutation.get().evaluateToString(person));
+	}
+
+	@Test
+	public void removeAtMutatesListsByIndex() {
+		String source = "%(var values list<string> value: [\"a\" \"drop\" \"b\"])"
+				+ "%(remove-at values 1)"
+				+ "%(for-each values value)${value}%(end)";
+		Maybe<Template<String>> maybe = TemplateFactories.html().withRoot(String.class).parse(source);
+
+		assertTrue(maybe.isSatisfied() ? "" : maybe.whyUnsatisfied().stringify(), maybe.isSatisfied());
+		assertEquals("ab", maybe.get().evaluateToString("ignored"));
+	}
+
+	@Test
+	public void collectionValueDescriptorsAreTypedAndEvaluateNaturally() {
+		String source = "%(var values list<string> value: [\"a\" \"b\"])"
+				+ "%(var tags set<string> value: set<string>[\"x\"])"
+				+ "%(var lookup map<string,integer> value: map<string,integer>{\"a\": 1 \"b\": 2})"
+				+ "%(if (eq (size values) 2))L%(end)"
+				+ "%(if (contains values \"b\"))C%(end)"
+				+ "%(if (contains tags \"x\"))S%(end)"
+				+ "%(if (contains-key lookup \"a\"))K%(end)"
+				+ "%(if (contains-value lookup 2))V%(end)";
+		Maybe<Template<String>> maybe = TemplateFactories.html().withRoot(String.class).parse(source);
+		Maybe<Template<String>> wrongElement = TemplateFactories.html().withRoot(String.class)
+				.parse("%(var values list<string> value: [])%(if (contains values 1))x%(end)");
+		Maybe<Template<String>> wrongKey = TemplateFactories.html().withRoot(String.class)
+				.parse("%(var lookup map<string,integer> value: map<string,integer>{})"
+						+ "%(if (contains-key lookup 1))x%(end)");
+
+		assertTrue(maybe.isSatisfied() ? "" : maybe.whyUnsatisfied().stringify(), maybe.isSatisfied());
+		assertEquals("LCSKV", maybe.get().evaluateToString("ignored"));
+		assertTrue(wrongElement.isUnsatisfied());
+		assertTrue(wrongElement.whyUnsatisfied().stringify(),
+				wrongElement.whyUnsatisfied().stringify().contains("expects string"));
+		assertTrue(wrongKey.isUnsatisfied());
+		assertTrue(wrongKey.whyUnsatisfied().stringify(),
+				wrongKey.whyUnsatisfied().stringify().contains("expects string"));
+	}
+
+	@Test
+	public void repeatAndWhileEvaluateLoopBlocks() {
+		Maybe<Template<String>> repeat = TemplateFactories.html().withRoot(String.class)
+				.parse("%(repeat 3 i)${i}%(end)");
+		Maybe<Template<String>> whileLoop = TemplateFactories.html().withRoot(String.class)
+				.parse("%(var i integer value: 0)%(while (lt i 3))${i}%(set i (add i 1))%(end)");
+
+		assertTrue(repeat.isSatisfied() ? "" : repeat.whyUnsatisfied().stringify(), repeat.isSatisfied());
+		assertEquals("012", repeat.get().evaluateToString("ignored"));
+		assertTrue(whileLoop.isSatisfied() ? "" : whileLoop.whyUnsatisfied().stringify(), whileLoop.isSatisfied());
+		assertEquals("012", whileLoop.get().evaluateToString("ignored"));
+	}
+
+	@Test
+	public void breakAndContinueAreConsumedByNearestLoopCapability() {
+		Maybe<Template<String>> breakLoop = TemplateFactories.html().withRoot(String.class)
+				.parse("%(var values list<string> value: [\"a\" \"b\" \"c\"])"
+						+ "%(for-each values value)${value}%(if (eq value \"b\"))%(break)%(end)X%(end)");
+		Maybe<Template<String>> continueLoop = TemplateFactories.html().withRoot(String.class)
+				.parse("%(var values list<string> value: [\"a\" \"b\" \"c\"])"
+						+ "%(for-each values value)%(if (eq value \"b\"))%(continue)%(end)${value}%(end)");
+
+		assertTrue(breakLoop.isSatisfied() ? "" : breakLoop.whyUnsatisfied().stringify(), breakLoop.isSatisfied());
+		assertEquals("aXb", breakLoop.get().evaluateToString("ignored"));
+		assertTrue(continueLoop.isSatisfied() ? "" : continueLoop.whyUnsatisfied().stringify(), continueLoop.isSatisfied());
+		assertEquals("ac", continueLoop.get().evaluateToString("ignored"));
+	}
+
+	@Test
+	public void breakAndContinueRequireMatchingEnclosingBlockCapability() {
+		Maybe<Template<String>> lonelyBreak = TemplateFactories.html().withRoot(String.class).parse("%(break)");
+		Maybe<Template<String>> lonelyContinue = TemplateFactories.html().withRoot(String.class).parse("%(continue)");
+		Maybe<Template<String>> continueInIfOnly = TemplateFactories.html().withRoot(String.class)
+				.parse("%(if true)%(continue)%(end)");
+
+		assertTrue(lonelyBreak.isUnsatisfied());
+		assertTrue(lonelyBreak.whyUnsatisfied().stringify(),
+				lonelyBreak.whyUnsatisfied().stringify().contains("enclosing breakable block"));
+		assertTrue(lonelyContinue.isUnsatisfied());
+		assertTrue(lonelyContinue.whyUnsatisfied().stringify(),
+				lonelyContinue.whyUnsatisfied().stringify().contains("enclosing continuable block"));
+		assertTrue(continueInIfOnly.isUnsatisfied());
+		assertTrue(continueInIfOnly.whyUnsatisfied().stringify(),
+				continueInIfOnly.whyUnsatisfied().stringify().contains("enclosing continuable block"));
 	}
 
 	@Test
@@ -601,6 +685,82 @@ public class TemplateApiTest {
 	}
 
 	@Test
+	public void declaredInstructionBodyIsRelativeAndIndentedAtCallSite() {
+		String source = "%(declare-instruction card {name string})\n"
+				+ "\t<div>\n"
+				+ "\t\t<label>${name}</label>\n"
+				+ "\t</div>\n"
+				+ "%(end)\n"
+				+ "<section>\n"
+				+ "\t%(card \"Elli\")\n"
+				+ "</section>";
+
+		Maybe<Template<TemplateTestInput>> maybe = TemplateFactories.html()
+				.withRoot(TemplateTestInput.T)
+				.parse(source);
+
+		assertTrue(maybe.isSatisfied() ? "" : maybe.whyUnsatisfied().stringify(), maybe.isSatisfied());
+		assertEquals("<section>\n"
+				+ "\t<div>\n"
+				+ "\t\t<label>Elli</label>\n"
+				+ "\t</div>\n"
+				+ "</section>", maybe.get().evaluateToString(TemplateTestInput.T.create()));
+	}
+
+	@Test
+	public void declaredInstructionInlineCallDoesNotReindentItsBody() {
+		String source = "%(declare-instruction card {name string})\n"
+				+ "\t<div>\n"
+				+ "\t\t${name}\n"
+				+ "\t</div>\n"
+				+ "%(end)\n"
+				+ "prefix:%(card \"Elli\")";
+
+		Maybe<Template<TemplateTestInput>> maybe = TemplateFactories.html()
+				.withRoot(TemplateTestInput.T)
+				.parse(source);
+
+		assertTrue(maybe.isSatisfied() ? "" : maybe.whyUnsatisfied().stringify(), maybe.isSatisfied());
+		assertEquals("prefix:<div>\n"
+				+ "\tElli\n"
+				+ "</div>", maybe.get().evaluateToString(TemplateTestInput.T.create()));
+	}
+
+	@Test
+	public void blockDirectiveWhitespaceIsStructuralAndCrlfSafe() {
+		String source = "%(declare-instruction node {person TestPerson})\n"
+				+ "<div>\n"
+				+ "\t<label>${person.name}</label>\n"
+				+ "\t%(for-each person.friends friend)\n"
+				+ "\t\t<span>${friend.name}</span>\n"
+				+ "\t%(end)\n"
+				+ "</div>\n"
+				+ "%(end)\n"
+				+ "%(node input)";
+		source = source.replace("\n", "\r\n");
+		Maybe<Template<TestPerson>> maybe = TemplateFactories.html()
+				.withRoot(TestPerson.T)
+				.parse(source);
+		TestPerson dirk = TestPerson.T.create();
+		TestPerson peter = TestPerson.T.create();
+		dirk.setName("Dirk");
+		peter.setName("Peter");
+		dirk.setFriends(new LinkedHashSet<>(java.util.List.of(peter)));
+		peter.setFriends(new LinkedHashSet<>());
+
+		assertTrue(maybe.isSatisfied() ? "" : maybe.whyUnsatisfied().stringify(), maybe.isSatisfied());
+		assertEquals(("<div>\n"
+				+ "\t<label>Dirk</label>\n"
+				+ "\t<span>Peter</span>\n"
+				+ "</div>").replace("\n", "\r\n"), maybe.get().evaluateToString(dirk));
+
+		dirk.setFriends(new LinkedHashSet<>());
+		assertEquals(("<div>\n"
+				+ "\t<label>Dirk</label>\n"
+				+ "</div>").replace("\n", "\r\n"), maybe.get().evaluateToString(dirk));
+	}
+
+	@Test
 	public void variableAndParameterDeclarationsShareTheSymbolTypePrefix() {
 		String source = "%(var empty string)${empty}"
 				+ "%(var inferred value: \"inferred\")${inferred}"
@@ -675,8 +835,69 @@ public class TemplateApiTest {
 		assertEquals("mutual", maybe.get().evaluateToString(TemplateTestInput.T.create()));
 	}
 
+	@Test
+	public void namedTemplateDelegatesAreTypedInstructions() {
+		TemplateFactory factory = TemplateFactories.html();
+		Maybe<Template<TestPerson>> card = factory.withRoot(TestPerson.T)
+				.parse("<b>${input.name}</b>");
+		assertTrue(card.isSatisfied() ? "" : card.whyUnsatisfied().stringify(), card.isSatisfied());
+
+		TemplateFactory withCard = factory.withTemplate("person-card", card.get());
+		Maybe<Template<TestPerson>> master = withCard.withRoot(TestPerson.T)
+				.parse("<p>%(person-card input)</p>");
+		Maybe<Template<TestPerson>> wrong = withCard.withRoot(TestPerson.T)
+				.parse("%(person-card \"not a person\")");
+
+		TestPerson ada = TestPerson.T.create();
+		ada.setName("Ada");
+
+		assertTrue(master.isSatisfied() ? "" : master.whyUnsatisfied().stringify(), master.isSatisfied());
+		assertEquals("<p><b>Ada</b></p>", master.get().evaluateToString(ada));
+		assertTrue(wrong.isUnsatisfied());
+		assertTrue(wrong.whyUnsatisfied().stringify(),
+				wrong.whyUnsatisfied().stringify().contains("Argument 'input' expects "
+						+ TestPerson.T.getTypeSignature()));
+	}
+
+	@Test
+	public void unknownDeclaredInstructionInsideBlockDoesNotHideParentEndMarker() {
+		String source = "%(declare-instruction node {done boolean})"
+				+ "%(if done)done%(else)%(nodes true)%(end)"
+				+ "%(end)%(node false)";
+
+		Maybe<Template<TemplateTestInput>> maybe = TemplateFactories.html()
+				.withRoot(TemplateTestInput.T)
+				.parse(source);
+
+		assertTrue(maybe.isUnsatisfied());
+		String reason = maybe.whyUnsatisfied().stringify();
+		assertTrue(reason, reason.contains("Unknown declared instruction: nodes"));
+		assertTrue(reason, !reason.contains("Missing '%(end)'"));
+		assertTrue(reason, !reason.contains("Missing block end after invalid directive"));
+	}
+
+	@Test
+	public void invalidDeclaredInstructionArgumentInsideNestedBlockDoesNotHideParentEndMarker() {
+		String source = "%(declare-instruction node {person TestPerson} {depth integer})"
+				+ "%(for-each person.friends friend)"
+				+ "%(node friend (add depth \"1\"))"
+				+ "%(end)"
+				+ "%(end)"
+				+ "%(node input 0)";
+
+		Maybe<Template<TestPerson>> maybe = TemplateFactories.html()
+				.withRoot(TestPerson.T)
+				.parse(source);
+
+		assertTrue(maybe.isUnsatisfied());
+		String reason = maybe.whyUnsatisfied().stringify();
+		assertTrue(reason, reason.contains("Add.right must evaluate to a numeric type"));
+		assertTrue(reason, !reason.contains("Missing '%(end)'"));
+		assertTrue(reason, !reason.contains("Missing block end after invalid directive"));
+	}
+
 	private static TemplateFactory metadataFactory() {
-		GmMetaModel model = GMF.getTypeReflection().getModel(_ModeledTemplatesTestModel_.name).getMetaModel();
+		GmMetaModel model = ConstraintFixture.T.getModel().getMetaModel();
 		var resolver = CmdResolverImpl.create(new BasicModelOracle(model)).done();
 		return TemplateFactories.html().cmdResolver(resolver);
 	}

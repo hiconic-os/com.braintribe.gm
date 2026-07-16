@@ -7,7 +7,7 @@ import com.braintribe.model.generic.annotation.meta.PositionalArguments;
 import dev.hiconic.template.model.core.decl.VariableDefinition;
 
 @PositionalArguments({"iterable", "variable"})
-public interface ForEach extends BlockInstructionNode {
+public interface ForEach extends BlockInstructionNode, BreakableNode, ContinuableNode {
 	EntityType<ForEach> T = EntityTypes.T(ForEach.class);
 
 	PropertyLiteral iterable = PropertyLiteral.of(T, "iterable");
