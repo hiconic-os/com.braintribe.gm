@@ -9,6 +9,10 @@ import java.util.Set;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.essential.ParseError;
+import com.braintribe.model.generic.GenericEntity;
+import com.braintribe.model.generic.reflection.CollectionType;
+import com.braintribe.model.generic.reflection.EntityType;
+import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.Property;
 
 import dev.hiconic.template.api.ParseRecoveryMode;
@@ -24,11 +28,12 @@ import dev.hiconic.template.model.core.TemplateNode;
 import dev.hiconic.template.model.core.TextNode;
 import dev.hiconic.template.model.core.SourceText;
 import dev.hiconic.template.model.core.instr.BlockInstructionNode;
+import dev.hiconic.template.model.core.instr.BlockClause;
+import dev.hiconic.template.model.core.instr.ClauseOnlyBlockNode;
 import dev.hiconic.template.model.core.instr.BlockNode;
 import dev.hiconic.template.model.core.instr.DirectiveNode;
 import dev.hiconic.template.model.core.instr.SilentNode;
-import dev.hiconic.template.model.core.instr.Switch;
-import dev.hiconic.template.model.core.instr.SwitchCase;
+import dev.hiconic.template.model.core.instr.InvokeInstruction;
 import dev.hiconic.template.model.core.instr.InstructionNode;
 import dev.hiconic.template.model.core.instr.WhitespaceAction;
 import dev.hiconic.template.model.core.instr.WhitespacePolicy;
@@ -159,7 +164,7 @@ public class StandardTemplateParser implements TemplateParser {
 				Maybe<? extends TemplateNode> resolved = resolver.resolveDirective(sigil, rawContent, blockFree, contentRange);
 				TemplateNode node = valueOrError(resolved, constructRange, "directive");
 				if (node == null) {
-					if (sigil == '%') {
+					if (sigil == '%' && isKnownBlockStart(firstWord(content))) {
 						Chunk skippedBlock = parseSequence(Set.of("end"));
 						if (skippedBlock.marker() == null)
 							addError("Missing block end after invalid directive", constructRange, null);
@@ -173,6 +178,7 @@ public class StandardTemplateParser implements TemplateParser {
 				if (blockInstruction && !blockFree) {
 					Reason scopeCompletion = resolver.completeScope(node, constructRange);
 					if (scopeCompletion != null) addError("Could not complete instruction scope", constructRange, scopeCompletion);
+					String blockIndent = lineIndentAt(markerStart);
 					enterBlock(node, "block", constructRange);
 					Chunk body;
 					try {
@@ -183,7 +189,16 @@ public class StandardTemplateParser implements TemplateParser {
 					if (node instanceof SilentNode && node instanceof DirectiveNode directive
 							&& directive.getWhitespace() == null)
 						trimSilentBlockBoundaries(body.sequence());
-					BlockNode.block.property().setDirect(node, compact(body.sequence()));
+					else {
+						stripBlockBodyIndent(body.sequence(), blockIndent);
+						trimBlockEndBoundary(body.sequence());
+					}
+					TemplateNode primaryBlock = compact(body.sequence());
+					if (node instanceof ClauseOnlyBlockNode && !isStructuralWhitespace(primaryBlock))
+						addError(node.entityType().getShortName()
+								+ " does not accept an implicit block; content must be inside clause blocks",
+								constructRange, null);
+					BlockNode.block.property().setDirect(node, primaryBlock);
 
 					Marker marker = body.marker();
 					if (marker == null) {
@@ -191,6 +206,7 @@ public class StandardTemplateParser implements TemplateParser {
 					}
 					while (marker != null && !"end".equals(marker.name())) {
 						Marker secondaryMarker = marker;
+						String secondaryIndent = lineIndentAt(marker.range().getStart().getOffset());
 						enterBlock(node, marker.name(), marker.range());
 						Chunk secondary;
 						try {
@@ -198,6 +214,8 @@ public class StandardTemplateParser implements TemplateParser {
 						} finally {
 							resolver.exitBlock(node, marker.name());
 						}
+						stripBlockBodyIndent(secondary.sequence(), secondaryIndent);
+						trimBlockEndBoundary(secondary.sequence());
 						if (!wireSecondaryBlock(node, marker, compact(secondary.sequence())))
 							nodes.add(errorNode("Could not wire secondary block '" + marker.name() + "'", marker.range()));
 						marker = secondary.marker();
@@ -267,10 +285,7 @@ public class StandardTemplateParser implements TemplateParser {
 		private Set<String> blockMarkers(TemplateNode node) {
 			Set<String> markers = new HashSet<>();
 			markers.add("end");
-			if (isSwitch(node)) {
-				markers.add("case");
-				markers.add("default");
-			}
+			markers.addAll(clauseMarkerNames(node));
 			for (Property property : node.entityType().getProperties()) {
 				if (!"block".equals(property.getName()) && acceptsTemplateNode(property))
 					markers.add(property.getName());
@@ -279,19 +294,31 @@ public class StandardTemplateParser implements TemplateParser {
 		}
 
 		private boolean isBlockInstruction(TemplateNode node) {
-			return isSwitch(node)
-					|| BlockNode.T.isAssignableFrom(node.entityType())
+			return BlockNode.T.isAssignableFrom(node.entityType())
 					|| node.entityType().findProperty(BlockNode.block.name()) != null;
 		}
 
-		private boolean isSwitch(TemplateNode node) {
-			return Switch.T.isAssignableFrom(node.entityType())
-					|| Switch.T.getTypeSignature().equals(node.entityType().getTypeSignature());
+		private Set<String> clauseMarkerNames(TemplateNode node) {
+			Set<String> names = new HashSet<>();
+			for (Property property : node.entityType().getProperties()) {
+				GenericModelType type = clauseType(property);
+				if (type != null)
+					names.addAll(resolver.clauseMarkers(type));
+			}
+			return names;
 		}
 
 		private boolean acceptsTemplateNode(Property property) {
 			return property.getType().isAssignableFrom(TemplateNode.T)
 					|| property.getType().getTypeSignature().equals(TemplateNode.T.getTypeSignature());
+		}
+
+		private GenericModelType clauseType(Property property) {
+			GenericModelType type = property.getType();
+			if (type instanceof CollectionType collectionType)
+				type = collectionType.getCollectionElementType();
+			return type instanceof EntityType<?> entityType && BlockClause.T.isAssignableFrom(entityType)
+					? entityType : null;
 		}
 
 		private void addResolved(List<TemplateNode> nodes, Maybe<? extends TemplateNode> maybe, TextRange range, String kind) {
@@ -305,7 +332,7 @@ public class StandardTemplateParser implements TemplateParser {
 			nodes.add(completionError == null ? node : recover("Completion or validation failed for " + kind, range, completionError));
 		}
 
-		private TemplateNode valueOrError(Maybe<? extends TemplateNode> maybe, TextRange range, String kind) {
+		private <T> T valueOrError(Maybe<? extends T> maybe, TextRange range, String kind) {
 			if (maybe == null) {
 				addError("Resolver returned null while resolving " + kind, range, null);
 				return null;
@@ -318,8 +345,8 @@ public class StandardTemplateParser implements TemplateParser {
 		}
 
 		private boolean wireSecondaryBlock(TemplateNode owner, Marker marker, TemplateNode block) {
-			if (isSwitch(owner))
-				return wireSwitchBlock(owner, marker, block);
+			if (wireClauseBlock(owner, marker, block))
+				return true;
 
 			Property property = owner.entityType().findProperty(marker.name());
 			if (property == null) {
@@ -340,32 +367,52 @@ public class StandardTemplateParser implements TemplateParser {
 		}
 
 		@SuppressWarnings("unchecked")
-		private boolean wireSwitchBlock(TemplateNode switchNode, Marker marker, TemplateNode block) {
-			List<SwitchCase> cases = Switch.cases.property().get(switchNode);
-			if (cases == null) {
-				cases = new ArrayList<>();
-				Switch.cases.property().setDirect(switchNode, cases);
+		private boolean wireClauseBlock(TemplateNode owner, Marker marker, TemplateNode block) {
+			ClauseSlot slot = resolveClauseSlot(owner, marker.name());
+			if (slot == null)
+				return false;
+			String arguments = marker.invocation().substring(marker.name().length()).trim();
+			Maybe<? extends GenericEntity> maybe = resolver.resolveClause(slot.type(), marker.name(), arguments, marker.range());
+			GenericEntity entity = valueOrError(maybe, marker.range(), "clause");
+			if (!(entity instanceof BlockClause clause)) {
+				addError("Clause marker '" + marker.name() + "' did not resolve to a BlockClause", marker.range(), null);
+				return false;
 			}
-			if ("default".equals(marker.name())) {
-				if (Switch.defaultBlock.property().get(switchNode) != null) {
-					addError("Switch default block occurs more than once", marker.range(), null);
+			clause.setBlock(block);
+			if (slot.collection()) {
+				List<BlockClause> clauses = (List<BlockClause>) slot.property().get(owner);
+				if (clauses == null) {
+					clauses = new ArrayList<>();
+					slot.property().setDirect(owner, clauses);
+				}
+				clauses.add(clause);
+			} else {
+				if (slot.property().getDirect(owner) != null) {
+					addError("Clause '" + marker.name() + "' occurs more than once", marker.range(), null);
 					return false;
 				}
-				Switch.defaultBlock.property().setDirect(switchNode, block);
-				return true;
+				slot.property().setDirect(owner, clause);
 			}
-			if (!"case".equals(marker.name()))
-				return false;
-			String value = marker.invocation().substring(marker.name().length()).trim();
-			if (value.isEmpty()) {
-				addError("Switch case requires a value", marker.range(), null);
-				return false;
-			}
-			SwitchCase switchCase = SwitchCase.T.create();
-			switchCase.setValue(value);
-			switchCase.setBlock(block);
-			cases.add(switchCase);
 			return true;
+		}
+
+		private ClauseSlot resolveClauseSlot(TemplateNode owner, String markerName) {
+			for (Property property : owner.entityType().getProperties()) {
+				GenericModelType type = property.getType();
+				boolean collection = false;
+				if (type instanceof CollectionType collectionType) {
+					collection = true;
+					type = collectionType.getCollectionElementType();
+				}
+				if (!(type instanceof EntityType<?> entityType) || !BlockClause.T.isAssignableFrom(entityType))
+					continue;
+				if (resolver.clauseMarkers(entityType).contains(markerName))
+					return new ClauseSlot(property, entityType, collection);
+			}
+			return null;
+		}
+
+		private record ClauseSlot(Property property, GenericModelType type, boolean collection) {
 		}
 
 		private TemplateNode recover(String message, TextRange range, Reason cause) {
@@ -433,12 +480,66 @@ public class StandardTemplateParser implements TemplateParser {
 			}
 		}
 
+		private void trimBlockEndBoundary(SequenceNode sequence) {
+			List<TemplateNode> nodes = sequence.getNodes();
+			if (nodes.isEmpty()) return;
+			if (nodes.get(nodes.size() - 1) instanceof TextNode last) {
+				String value = applyTrailingWhitespace(last.getText(), WhitespaceAction.trimLine);
+				if (value.isEmpty()) nodes.remove(nodes.size() - 1); else last.setText(value);
+			}
+		}
+
+		private void stripBlockBodyIndent(SequenceNode sequence, String indent) {
+			if (indent == null || indent.isEmpty())
+				return;
+			for (TemplateNode node : sequence.getNodes()) {
+				if (node instanceof TextNode text)
+					text.setText(stripLineIndent(text.getText(), indent));
+			}
+		}
+
+		private String stripLineIndent(String text, String indent) {
+			StringBuilder result = null;
+			boolean lineStart = true;
+			int i = 0;
+			while (i < text.length()) {
+				if (lineStart && startsWith(text, i, indent)) {
+					if (result == null) {
+						result = new StringBuilder(text.length());
+						result.append(text, 0, i);
+					}
+					i += indent.length();
+					lineStart = false;
+					continue;
+				}
+				char ch = text.charAt(i++);
+				if (result != null)
+					result.append(ch);
+				lineStart = ch == '\n';
+			}
+			return result == null ? text : result.toString();
+		}
+
+		private boolean startsWith(String text, int index, String prefix) {
+			if (index + prefix.length() > text.length())
+				return false;
+			for (int i = 0; i < prefix.length(); i++) {
+				if (text.charAt(index + i) != prefix.charAt(i))
+					return false;
+			}
+			return true;
+		}
+
 		private WhitespaceAction whitespace(TemplateNode node, boolean before) {
 			if (!(node instanceof DirectiveNode directive))
 				return node instanceof SilentNode ? WhitespaceAction.trimLine : WhitespaceAction.preserve;
 			WhitespacePolicy policy = directive.getWhitespace();
+			if (policy == null && node instanceof InvokeInstruction)
+				return WhitespaceAction.preserve;
+			if (policy == null && node instanceof BlockInstructionNode)
+				return before ? WhitespaceAction.trimLine : WhitespaceAction.preserve;
 			if (policy == null)
-				return node instanceof SilentNode ? WhitespaceAction.trimLine : WhitespaceAction.preserve;
+				return WhitespaceAction.trimLine;
 			WhitespaceAction action = before ? policy.getBefore() : policy.getAfter();
 			return action == null ? WhitespaceAction.preserve : action;
 		}
@@ -461,9 +562,30 @@ public class StandardTemplateParser implements TemplateParser {
 				while (i > 0 && Character.isWhitespace(text.charAt(i - 1))) i--;
 			} else {
 				while (i > 0 && (text.charAt(i - 1) == ' ' || text.charAt(i - 1) == '\t' || text.charAt(i - 1) == '\r')) i--;
-				if (i > 0 && text.charAt(i - 1) == '\n') i--; else return text;
+				if (i > 0 && text.charAt(i - 1) == '\n') {
+					i--;
+					if (i > 0 && text.charAt(i - 1) == '\r') i--;
+				} else {
+					return text;
+				}
 			}
 			return text.substring(0, i);
+		}
+
+		private String lineIndentAt(int offset) {
+			int lineStart = offset;
+			while (lineStart > 0) {
+				char ch = source.charAt(lineStart - 1);
+				if (ch == '\n' || ch == '\r')
+					break;
+				lineStart--;
+			}
+			for (int i = lineStart; i < offset; i++) {
+				char ch = source.charAt(i);
+				if (ch != ' ' && ch != '\t')
+					return "";
+			}
+			return source.substring(lineStart, offset);
 		}
 
 		private String unescapeTemplateText(String text) {
@@ -496,6 +618,21 @@ public class StandardTemplateParser implements TemplateParser {
 
 		private TemplateNode compact(SequenceNode sequence) {
 			return sequence.getNodes().size() == 1 ? sequence.getNodes().get(0) : sequence;
+		}
+
+		private boolean isStructuralWhitespace(TemplateNode node) {
+			if (node instanceof CommentNode)
+				return true;
+			if (node instanceof TextNode text)
+				return text.getText() == null || text.getText().isBlank();
+			if (node instanceof SequenceNode sequence) {
+				if (sequence.getNodes() == null) return true;
+				for (TemplateNode child : sequence.getNodes())
+					if (!isStructuralWhitespace(child))
+						return false;
+				return true;
+			}
+			return false;
 		}
 
 		private int findNextMarker(int from) {
@@ -554,12 +691,12 @@ public class StandardTemplateParser implements TemplateParser {
 		private boolean isMarker(String content) {
 			String word = firstWord(content);
 			return "end".equals(word) || "else".equals(word) || "empty".equals(word)
-					|| "default".equals(word) || "case".equals(word);
+					|| "default".equals(word) || "case".equals(word) || "when".equals(word);
 		}
 
 		private boolean isKnownBlockStart(String name) {
 			return "if".equals(name) || "for-each".equals(name) || "for-each-entry".equals(name) || "switch".equals(name)
-					|| "declare-instruction".equals(name);
+					|| "while".equals(name) || "repeat".equals(name) || "declare-instruction".equals(name);
 		}
 
 		private String firstWord(String content) {

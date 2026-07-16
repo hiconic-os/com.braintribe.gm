@@ -2,10 +2,14 @@ package dev.hiconic.template.api;
 
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
+import com.braintribe.model.generic.reflection.GenericModelType;
+import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.value.ValueDescriptor;
 
 public interface VdEvaluator<V extends ValueDescriptor, O> {
     Maybe<O> transform(TemplateEvaluationContext context, V vd);
+
+	default GenericModelType expectedArgumentType(ValidationContext context, V vd, Property property) { return null; }
 
     /**
      * Validates and completes a descriptor after parsing. A successful

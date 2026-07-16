@@ -18,12 +18,14 @@ import com.braintribe.model.processing.meta.cmd.CmdResolver;
 
 import dev.hiconic.template.model.core.instr.InstructionNode;
 import dev.hiconic.template.model.core.decl.DeclarationNode;
+import dev.hiconic.template.model.core.instr.BlockClause;
 
 public class TemplateTypeNameResolver {
 	public enum Usage {
 		ENTITY,
 		VALUE_DESCRIPTOR,
-		INSTRUCTION
+		INSTRUCTION,
+		CLAUSE
 	}
 
 	private final CmdResolver cmdResolver;
@@ -114,6 +116,22 @@ public class TemplateTypeNameResolver {
 		return configured != null ? configured : List.of(toLowerKebabCase(type.getShortName()));
 	}
 
+	public List<String> aliasesForAssignableClauses(EntityType<?> expectedType) {
+		List<String> result = new ArrayList<>();
+		cmdResolver.getModelOracle().getTypes().onlyEntities().<EntityType<?>>asTypes()
+				.filter(type -> accepts(type, Usage.CLAUSE))
+				.filter(type -> expectedType.isAssignableFrom(type))
+				.forEach(type -> {
+					for (String alias : functionalAliases(type))
+						if (!result.contains(alias))
+							result.add(alias);
+					for (Alias alias : type.getJavaType().getAnnotationsByType(Alias.class))
+						if (!result.contains(alias.value()))
+							result.add(alias.value());
+				});
+		return result;
+	}
+
 	private Maybe<EntityType<?>> accepted(EntityType<?> type, Usage usage, String name) {
 		return accepts(type, usage)
 				? Maybe.complete(type)
@@ -127,6 +145,7 @@ public class TemplateTypeNameResolver {
 			case ENTITY -> true;
 			case VALUE_DESCRIPTOR -> ValueDescriptor.T.isAssignableFrom(type);
 			case INSTRUCTION -> dev.hiconic.template.model.core.instr.DirectiveNode.T.isAssignableFrom(type);
+			case CLAUSE -> BlockClause.T.isAssignableFrom(type);
 		};
 	}
 
@@ -148,6 +167,7 @@ public class TemplateTypeNameResolver {
 			case ENTITY -> "model entity";
 			case VALUE_DESCRIPTOR -> "value descriptor";
 			case INSTRUCTION -> "template instruction";
+			case CLAUSE -> "template block clause";
 		};
 	}
 

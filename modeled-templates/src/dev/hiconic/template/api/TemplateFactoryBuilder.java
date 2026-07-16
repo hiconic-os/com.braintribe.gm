@@ -2,8 +2,10 @@ package dev.hiconic.template.api;
 
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -19,6 +21,7 @@ public final class TemplateFactoryBuilder {
 	private CmdResolver expertCmdResolver;
 	private boolean allowNoEscape = true;
 	private TemplateEvaluationDefaults defaults = TemplateDefaults.standard();
+	private final Map<String, Template<?>> templates = new LinkedHashMap<>();
 
 	public TemplateFactoryBuilder configure(Consumer<TemplateExpertRegistry> configurer) {
 		configurers.add(Objects.requireNonNull(configurer, "configurer"));
@@ -61,6 +64,18 @@ public final class TemplateFactoryBuilder {
 		return this;
 	}
 
+	public TemplateFactoryBuilder withTemplate(String name, Template<?> template) {
+		Objects.requireNonNull(name, "name");
+		Objects.requireNonNull(template, "template");
+		if (name.isBlank())
+			throw new IllegalArgumentException("Template delegate name must not be blank");
+		if (!name.matches("[A-Za-z_][A-Za-z0-9_-]*"))
+			throw new IllegalArgumentException("Template delegate name is not a valid instruction name: " + name);
+		if (templates.putIfAbsent(name, template) != null)
+			throw new IllegalArgumentException("Template delegate already registered: " + name);
+		return this;
+	}
+
 	public TemplateFactoryBuilder defaultLocale(Locale locale) {
 		this.defaults = TemplateDefaults.derive(defaults).locale(locale).build();
 		return this;
@@ -83,6 +98,6 @@ public final class TemplateFactoryBuilder {
 
 	public TemplateFactory build() {
 		return new TemplateFactory(TemplateFactory.lazyRegistry(configurers), options, rootVariable,
-				inputCmdResolver, expertCmdResolver, allowNoEscape, defaults);
+				inputCmdResolver, expertCmdResolver, allowNoEscape, defaults, templates);
 	}
 }

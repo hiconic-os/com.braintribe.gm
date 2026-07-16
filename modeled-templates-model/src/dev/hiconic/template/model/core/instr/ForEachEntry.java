@@ -10,7 +10,7 @@ import dev.hiconic.template.model.core.decl.VariableDefinition;
 
 /** Iterates a map with independently optional, statically typed key and value bindings. */
 @PositionalArguments({"iterable"})
-public interface ForEachEntry extends BlockInstructionNode {
+public interface ForEachEntry extends BlockInstructionNode, BreakableNode, ContinuableNode {
 	EntityType<ForEachEntry> T = EntityTypes.T(ForEachEntry.class);
 	PropertyLiteral iterable = PropertyLiteral.of(T, "iterable");
 	PropertyLiteral key = PropertyLiteral.of(T, "key");

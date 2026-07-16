@@ -232,6 +232,13 @@ ${...}     inferierter OutputNode; `$` liefert den konkreten erwarteten Typ
 
 Sigils eröffnen keinen fachlichen Spezialparser, sondern liefern dem gemeinsamen Entity-Parser lediglich einen erwarteten Typ. Weil `DirectiveNode` abstrakt ist, muss nach `%` die explizite `(...)`-Form mit einem konkreten Subtyp folgen. `OutputNode` und `CommentNode` sind konkret und können deshalb durch die inferierte `{...}`-Form aufgenommen werden. Die Typschranke verhindert beispielsweise `%(gt 1 0)`, weil `Gt` ein VD und kein `DirectiveNode` ist.
 
+Genauer ist `%(` eine Template-Control-Form, nicht garantiert ein frei stehender `InstructionNode`. Die meisten Control-Forms erzeugen modellierte `DirectiveNode`s. Blockmarker bilden eine strukturelle Ebene darüber:
+
+- `%(else)`, `%(empty)`, `%(case ...)`, `%(default)` usw. sind secondary block markers. Sie markieren den Übergang zu einer benannten Block-Property des umgebenden Owners. Bei `if` wird etwa `else` in die `elseBlock`-Property verdrahtet; bei `switch` erzeugt `case` mit seinen Parametern modellierte `SwitchCase`-Entities.
+- `%(end)` ist ein reiner Terminator. Er erzeugt keine Entity, keinen `TemplateNode` und keine Runtime-Instruktion. Er beendet nur den aktuell vom Parser geöffneten Block.
+
+Diese Unterscheidung ist gewollt. Würde jeder Block als `block: { ... }` in ein Entity-Literal gezwungen, wäre das formal symmetrischer, aber für Templates deutlich schlechter: Host-Markup bliebe nicht mehr natürlicher Stromtext, Whitespace- und Streaming-Semantik würden schwerer, und declared-instruction-Bodies müssten als große strukturierte Argumente statt als eigentliche Template-Blöcke gelesen werden. Die Klammerung von `%()` gehört deshalb zur Einbettung der Template-Control in den Hosttext; die Klammerung von `(Type ...)` und `{...}` gehört zur Modell-/Expression-Ebene.
+
 Beispiele:
 
 ```text
@@ -309,9 +316,21 @@ Collection-Mutationen sind ebenfalls gewöhnliche, stille Statements und verwend
 %(put people "ada" {name: "Ada"}) // map<K,V>, K, V
 %(remove names "Ada")             // list<T>/set<T>: Element
 %(remove people "ada")            // map<K,V>: Key
+%(remove-at names 0)              // list<T>, integer; Index 0..size-1
 ```
 
-Der zuständige Completion-Experte leitet Element-, Key- und Value-Typ aus der vollständig aufgelösten Zielsignatur ab. Damit durchlaufen Literale, Variablen, Pfade und ValueDescriptoren denselben Expression-Binder und dieselbe Assignability-Prüfung wie bei `set`; es gibt keine Collection-spezifische Nebengrammatik. `append` und `insert` akzeptieren ausschließlich Listen, `add` ausschließlich Sets und `put` ausschließlich Maps. `remove` wird allein durch den statischen Zieltyp eindeutig als Element- oder Key-Entfernung bestimmt.
+Der zuständige Completion-Experte leitet Element-, Key- und Value-Typ aus der vollständig aufgelösten Zielsignatur ab. Damit durchlaufen Literale, Variablen, Pfade und ValueDescriptoren denselben Expression-Binder und dieselbe Assignability-Prüfung wie bei `set`; es gibt keine Collection-spezifische Nebengrammatik. `append`, `insert` und `remove-at` akzeptieren ausschließlich Listen, `add` ausschließlich Sets und `put` ausschließlich Maps. `remove` wird allein durch den statischen Zieltyp eindeutig als Element- oder Key-Entfernung bestimmt.
+
+Collection- und Map-Abfragen sind ValueDescriptoren:
+
+```text
+(size values)                    // list<T>/set<T>/map<K,V> -> integer
+(contains values "Ada")          // list<T>/set<T>, T -> boolean
+(contains-key people "ada")      // map<K,V>, K -> boolean
+(contains-value people person)    // map<K,V>, V -> boolean
+```
+
+`is-empty` wird bewusst nicht als eigener VD eingeführt; es ist vollständig und lesbar über `(eq (size values) 0)` ausdrückbar. `contains` ist nur für Collections definiert. Für Maps bleibt die Semantik explizit über `contains-key` und `contains-value`, damit Key- und Value-Typen statisch getrennt validiert werden können.
 
 `input`, Instruction-Parameter und Loop-Variablen sind typisierte readonly Bindings. Nur `%(var ...)` erzeugt mutable Bindings. Readonly-Wurzeln dürfen weder direkt noch über Properties beschrieben werden. Readonly ist bewusst nicht tief: Wird eine referenzierte Entity in einer lokalen Variable abgelegt, folgt deren Mutation normaler Referenzsemantik.
 
@@ -540,6 +559,37 @@ Bei `ForEach` kann die skalare Definition unvollständig sein:
 ```
 
 Der `ForEach`-Experte validiert, dass `iterable` einen statisch bekannten `CollectionType` besitzt, überträgt dessen Elementtyp in `person.type`, setzt `required=true` und `mutable=false` und veröffentlicht die vervollständigte Definition. Fehlt das zweite Argument, wird der Name `_` verwendet. Secondary Blocks erben diese Definitionen nicht; Definitionen gelten grundsätzlich für den primären Block ihres Owners.
+
+`ForEach`, `ForEachEntry`, `While` und `Repeat` implementieren die modellierten Capabilities `BreakableNode` und `ContinuableNode`. `Break` und `Continue` sind normale `StatementInstructionNode`s; ihre Evaluatoren lösen interne Flow-Control-Signale aus. Nur ein umgebender Node mit passender Capability konsumiert diese Signale. Der Parser führt parallel zum Variablen-Scope einen Capability-Scope und validiert dadurch bereits beim Parsen, dass ein `%(break)` beziehungsweise `%(continue)` in einem lexikalisch umgebenden primären Block erlaubt ist:
+
+```text
+%(for-each input.persons person)
+  %(if person.hidden)
+    %(continue)
+  %(end)
+  ${person.name}
+  %(if person.last)
+    %(break)
+  %(end)
+%(end)
+```
+
+Die Capability liegt auf dem Block-Owner, nicht auf dem Namen einer konkreten Schleife. Dadurch können spätere Custom-BlockNodes dieselbe Flow-Control-Semantik anbieten, ohne dass `break` oder `continue` deren Typ kennen müssen. Secondary Blocks wie `empty` gelten nicht als Iterationskörper und veröffentlichen daher keine Break-/Continue-Capability.
+
+Weitere Basis-Loops:
+
+```text
+%(while (lt i 10))
+  ${i}
+  %(set i (add i 1))
+%(end)
+
+%(repeat 3 i)
+  ${i}
+%(end)
+```
+
+`while.condition` wird statisch als `boolean` erwartet. `repeat.count` wird als `integer` erwartet; eine optionale Indexvariable wird als readonly `integer` in den primären Blockscope veröffentlicht.
 
 Maps werden bewusst nicht über `ForEach` iteriert, weil ein künstlicher `Map.Entry<K,V>`-Elementtyp die getrennte statische Typinformation verwischen würde. Dafür existiert `ForEachEntry` mit unabhängig optionalen Key- und Value-Definitionen:
 
@@ -1113,7 +1163,166 @@ Die Policy wird wie jede andere Property gebunden; `{...}` inferiert dabei `Whit
     whitespace: { before: ::trimLine after: ::trimLine })
 ```
 
-`preserve` ist der Default. `trim` entfernt sämtlichen angrenzenden Whitespace. `trimLine` entfernt Einrückung und genau den angrenzenden Zeilenumbruch, sodass eine alleinstehende Instruction-Zeile keinen Leerraum hinterlässt.
+`preserve` erhält den angrenzenden Whitespace. `trim` entfernt sämtlichen angrenzenden Whitespace. `trimLine` entfernt horizontale Einrückung und genau einen angrenzenden Zeilenumbruch; CRLF wird dabei als ein Zeilenumbruch behandelt.
+
+#### 15.1.1 Directive- und SilentNode-Zeilen
+
+`DirectiveNode`s sind syntaktische Marker, aber nicht alle Marker haben dieselbe natürliche Boundary-Semantik. Ohne explizite `whitespace:`-Policy gelten diese Defaults:
+
+```text
+StatementInstructionNode / SilentNode:
+  before: trimLine
+  after : trimLine
+
+BlockInstructionNode:
+  before: trimLine
+  after : preserve
+
+InvokeInstruction:
+  before: preserve
+  after : preserve
+```
+
+`StatementInstructionNode`s wie `var`, `set` und Collection-Mutationen haben an ihrer syntaktischen Stelle keinen Output. Eine Zeile, die außer horizontalem Whitespace nur ein solches Statement enthält, verschwindet vollständig:
+
+```mt
+before
+  %(set value "b")
+after:${value}
+```
+
+ergibt:
+
+```text
+beforeafter:b
+```
+
+Inline-Verwendung bleibt dagegen stabil:
+
+```mt
+before %(var value string value: "x") after:${value}
+```
+
+ergibt:
+
+```text
+before  after:x
+```
+
+weil `trimLine` nur dann greift, wenn tatsächlich ein angrenzender Zeilenumbruch vorhanden ist. Whitespace, der inline fachlicher Text ist, bleibt erhalten. Wer Marker-Zeilen bewusst im Output erhalten will, setzt explizit `whitespace: { before: ::preserve after: ::preserve }`.
+
+#### 15.1.2 Block-Instruction-Boundaries
+
+`BlockInstructionNode`s wie `if`, `for-each` und `switch` unterscheiden zwischen der syntaktischen Markerzeile und dem modellierten Body:
+
+```mt
+<label>${person.name}</label>
+	%(for-each person.friends friend)
+		%(node friend)
+	%(end)
+</div>
+```
+
+Die Opening-Zeile des Blocks wird vor dem Node mit `trimLine` entfernt. Zusätzlich wird die Einrückung der Opening-Zeile aus den Body-Zeilen entfernt. Dadurch darf der Body so eingerückt werden, wie man es in einer PL erwarten würde, ohne dass diese syntaktische Einrückung zu zusätzlichem fachlichem Output-Whitespace wird.
+
+Beispiel:
+
+```mt
+<div>
+	<label>${person.name}</label>
+	%(for-each person.friends friend)
+		<span>${friend.name}</span>
+	%(end)
+</div>
+```
+
+Der `for-each`-Marker steht relativ zum `<div>` mit einem Tab. Der Body steht im Template PL-artig mit zwei Tabs. Beim Block-Wiring wird ein Tab als syntaktische Block-Einrückung entfernt, sodass der Body semantisch so wirkt:
+
+```mt
+<div>
+	<label>${person.name}</label>
+	<span>${friend.name}</span>
+</div>
+```
+
+Der Whitespace nach dem Opening-Marker bleibt also Teil des Block-Bodys, aber relativ zur Opening-Zeile normalisiert. Dadurch wird die erste Body-Zeile nur emittiert, wenn der Block tatsächlich evaluiert wird. Ein leerer `for-each` hinterlässt keine syntaktische Leerzeile; ein nicht-leerer `for-each` emittiert seine natürliche erste Output-Zeile.
+
+Die Whitespace-Zeile unmittelbar vor Blockmarkern wie `%(end)`, `%(else)`, `%(case)` und `%(default)` wird beim Block-Wiring aus dem jeweiligen `TemplateNode`-Block entfernt. Das ist AST-Semantik: der Parser entfernt syntaktischen Block-Rand aus dem Blockinhalt, der Evaluator formatiert keinen fertigen Output-String nach.
+
+#### 15.1.3 Declared instructions: relative Definition, call-site indentation
+
+`DeclareInstruction`-Bodies sind semantisch keine fertigen Strings, die nachträglich formatiert werden. Sie sind modellierte `TemplateNode`-Blöcke und verhalten sich wie streamingfähige Partials/Macros:
+
+1. Beim Completion-Schritt wird die lokale Schreib-Einrückung des deklarierten Blocks relativ normalisiert. Der Body wird also so behandelt, als sei seine gemeinsame minimale Einrückung nur Template-Layout.
+2. Beim Runtime-Invoke wird die reine Whitespace-Einrückung der aktuellen Aufrufzeile als Line-Prefix für weitere Zeilen des eingefügten Blocks verwendet.
+3. Das passiert streaming im `RuntimeTemplateEvaluationContext`; es wird kein vollständiger Render-String des Blocks gebuffert und anschließend manipuliert.
+
+Beispiel:
+
+```mt
+%(declare-instruction node {person TestPerson})
+	<div>
+		<label>${person.name}</label>
+	</div>
+%(end)
+
+<html>
+	<body>
+		%(node input)
+	</body>
+</html>
+```
+
+Der Deklarationsbody wird relativ zu:
+
+```mt
+<div>
+	<label>${person.name}</label>
+</div>
+```
+
+Der Aufruf steht auf einer Zeile mit zwei Tabs Einrückung. Diese Einrückung wird für die eingefügten Folgezeilen verwendet. Das Ergebnis ist:
+
+```html
+<html>
+	<body>
+		<div>
+			<label>Elli</label>
+		</div>
+	</body>
+</html>
+```
+
+Inline-Aufrufe haben keinen reinen Whitespace-Line-Prefix, weil vor dem Aufruf bereits fachlicher Text steht:
+
+```mt
+prefix:%(node input)
+```
+
+Hier wird der Body nicht zusätzlich auf `prefix:` eingerückt. Nur eine aktuelle Zeile, die bisher ausschließlich aus Space/Tab besteht, liefert einen call-site indent.
+
+Diese Regel ist bewusst keine globale Pretty-Print-Funktion. Sie betrifft nur declared-instruction-Blöcke, deren Body als relativer Modellblock verstanden wird, und nur die streamingfähige Einfügung an einer syntaktischen Aufrufstelle.
+
+Rekursive declared instructions nutzen dieselben Regeln. Die Einrückung der rekursiven Call-Zeile wird zur Einrückung des eingefügten Kindblocks:
+
+```mt
+%(declare-instruction node {person TestPerson} {depth integer})
+<div>
+	<label>${person.name} ${depth}</label>
+	%(for-each person.friends friend)
+		%(node friend (add depth 1))
+	%(end)
+</div>
+%(end)
+
+<html>
+	<body>
+		%(node input 0)
+	</body>
+</html>
+```
+
+Wichtige Folge: Hat `person.friends` keine Elemente, emittiert der leere `for-each` keine syntaktische Leerzeile. Hat er Elemente, beginnt jeder Kindblock an der Position der rekursiven `%(node ...)`-Zeile. Dadurch trägt das Template seine strukturelle Absicht im AST, ohne dass ein nachgelagerter HTML-Formatter oder String-Reindent nötig wäre.
 
 ### 15.2 JVM-Type Cache für modellierte Konfiguration
 

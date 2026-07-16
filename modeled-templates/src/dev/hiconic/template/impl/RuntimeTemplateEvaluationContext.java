@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Objects;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +39,9 @@ public class RuntimeTemplateEvaluationContext extends AbstractScopedTemplateEval
 	private final boolean allowNoEscape;
 	private final TemplateEvaluationDefaults defaults;
 	private final ResolvedTemplateDefaults resolvedDefaults;
+	private final Map<String, dev.hiconic.template.api.Template<?>> templates;
+	private final Deque<String> linePrefixes = new ArrayDeque<>();
+	private final StringBuilder currentLine = new StringBuilder();
 
 	public RuntimeTemplateEvaluationContext(ConfigurableTemplateExpertRegistry registry, OutputStream output,
 			Charset charset, boolean allowNoEscape) {
@@ -51,12 +56,19 @@ public class RuntimeTemplateEvaluationContext extends AbstractScopedTemplateEval
 	public RuntimeTemplateEvaluationContext(ConfigurableTemplateExpertRegistry registry, OutputStream output,
 			Charset charset, boolean allowNoEscape, TemplateEvaluationDefaults defaults,
 			ResolvedTemplateDefaults resolvedDefaults) {
+		this(registry, output, charset, allowNoEscape, defaults, resolvedDefaults, Map.of());
+	}
+
+	public RuntimeTemplateEvaluationContext(ConfigurableTemplateExpertRegistry registry, OutputStream output,
+			Charset charset, boolean allowNoEscape, TemplateEvaluationDefaults defaults,
+			ResolvedTemplateDefaults resolvedDefaults, Map<String, dev.hiconic.template.api.Template<?>> templates) {
 		this.registry = Objects.requireNonNull(registry, "registry");
 		this.output = Objects.requireNonNull(output, "output");
 		this.charset = Objects.requireNonNull(charset, "charset");
 		this.allowNoEscape = allowNoEscape;
 		this.defaults = Objects.requireNonNull(defaults, "defaults");
 		this.resolvedDefaults = Objects.requireNonNull(resolvedDefaults, "resolvedDefaults");
+		this.templates = Map.copyOf(templates);
 	}
 
 	@Override
@@ -92,10 +104,32 @@ public class RuntimeTemplateEvaluationContext extends AbstractScopedTemplateEval
 	@Override
 	public void append(String text) {
 		try {
-			output.write(text.getBytes(charset));
+			if (linePrefixes.isEmpty()) {
+				write(text);
+			} else {
+				writeWithLinePrefix(text, linePrefixes.peek());
+			}
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
+	}
+
+	public void withLinePrefix(String prefix, Runnable evaluation) {
+		linePrefixes.push(prefix == null ? "" : prefix);
+		try {
+			evaluation.run();
+		} finally {
+			linePrefixes.pop();
+		}
+	}
+
+	public String currentLineIndent() {
+		for (int i = 0; i < currentLine.length(); i++) {
+			char ch = currentLine.charAt(i);
+			if (ch != ' ' && ch != '\t')
+				return "";
+		}
+		return currentLine.toString();
 	}
 
 	@Override
@@ -113,8 +147,37 @@ public class RuntimeTemplateEvaluationContext extends AbstractScopedTemplateEval
 		return resolvedDefaults;
 	}
 
+	@Override
+	public dev.hiconic.template.api.Template<?> resolveTemplate(String name) {
+		return templates.get(name);
+	}
+
 	public void flush() throws IOException {
 		output.flush();
+	}
+
+	private void writeWithLinePrefix(String text, String prefix) throws IOException {
+		boolean afterNewline = false;
+		for (int i = 0; i < text.length(); i++) {
+			char ch = text.charAt(i);
+			if (afterNewline && ch != '\r' && ch != '\n' && !prefix.isEmpty())
+				write(prefix);
+			afterNewline = ch == '\n';
+			write(Character.toString(ch));
+		}
+	}
+
+	private void write(String text) throws IOException {
+		output.write(text.getBytes(charset));
+		trackCurrentLine(text);
+	}
+
+	private void trackCurrentLine(String text) {
+		for (int i = 0; i < text.length(); i++) {
+			char ch = text.charAt(i);
+			if (ch == '\n') currentLine.setLength(0);
+			else if (ch != '\r') currentLine.append(ch);
+		}
 	}
 
 	private Object evaluateTemplatePropertyPath(TemplatePropertyPath path) {

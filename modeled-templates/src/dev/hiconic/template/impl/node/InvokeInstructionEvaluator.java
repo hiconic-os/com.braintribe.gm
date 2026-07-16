@@ -12,6 +12,7 @@ import com.braintribe.model.generic.value.ValueDescriptor;
 import dev.hiconic.template.api.TemplateEvaluationContext;
 import dev.hiconic.template.api.TemplateNodeEvaluator;
 import dev.hiconic.template.api.ValidationContext;
+import dev.hiconic.template.impl.RuntimeTemplateEvaluationContext;
 import dev.hiconic.template.impl.TemplateValues;
 import dev.hiconic.template.model.core.decl.RuntimeArguments;
 import dev.hiconic.template.model.core.decl.RuntimePropertySpecification;
@@ -32,7 +33,13 @@ public class InvokeInstructionEvaluator implements TemplateNodeEvaluator<InvokeI
 			parameters.put(value.getSpecification().getName(), TemplateValues.evaluate(context, descriptor == null
 					? value.getValue() : context.evaluate(descriptor)));
 		}
-		context.withVariables(parameters, () -> context.evaluate(node.getDeclaration().getBlock()));
+		Runnable evaluation = () -> context.withVariables(parameters, () -> context.evaluate(node.getDeclaration().getBlock()));
+		if (context instanceof RuntimeTemplateEvaluationContext runtime) {
+			String indent = runtime.currentLineIndent();
+			runtime.withLinePrefix(indent, evaluation);
+		} else {
+			evaluation.run();
+		}
 	}
 
 	@Override

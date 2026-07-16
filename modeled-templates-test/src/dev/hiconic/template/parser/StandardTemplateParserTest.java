@@ -45,6 +45,8 @@ import dev.hiconic.template.model.core.TemplateNode;
 import dev.hiconic.template.model.core.TextNode;
 import dev.hiconic.template.model.core.instr.ForEach;
 import dev.hiconic.template.model.core.instr.If;
+import dev.hiconic.template.model.core.instr.Case;
+import dev.hiconic.template.model.core.instr.Default;
 import dev.hiconic.template.model.core.instr.Switch;
 import dev.hiconic.template.model.core.output.FormatDate;
 import dev.hiconic.template.model.core.output.HtmlEsc;
@@ -150,10 +152,11 @@ public class StandardTemplateParserTest {
 
 		assertTrue(maybe.isSatisfied() ? "" : reasonTree(maybe.whyUnsatisfied()), maybe.isSatisfied());
 		Switch switchNode = (Switch) maybe.get();
-		assertEquals(2, switchNode.getCases().size());
-		assertEquals("red", switchNode.getCases().get(0).getValue());
+		assertEquals(3, switchNode.getCases().size());
+		assertEquals("red", ((Case) switchNode.getCases().get(0)).getValue());
 		assertEquals("green", firstText(switchNode.getCases().get(1).getBlock()));
-		assertEquals("other", firstText(switchNode.getDefaultBlock()));
+		assertTrue(switchNode.getCases().get(2) instanceof Default);
+		assertEquals("other", firstText(switchNode.getCases().get(2).getBlock()));
 	}
 
 	@Test
@@ -179,11 +182,24 @@ public class StandardTemplateParserTest {
 
 		assertTrue(maybe.isIncomplete());
 		SequenceNode root = (SequenceNode) maybe.value();
-		assertEquals(3, root.getNodes().size());
+		assertEquals(5, root.getNodes().size());
 		ErrorNode error = (ErrorNode) root.getNodes().get(1);
 		assertTrue(error.getText().contains("TEMPLATE ERROR"));
 		assertTrue(error.getText().contains("line 1, column 8"));
-		assertEquals(" after", ((TextNode) root.getNodes().get(2)).getText());
+		assertEquals("hidden", ((TextNode) root.getNodes().get(2)).getText());
+		assertTrue(root.getNodes().get(3) instanceof ErrorNode);
+		assertEquals(" after", ((TextNode) root.getNodes().get(4)).getText());
+	}
+
+	@Test
+	public void unknownDirectiveInsideBlockDoesNotConsumeParentEndMarker() {
+		Maybe<TemplateNode> maybe = parser(TemplateParserOptions.SUBSTITUTE, new TestResolver())
+				.parse("%(if true)before %(unknown) after%(end)");
+
+		assertTrue(maybe.isIncomplete());
+		String reason = reasonTree(maybe.whyUnsatisfied());
+		assertTrue(reason, reason.contains("Unknown directive: unknown"));
+		assertTrue(reason, !reason.contains("Missing '%(end)'"));
 	}
 
 	@Test
@@ -370,6 +386,24 @@ public class StandardTemplateParserTest {
 				return Maybe.complete(node);
 			}
 			return Maybe.empty(ParseError.create("Unknown directive: " + invocation));
+		}
+
+		@Override
+		public java.util.Set<String> clauseMarkers(GenericModelType expectedClauseType) {
+			return java.util.Set.of("case", "default");
+		}
+
+		@Override
+		public Maybe<? extends GenericEntity> resolveClause(GenericModelType expectedClauseType, String marker,
+				String invocation, TextRange range) {
+			if ("case".equals(marker)) {
+				Case node = Case.T.create();
+				node.setValue(invocation.trim());
+				return Maybe.complete(node);
+			}
+			if ("default".equals(marker))
+				return Maybe.complete(Default.T.create());
+			return Maybe.empty(ParseError.create("Unknown clause: " + marker));
 		}
 
 		@Override

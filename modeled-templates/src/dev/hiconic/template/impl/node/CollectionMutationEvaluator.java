@@ -29,6 +29,7 @@ import dev.hiconic.template.model.core.instr.Insert;
 import dev.hiconic.template.model.core.instr.PropertyAssignmentTarget;
 import dev.hiconic.template.model.core.instr.Put;
 import dev.hiconic.template.model.core.instr.Remove;
+import dev.hiconic.template.model.core.instr.RemoveAt;
 import dev.hiconic.template.model.core.instr.VariableAssignmentTarget;
 
 public class CollectionMutationEvaluator<N extends CollectionMutation> implements TemplateNodeEvaluator<N> {
@@ -36,6 +37,7 @@ public class CollectionMutationEvaluator<N extends CollectionMutation> implement
 	public GenericModelType expectedArgumentType(ValidationContext context, N node, Property property) {
 		GenericModelType targetType = targetType(context, node);
 		if (node instanceof Insert && property == Insert.index.property()) return SimpleTypes.TYPE_INTEGER;
+		if (node instanceof RemoveAt && property == RemoveAt.index.property()) return SimpleTypes.TYPE_INTEGER;
 		if (targetType instanceof MapType map) {
 			if (node instanceof Put && property == Put.key.property()
 					|| node instanceof Remove && property == Remove.value.property()) return map.getKeyType();
@@ -70,6 +72,12 @@ public class CollectionMutationEvaluator<N extends CollectionMutation> implement
 			if (target instanceof Map map) map.remove(value);
 			else if (target instanceof Collection collection) collection.remove(value);
 			else throw runtime("Remove target is neither a collection nor a map");
+		} else if (node instanceof RemoveAt removeAt) {
+			if (!(target instanceof List list)) throw runtime("RemoveAt target is not a list");
+			Object indexValue = value(context, removeAt, RemoveAt.index.property());
+			if (!(indexValue instanceof Integer index) || index < 0 || index >= list.size())
+				throw runtime("RemoveAt index " + indexValue + " is outside 0.." + (list.size() - 1));
+			list.remove((int) index);
 		} else throw runtime("Unsupported collection mutation: " + node.entityType().getTypeSignature());
 	}
 
@@ -101,6 +109,7 @@ public class CollectionMutationEvaluator<N extends CollectionMutation> implement
 
 	private static boolean acceptsTarget(CollectionMutation node, GenericModelType type) {
 		if (node instanceof Append || node instanceof Insert) return type instanceof ListType;
+		if (node instanceof RemoveAt) return type instanceof ListType;
 		if (node instanceof Add) return type instanceof SetType;
 		if (node instanceof Put) return type instanceof MapType;
 		return node instanceof Remove && (type instanceof CollectionType || type instanceof MapType);
@@ -111,12 +120,14 @@ public class CollectionMutationEvaluator<N extends CollectionMutation> implement
 		if (node instanceof Insert) return Insert.value.property();
 		if (node instanceof Add) return Add.value.property();
 		if (node instanceof Remove) return Remove.value.property();
+		if (node instanceof RemoveAt) return RemoveAt.index.property();
 		return null;
 	}
 
 	private static List<Property> valueProperties(CollectionMutation node) {
 		if (node instanceof Insert) return List.of(Insert.index.property(), Insert.value.property());
 		if (node instanceof Put) return List.of(Put.key.property(), Put.value.property());
+		if (node instanceof RemoveAt) return List.of(RemoveAt.index.property());
 		return List.of(valueProperty(node));
 	}
 

@@ -3,6 +3,7 @@ package dev.hiconic.template.impl;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.util.Map;
 import java.util.Objects;
 
 import com.braintribe.model.generic.reflection.GenericModelType;
@@ -21,6 +22,7 @@ public class ModeledTemplate<I> implements Template<I> {
 	private final boolean allowNoEscape;
 	private final TemplateEvaluationDefaults defaults;
 	private final ResolvedTemplateDefaults resolvedDefaults;
+	private final Map<String, Template<?>> templates;
 
 	public ModeledTemplate(TemplateNode rootNode, GenericModelType rootType, String rootVariable,
 			ConfigurableTemplateExpertRegistry registry, boolean allowNoEscape) {
@@ -29,6 +31,12 @@ public class ModeledTemplate<I> implements Template<I> {
 
 	public ModeledTemplate(TemplateNode rootNode, GenericModelType rootType, String rootVariable,
 			ConfigurableTemplateExpertRegistry registry, boolean allowNoEscape, TemplateEvaluationDefaults defaults) {
+		this(rootNode, rootType, rootVariable, registry, allowNoEscape, defaults, Map.of());
+	}
+
+	public ModeledTemplate(TemplateNode rootNode, GenericModelType rootType, String rootVariable,
+			ConfigurableTemplateExpertRegistry registry, boolean allowNoEscape, TemplateEvaluationDefaults defaults,
+			Map<String, Template<?>> templates) {
 		this.rootNode = Objects.requireNonNull(rootNode, "rootNode");
 		this.rootType = Objects.requireNonNull(rootType, "rootType");
 		this.rootVariable = Objects.requireNonNull(rootVariable, "rootVariable");
@@ -36,6 +44,7 @@ public class ModeledTemplate<I> implements Template<I> {
 		this.allowNoEscape = allowNoEscape;
 		this.defaults = Objects.requireNonNull(defaults, "defaults");
 		this.resolvedDefaults = ResolvedTemplateDefaults.of(defaults);
+		this.templates = Map.copyOf(templates);
 	}
 
 	@Override
@@ -64,7 +73,8 @@ public class ModeledTemplate<I> implements Template<I> {
 			throw new IllegalArgumentException("Template input must be assignable to " + rootType.getTypeSignature()
 					+ " but was " + input.getClass().getName());
 		RuntimeTemplateEvaluationContext context =
-				new RuntimeTemplateEvaluationContext(registry, output, charset, allowNoEscape, defaults, resolvedDefaults);
+				new RuntimeTemplateEvaluationContext(registry, output, charset, allowNoEscape, defaults, resolvedDefaults,
+						templates);
 		context.declareReadonlyVariable(rootVariable, input);
 		context.evaluate(rootNode);
 		context.flush();

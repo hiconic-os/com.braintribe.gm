@@ -29,4 +29,13 @@ public interface ValidationContext {
 	default GenericModelType resolveType(String typeName) {
 		return GMF.getTypeReflection().findType(typeName);
 	}
+
+	/** True iff the currently parsed/evaluated lexical block can consume a break signal. */
+	default boolean canBreak() { return false; }
+
+	/** True iff the currently parsed/evaluated lexical block can consume a continue signal. */
+	default boolean canContinue() { return false; }
+
+	/** Root type of a named template delegate visible to the parser, if any. */
+	default GenericModelType templateRootType(String name) { return null; }
 }
