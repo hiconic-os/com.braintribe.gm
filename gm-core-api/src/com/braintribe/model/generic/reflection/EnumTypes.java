@@ -22,10 +22,17 @@ import com.braintribe.model.generic.GMF;
  */
 public class EnumTypes {
 
-	private static GenericModelTypeReflection typeReflection = GMF.getTypeReflection();
+	// See GM_INITIALIZATION
+
+	// DO NOT EVEN THINK ABOUT UNCOMMENTING THIS!!!!
+	// private static GenericModelTypeReflection typeReflection = GMF.getTypeReflection();
 
 	public static <E extends Enum<E>> EnumType<E> T(Class<E> clazz) {
-		return typeReflection.getEnumTypeSafe(clazz);
+		if (!GM_INITIALIZATION.T_LITERAL_INIT_ENABLED)
+			return null;
+
+		// DO NOT EXTRACT TO A FILED!!!
+		return GMF.getTypeReflection().getEnumTypeSafe(clazz);
 	}
 
 }

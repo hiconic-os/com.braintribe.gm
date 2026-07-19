@@ -23,14 +23,21 @@ import com.braintribe.model.generic.GenericEntity;
  */
 public class EntityTypes {
 
-	private static GenericModelTypeReflection typeReflection = GMF.getTypeReflection();
+	// See GM_INITIALIZATION
+
+	// DO NOT EVEN THINK ABOUT UNCOMMENTING THIS!!!!
+	// private static GenericModelTypeReflection typeReflection = GMF.getTypeReflection();
 
 	public static <T extends GenericEntity> EntityType<T> T(Class<T> clazz) {
-		return typeReflection.getEntityType(clazz);
+		if (!GM_INITIALIZATION.T_LITERAL_INIT_ENABLED)
+			return null;
+
+		// DO NOT EXTRACT TO A FILED!!!
+		return GMF.getTypeReflection().getEntityType(clazz);
 	}
 
 	public static EntityType<?> get(String typeSignature) {
-		return typeReflection.getType(typeSignature);
+		return GMF.getTypeReflection().getType(typeSignature);
 	}
 
 }
