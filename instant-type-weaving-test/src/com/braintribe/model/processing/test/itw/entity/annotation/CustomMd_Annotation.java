@@ -41,4 +41,5 @@ public @interface CustomMd_Annotation {
 	CustomMdEnum[] customEnumSet() default {};
 	CustomMdAnnoEnum convertedEnum() default CustomMdAnnoEnum.alpha;
 	CustomMdAnnoEnum[] convertedEnumList() default {};
+	int[] integerList() default {};
 }

@@ -43,7 +43,8 @@ public interface HasCustomMdProperties extends GenericEntity {
 			customEnumList = { CustomMdEnum.aaa, CustomMdEnum.bbb }, //
 			customEnumSet = { CustomMdEnum.aaa, CustomMdEnum.ccc }, //
 			convertedEnum = CustomMdAnnoEnum.beta, //
-			convertedEnumList = { CustomMdAnnoEnum.alpha, CustomMdAnnoEnum.gamma } //
+			convertedEnumList = { CustomMdAnnoEnum.alpha, CustomMdAnnoEnum.gamma }, //
+			integerList = { 1, 2, 3 } //
 	)
 	String getCustomMd();
 	void setCustomMd(String customMd);

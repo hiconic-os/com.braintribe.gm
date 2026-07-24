@@ -132,6 +132,13 @@ import com.braintribe.model.generic.reflection.StandardTraversingContext;
 				p.setDirectUnsafe(entity, dValue);
 				continue;
 			}
+			if (eAbsent) {
+				Object dValue = p.getDirectUnsafe(defaults);
+				if (dValue instanceof GenericEntity) {
+					p.setDirectUnsafe(entity, findSanitizedElement(dValue));
+					continue;
+				}
+			}
 
 			Object eValue = p.get(entity);
 			if (!eAbsent && eValue == null)

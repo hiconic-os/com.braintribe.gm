@@ -79,6 +79,20 @@ public class EntityMergerTest {
 		assertThat(eRoot.getString()).isEqualTo("entity-value");
 	}
 
+	@Test
+	public void absentEntityProperty_TakenFromDefaults() {
+		MergedEntity eRoot = createAbsentEntity();
+
+		MergedEntity dChild = createEntity("default-child");
+		dChild.setString("default-value");
+		MergedEntity dRoot = MergedEntity.T.create();
+		dRoot.setBase(dChild);
+
+		merge(eRoot, dRoot);
+
+		assertThat(eRoot.getBase()).isSameAs(dChild);
+	}
+
 	// ###########################################
 	// ## . . . . . . . . Lists . . . . . . . . ##
 	// ###########################################

@@ -15,8 +15,6 @@
 // ============================================================================
 package com.braintribe.model.generic.annotation.meta.api;
 
-import static com.braintribe.utils.lcd.CollectionTools2.asLinkedSet;
-import static com.braintribe.utils.lcd.CollectionTools2.asList;
 import static com.braintribe.utils.lcd.CollectionTools2.newList;
 import static com.braintribe.utils.lcd.CollectionTools2.newSet;
 import static com.braintribe.utils.lcd.CollectionTools2.substract;
@@ -35,6 +33,7 @@ import java.lang.reflect.Type;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Enumeration;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
@@ -374,7 +373,7 @@ import com.braintribe.model.meta.data.MetaData;
 		if (!annoAttrType.isArray()) {
 			Class<?> mdType = mdGetter.getReturnType();
 
-			if (mdGetter.getReturnType() == annoAttrType)
+			if (areEquivalentTypes(mdType, annoAttrType))
 				return simpleAtp(methodHandle);
 			else
 				return autoConvertingAtp(annoAttrType, mdType, methodHandle);
@@ -396,16 +395,42 @@ import com.braintribe.model.meta.data.MetaData;
 
 			if (typeArguments.length == 1) {
 				Type mdElementType = typeArguments[0];
-				if (mdElementType == annoComponetType)
-					return simpleAtp(methodHandle);
-
-				if (mdElementType instanceof Class)
-					return autoConvertingAtp(annoComponetType, (Class<?>) mdElementType, methodHandle);
+				if (mdElementType instanceof Class) {
+					Class<?> mdElementClass = (Class<?>) mdElementType;
+					return areEquivalentTypes(annoComponetType, mdElementClass) ? simpleAtp(methodHandle)
+							: autoConvertingAtp(annoComponetType, mdElementClass, methodHandle);
+				}
 			}
 		}
 
 		logWrongType(annoAttrType, rawReturnType);
 		return null;
+	}
+
+	private boolean areEquivalentTypes(Class<?> first, Class<?> second) {
+		return first == second || boxedType(first) == boxedType(second);
+	}
+
+	private Class<?> boxedType(Class<?> type) {
+		if (!type.isPrimitive())
+			return type;
+		if (type == boolean.class)
+			return Boolean.class;
+		if (type == byte.class)
+			return Byte.class;
+		if (type == char.class)
+			return Character.class;
+		if (type == short.class)
+			return Short.class;
+		if (type == int.class)
+			return Integer.class;
+		if (type == long.class)
+			return Long.class;
+		if (type == float.class)
+			return Float.class;
+		if (type == double.class)
+			return Double.class;
+		return type;
 	}
 
 	private AttributeToProperty autoConvertingAtp(Class<?> attributeType, Class<?> mdType, MethodHandle methodHandle) {
@@ -524,10 +549,15 @@ import com.braintribe.model.meta.data.MetaData;
 		if (!value.getClass().isArray())
 			return value;
 
+		int length = Array.getLength(value);
+		List<Object> values = newList();
+		for (int i = 0; i < length; i++)
+			values.add(Array.get(value, i));
+
 		if (atp.property.getType().getTypeCode() == TypeCode.listType)
-			return asList((Object[]) value);
+			return values;
 		else
-			return asLinkedSet((Object[]) value);
+			return new LinkedHashSet<>(values);
 	}
 
 	private void copyFromMdToAnnotationDescriptor(AttributeToProperty atp, MetaData md, SingleAnnotationDescriptor descriptor) {

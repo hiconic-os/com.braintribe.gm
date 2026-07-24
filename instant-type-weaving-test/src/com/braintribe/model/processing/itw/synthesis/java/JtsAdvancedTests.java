@@ -67,6 +67,7 @@ public class JtsAdvancedTests extends ImportantItwTestSuperType {
 			assertThat(anno.customEnum()).isEqualTo(CustomMdEnum.bbb);
 			assertThat(anno.customEnumList()).containsExactly(CustomMdEnum.aaa, CustomMdEnum.bbb);
 			assertThat(anno.customEnumSet()).containsExactly(CustomMdEnum.aaa, CustomMdEnum.ccc);
+			assertThat(anno.integerList()).containsExactly(1, 2, 3);
 		}
 
 		{

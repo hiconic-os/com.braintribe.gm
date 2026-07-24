@@ -46,4 +46,7 @@ public interface CustomMd extends UniversalMetaData {
 	List<CustomMdGmEnum> getConvertedEnumList();
 	void setConvertedEnumList(List<CustomMdGmEnum> convertedEnumList);
 
+	List<Integer> getIntegerList();
+	void setIntegerList(List<Integer> integerList);
+
 }

@@ -89,6 +89,7 @@ public class CustomMdAnnotationTests extends ImportantItwTestSuperType {
 			assertThat(md.getCustomEnumSet()).containsExactly(CustomMdEnum.aaa, CustomMdEnum.ccc);
 			assertThat(md.getConvertedEnum()).isEqualTo(CustomMdGmEnum.beta);
 			assertThat(md.getConvertedEnumList()).containsExactly(CustomMdGmEnum.alpha, CustomMdGmEnum.gamma);
+			assertThat(md.getIntegerList()).containsExactly(1, 2, 3);
 		}
 
 		{
