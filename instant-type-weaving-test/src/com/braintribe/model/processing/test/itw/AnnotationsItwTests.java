@@ -38,6 +38,8 @@ import com.braintribe.model.generic.annotation.meta.Aliases;
 import com.braintribe.model.generic.annotation.meta.Bidirectional;
 import com.braintribe.model.generic.annotation.meta.Color;
 import com.braintribe.model.generic.annotation.meta.CompoundUnique;
+import com.braintribe.model.generic.annotation.meta.CompositeIndex;
+import com.braintribe.model.generic.annotation.meta.CompositeIndices;
 import com.braintribe.model.generic.annotation.meta.CompoundUniques;
 import com.braintribe.model.generic.annotation.meta.Description;
 import com.braintribe.model.generic.annotation.meta.Descriptions;
@@ -167,12 +169,65 @@ public class AnnotationsItwTests extends ImportantItwTestSuperType {
 		assertThat(globalIdToPropertyNames.get("md.compoundUniques2")).containsExactly("propA", "propB");
 	}
 
+	@Test
+	public void entityWithCompositeIndex() {
+		// Build model
+		GmEntityType ge = geGmEntityType();
+
+		GmEntityType gmType = newGmEntityType("itw.test.HasCompositeIndex", ge);
+		gmType.getMetaData().add(compositeIndex("md.compositeIndex", "prop1", "prop2"));
+
+		// Run GMTS
+		EntityType<?> et = gmts.ensureEntityType(gmType);
+
+		// Assert annotations
+		CompositeIndex declaredAnnotation = et.getJavaType().getDeclaredAnnotation(CompositeIndex.class);
+
+		assertThat(declaredAnnotation).isNotNull();
+		assertThat(declaredAnnotation.globalId()).isEqualTo("md.compositeIndex");
+		assertThat(declaredAnnotation.value()).containsExactly("prop1", "prop2");
+	}
+
+	@Test
+	public void entityWithCompositeIndices() {
+		// Build model
+		GmEntityType ge = geGmEntityType();
+
+		GmEntityType gmType = newGmEntityType("itw.test.HasCompositeIndices", ge);
+		gmType.getMetaData().add(compositeIndex("md.compositeIndex1", "prop1", "prop2"));
+		gmType.getMetaData().add(compositeIndex("md.compositeIndex2", "propA", "propB"));
+
+		// Run GMTS
+		EntityType<GenericEntity> et = gmts.ensureEntityType(gmType);
+
+		// Assert annotations
+		CompositeIndices declaredAnnotation = et.getJavaType().getDeclaredAnnotation(CompositeIndices.class);
+
+		assertThat(declaredAnnotation).isNotNull();
+
+		Map<String, String[]> globalIdToPropertyNames = Stream.of(declaredAnnotation.value()) //
+				.collect(Collectors.toMap( //
+						com.braintribe.model.generic.annotation.meta.CompositeIndex::globalId, //
+						com.braintribe.model.generic.annotation.meta.CompositeIndex::value) //
+				);
+
+		assertThat(globalIdToPropertyNames).hasSize(2).containsKeys("md.compositeIndex1", "md.compositeIndex2");
+		assertThat(globalIdToPropertyNames.get("md.compositeIndex1")).containsExactly("prop1", "prop2");
+		assertThat(globalIdToPropertyNames.get("md.compositeIndex2")).containsExactly("propA", "propB");
+	}
+
 	private static com.braintribe.model.meta.data.constraint.CompoundUnique compoundUnique(String globalId, String... propertyNames) {
 		com.braintribe.model.meta.data.constraint.CompoundUnique result = com.braintribe.model.meta.data.constraint.CompoundUnique.T.create(globalId);
 		result.setUniqueProperties(asSet(propertyNames));
 		return result;
 	}
 
+	private static com.braintribe.model.meta.data.query.CompositeIndex compositeIndex(String globalId, String... propertyNames) {
+		com.braintribe.model.meta.data.query.CompositeIndex result = com.braintribe.model.meta.data.query.CompositeIndex.T.create(globalId);
+		result.setPropertyNames(asList(propertyNames));
+		return result;
+	}
+	
 	//
 	// Mapping
 	//

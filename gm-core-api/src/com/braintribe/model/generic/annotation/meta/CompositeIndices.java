@@ -13,25 +13,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.meta.data.query;
+package com.braintribe.model.generic.annotation.meta;
 
-import com.braintribe.model.generic.reflection.EntityType;
-import com.braintribe.model.generic.reflection.EntityTypes;
-import com.braintribe.model.meta.data.ModelSkeletonCompatible;
-import com.braintribe.model.meta.data.PropertyMetaData;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Specifies that given property should be indexed in the persistence layer, with the possibility to specify {@link IndexType type} of index it should
- * be.
+ * Container for {@link Repeatable} annotation {@link CompositeIndex}.
  */
-public interface Index extends PropertyMetaData, ModelSkeletonCompatible {
-
-	EntityType<Index> T = EntityTypes.T(Index.class);
-
-	/**
-	 * Specifies the {@link IndexType type} of given index. If value is <tt>null</tt>, it is treated as {@link IndexType#auto}.
-	 */
-	IndexType getIndexType();
-	void setIndexType(IndexType indexType);
-
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ ElementType.TYPE })
+@Documented
+public @interface CompositeIndices {
+	CompositeIndex[] value();
 }

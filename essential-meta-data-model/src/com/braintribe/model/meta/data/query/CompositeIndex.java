@@ -1,6 +1,4 @@
 // ============================================================================
-// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2022
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -15,23 +13,21 @@
 // ============================================================================
 package com.braintribe.model.meta.data.query;
 
+import java.util.List;
+
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
+import com.braintribe.model.meta.data.EntityTypeMetaData;
 import com.braintribe.model.meta.data.ModelSkeletonCompatible;
-import com.braintribe.model.meta.data.PropertyMetaData;
 
 /**
- * Specifies that given property should be indexed in the persistence layer, with the possibility to specify {@link IndexType type} of index it should
- * be.
+ * Specifies that there should be a composite index for given list of properties..
  */
-public interface Index extends PropertyMetaData, ModelSkeletonCompatible {
+public interface CompositeIndex extends EntityTypeMetaData, ModelSkeletonCompatible {
 
-	EntityType<Index> T = EntityTypes.T(Index.class);
+	EntityType<CompositeIndex> T = EntityTypes.T(CompositeIndex.class);
 
-	/**
-	 * Specifies the {@link IndexType type} of given index. If value is <tt>null</tt>, it is treated as {@link IndexType#auto}.
-	 */
-	IndexType getIndexType();
-	void setIndexType(IndexType indexType);
+	List<String> getPropertyNames();
+	void setPropertyNames(List<String> propertyNames);
 
 }
