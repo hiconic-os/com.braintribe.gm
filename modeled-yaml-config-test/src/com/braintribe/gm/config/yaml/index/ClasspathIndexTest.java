@@ -2,11 +2,16 @@ package com.braintribe.gm.config.yaml.index;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * Tests for {@link ClasspathIndex}
@@ -16,6 +21,9 @@ import org.junit.Test;
 public class ClasspathIndexTest {
 
 	private final ClasspathIndex classpathIndex = new ClasspathIndex();
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Test
 	public void findAll() throws Exception {
@@ -42,6 +50,27 @@ public class ClasspathIndexTest {
 		List<ClasspathEntry> entries = classpathIndex.forPrefix("bs-prefix");
 
 		assertThat(entries).isEmpty();
+	}
+
+	@Test
+	public void loadsArtifactScopedFilesystemMirror() throws Exception {
+		Path root = temporaryFolder.newFolder("classpath-resources").toPath();
+		Path artifact = root.resolve("example-configuration-1.0");
+		Path config = artifact.resolve("HICONIC-CONF/example.yaml");
+		Path index = artifact.resolve("META-INF/classpath-index.txt");
+		Path origin = artifact.resolve("META-INF/classpath-origin.properties");
+		Files.createDirectories(config.getParent());
+		Files.createDirectories(index.getParent());
+		Files.writeString(config, "example: true\n", StandardCharsets.UTF_8);
+		Files.writeString(index, "# preserved comment\nHICONIC-CONF/example.yaml\n", StandardCharsets.UTF_8);
+		Files.writeString(origin, "artifactId=example-configuration\n", StandardCharsets.UTF_8);
+
+		List<ClasspathEntry> entries = new ClasspathIndex(root).all();
+
+		assertThat(entries).hasSize(1);
+		assertThat(entries.get(0).path).isEqualTo("HICONIC-CONF/example.yaml");
+		assertThat(entries.get(0).origin).isEqualTo("example-configuration");
+		assertThat(entries.get(0).url.getProtocol()).isEqualTo("file");
 	}
 
 	@Test

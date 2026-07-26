@@ -51,6 +51,16 @@ public class ConfigurationEntrySorterTest {
 	}
 
 	@Test
+	public void sortFilesystemEntriesByExplicitArtifactOrigin() {
+		ClasspathEntry aArt = new ClasspathEntry("config/my-entity.yaml", asUrl("file:/mirror/a/config/my-entity.yaml"), "aaa-artifact");
+		ClasspathEntry zArt = new ClasspathEntry("config/my-entity.yaml", asUrl("file:/mirror/z/config/my-entity.yaml"), "zzz-artifact");
+
+		List<ClasspathEntry> sorted = sortEntries(zArt, aArt);
+
+		assertThat(sorted).containsExactly(aArt, zArt);
+	}
+
+	@Test
 	public void noPriority_noDisambiguator_defaultsToMinusOneAndEmpty() {
 		ClasspathEntry noPriority = cpEntry("artifact", "1.0", "my-entity~uc.yaml");
 		ClasspathEntry yesPriority = cpEntry("artifact", "1.0", "my-entity~uc.1.yaml");

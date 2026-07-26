@@ -36,25 +36,31 @@ import com.braintribe.logging.Logger;
 	private static ComparableEntry<ClasspathEntry> cpEntryToComparable(ClasspathEntry cpEntry) {
 		// e.g. "jar:file:/C:/maven-repo/res-on-cp/1.0/res-on-cp-1.0.jar!/config/my-config~use-case.disambig-8.yaml"
 		String fullPath = cpEntry.url.toString();
-		if (!fullPath.startsWith("jar:file:"))
-			throw new IllegalStateException("Only classpath entries for jar files are supported for config loading, but found: " + fullPath);
+		String artifactId = cpEntry.origin;
+		int i;
+		if (artifactId.isEmpty()) {
+			if (!fullPath.startsWith("jar:file:"))
+				throw new IllegalStateException("Classpath entry has neither an artifact origin nor a jar URL: " + fullPath);
 
-		int i = fullPath.indexOf(".jar!/");
-		if (i < 0)
-			throw new IllegalStateException("Invalid classpath entry url: " + fullPath + ". Expected format: jar:file:/path/to/jar!/path/inside/jar");
+			i = fullPath.indexOf(".jar!/");
+			if (i < 0)
+				throw new IllegalStateException("Invalid classpath entry url: " + fullPath
+						+ ". Expected format: jar:file:/path/to/jar!/path/inside/jar");
 
-		// e.g. jar:file:/C:/maven-repo/res-on-cp/1.0/res-on-cp-1.0
-		String jarPath = fullPath.substring(0, i);
-		i = jarPath.lastIndexOf("/");
-		if (i < 0)
-			throw new IllegalStateException("Invalid classpath entry url: " + fullPath + ". Expected format: jar:file:/path/to/jar!/path/inside/jar");
+			// e.g. jar:file:/C:/maven-repo/res-on-cp/1.0/res-on-cp-1.0
+			String jarPath = fullPath.substring(0, i);
+			i = jarPath.lastIndexOf("/");
+			if (i < 0)
+				throw new IllegalStateException("Invalid classpath entry url: " + fullPath
+						+ ". Expected format: jar:file:/path/to/jar!/path/inside/jar");
 
-		// e.g. res-on-cp-1.0
-		String artifactWithVersion = jarPath.substring(i + 1);
-		i = artifactWithVersion.lastIndexOf("-");
+			// e.g. res-on-cp-1.0
+			String artifactWithVersion = jarPath.substring(i + 1);
+			i = artifactWithVersion.lastIndexOf("-");
 
-		// e.g. res-on-cp
-		String artifactId = i > 0 ? artifactWithVersion.substring(0, i) : artifactWithVersion;
+			// e.g. res-on-cp
+			artifactId = i > 0 ? artifactWithVersion.substring(0, i) : artifactWithVersion;
+		}
 
 		// e.g. config/my-config~use-case.disambig-8.yaml
 		String path = cpEntry.path;
