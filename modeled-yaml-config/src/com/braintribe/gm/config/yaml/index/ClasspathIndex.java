@@ -10,9 +10,12 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import com.braintribe.logging.Logger;
@@ -36,26 +39,41 @@ public class ClasspathIndex {
 	private static final Logger log = Logger.getLogger(ClasspathIndex.class);
 
 	private final ClassLoader classLoader;
-	private final Path filesystemRoot;
+	private final List<FilesystemSource> filesystemSources;
 
 	private final Lazy<List<ClasspathEntry>> lazyIndex = new Lazy<List<ClasspathEntry>>(this::loadIndex);
 
 	public ClasspathIndex() {
-		this(ClasspathIndex.class.getClassLoader(), null);
+		this(ClasspathIndex.class.getClassLoader(), Collections.emptyList());
 	}
 
 	public ClasspathIndex(ClassLoader classLoader) {
-		this(classLoader, null);
+		this(classLoader, Collections.emptyList());
 	}
 
 	/** Creates an index backed exclusively by an assembled filesystem mirror. */
 	public ClasspathIndex(Path filesystemRoot) {
-		this(null, requireFilesystemRoot(filesystemRoot));
+		this(List.of(filesystemSource(filesystemRoot, "")));
 	}
 
-	private ClasspathIndex(ClassLoader classLoader, Path filesystemRoot) {
+	/**
+	 * Creates an index backed exclusively by one or more artifact-scoped filesystem mirrors.
+	 * <p>
+	 * A source's logical prefix is prepended to every path from its artifact indexes. This permits a physically clearer projection such as
+	 * {@code packaged-conf/<artifact>/foo.yaml} to retain its canonical classpath identity {@code HICONIC-CONF/foo.yaml}.
+	 * Later sources replace an entry with the same logical path and artifact origin, allowing projections to coexist with a complete legacy mirror.
+	 */
+	public ClasspathIndex(List<FilesystemSource> filesystemSources) {
+		this(null, requireFilesystemSources(filesystemSources));
+	}
+
+	public static FilesystemSource filesystemSource(Path root, String logicalPrefix) {
+		return new FilesystemSource(requireFilesystemRoot(root), normalizeLogicalPrefix(logicalPrefix));
+	}
+
+	private ClasspathIndex(ClassLoader classLoader, List<FilesystemSource> filesystemSources) {
 		this.classLoader = classLoader;
-		this.filesystemRoot = filesystemRoot;
+		this.filesystemSources = filesystemSources;
 	}
 
 	public List<ClasspathEntry> all() {
@@ -110,11 +128,17 @@ public class ClasspathIndex {
 	private List<ClasspathEntry> loadIndex() {
 		List<ClasspathEntry> entries = newList();
 
-		if (filesystemRoot != null)
+		if (!filesystemSources.isEmpty())
 			loadFilesystemIndex(entries);
 		else
 			loadClasspathIndex(entries);
 
+		if (!filesystemSources.isEmpty()) {
+			Map<String, ClasspathEntry> distinctEntries = new LinkedHashMap<>();
+			for (ClasspathEntry entry : entries)
+				distinctEntries.put(entry.path + "\u0000" + entry.origin, entry);
+			entries = new ArrayList<>(distinctEntries.values());
+		}
 		entries.sort((e1, e2) -> e1.path.compareTo(e2.path));
 
 		return entries;
@@ -175,21 +199,26 @@ public class ClasspathIndex {
 	}
 
 	private void loadFilesystemIndex(List<ClasspathEntry> entries) {
-		if (!Files.isDirectory(filesystemRoot))
-			throw new IllegalStateException("Classpath resource mirror does not exist: " + filesystemRoot);
+		for (FilesystemSource source : filesystemSources)
+			loadFilesystemIndex(source, entries);
+	}
 
-		try (var children = Files.list(filesystemRoot)) {
+	private void loadFilesystemIndex(FilesystemSource source, List<ClasspathEntry> entries) {
+		if (!Files.isDirectory(source.root))
+			throw new IllegalStateException("Classpath resource mirror does not exist: " + source.root);
+
+		try (var children = Files.list(source.root)) {
 			for (Path artifactRoot : children.filter(Files::isDirectory).sorted().toList()) {
 				Path index = artifactRoot.resolve(INDEX_FILE_NAME);
 				if (Files.isRegularFile(index))
-					addEntriesFromFilesystemIndex(artifactRoot, index, entries);
+					addEntriesFromFilesystemIndex(source, artifactRoot, index, entries);
 			}
 		} catch (IOException e) {
-			throw new UncheckedIOException("Error while inspecting classpath resource mirror: " + filesystemRoot, e);
+			throw new UncheckedIOException("Error while inspecting classpath resource mirror: " + source.root, e);
 		}
 	}
 
-	private void addEntriesFromFilesystemIndex(Path artifactRoot, Path index, List<ClasspathEntry> entries) {
+	private void addEntriesFromFilesystemIndex(FilesystemSource source, Path artifactRoot, Path index, List<ClasspathEntry> entries) {
 		String origin = filesystemOrigin(artifactRoot);
 		try (var reader = Files.newBufferedReader(index, StandardCharsets.UTF_8)) {
 			String line;
@@ -206,7 +235,7 @@ public class ClasspathIndex {
 							+ " not found in filesystem artifact mirror: " + index);
 					continue;
 				}
-				entries.add(new ClasspathEntry(line, resource.toUri().toURL(), origin));
+				entries.add(new ClasspathEntry(source.logicalPrefix + line, resource.toUri().toURL(), origin));
 			}
 		} catch (IOException e) {
 			throw new UncheckedIOException("Error while reading filesystem classpath index: " + index, e);
@@ -252,5 +281,50 @@ public class ClasspathIndex {
 		if (path == null)
 			throw new NullPointerException("filesystemRoot must not be null");
 		return path;
+	}
+
+	private static List<FilesystemSource> requireFilesystemSources(List<FilesystemSource> sources) {
+		if (sources == null)
+			throw new NullPointerException("filesystemSources must not be null");
+		if (sources.isEmpty())
+			throw new IllegalArgumentException("At least one filesystem source is required");
+		List<FilesystemSource> copy = List.copyOf(sources);
+		if (copy.stream().anyMatch(java.util.Objects::isNull))
+			throw new NullPointerException("filesystemSources must not contain null");
+		return copy;
+	}
+
+	private static String normalizeLogicalPrefix(String prefix) {
+		if (prefix == null)
+			throw new NullPointerException("logicalPrefix must not be null");
+		String normalized = prefix.replace('\\', '/');
+		while (normalized.startsWith("/"))
+			normalized = normalized.substring(1);
+		if (!normalized.isEmpty() && !normalized.endsWith("/"))
+			normalized += "/";
+		String path = normalized.isEmpty() ? normalized : normalized.substring(0, normalized.length() - 1);
+		if (!path.isEmpty())
+			for (String element : path.split("/", -1))
+				if (element.equals(".") || element.equals("..") || element.isEmpty())
+					throw new IllegalArgumentException("Invalid logical prefix: " + prefix);
+		return normalized;
+	}
+
+	public static final class FilesystemSource {
+		private final Path root;
+		private final String logicalPrefix;
+
+		private FilesystemSource(Path root, String logicalPrefix) {
+			this.root = root;
+			this.logicalPrefix = logicalPrefix;
+		}
+
+		public Path root() {
+			return root;
+		}
+
+		public String logicalPrefix() {
+			return logicalPrefix;
+		}
 	}
 }
