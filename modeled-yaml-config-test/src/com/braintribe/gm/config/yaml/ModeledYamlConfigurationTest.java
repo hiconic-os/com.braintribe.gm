@@ -17,11 +17,19 @@ import static com.braintribe.testing.junit.assertions.assertj.core.api.Assertion
 import static com.braintribe.testing.junit.assertions.gm.assertj.core.api.GmAssertions.assertThat;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import com.braintribe.gm.config.yaml.api.PartiallyResolvedConfiguration;
 import com.braintribe.gm.config.yaml.index.ClasspathIndex;
 import com.braintribe.gm.config.yaml.model.LoadedEntity;
+import com.braintribe.gm.model.reason.Maybe;
+import com.braintribe.model.bvd.convert.ToString;
+import com.braintribe.model.bvd.string.Concatenation;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
@@ -33,6 +41,9 @@ import com.braintribe.model.generic.value.ValueDescriptor;
  * Tests for {@link ModeledYamlConfiguration}.
  */
 public class ModeledYamlConfigurationTest {
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private final ModeledYamlConfiguration myc = new ModeledYamlConfiguration();
 
@@ -154,6 +165,49 @@ public class ModeledYamlConfigurationTest {
 		LoadedEntity entity = load();
 
 		assertVariable(entity, "cpValue", "CP_OVERRIDE");
+	}
+
+	@Test
+	public void staticPartialReadUsesRuntimeMergeAndRetainsUnknownVariables() throws Exception {
+		File configFolder = temporaryFolder.newFolder("partial-conf");
+		Files.writeString(new File(configFolder, "loaded-entity.low.yaml").toPath(), """
+				cpValue: ${KNOWN}-${MISSING}
+				fs1Value: low-priority
+				""", StandardCharsets.UTF_8);
+		Files.writeString(new File(configFolder, "loaded-entity.high-2.yaml").toPath(), """
+				fs1Value: high-priority
+				""", StandardCharsets.UTF_8);
+
+		myc.setConfigFolder(configFolder);
+		myc.setExternalPropertyLookup(name -> name.equals("KNOWN") ? "resolved" : null);
+
+		Maybe<PartiallyResolvedConfiguration<LoadedEntity>> result = myc.staticConfigPartiallyReasoned(LoadedEntity.T);
+
+		assertThat(result).isSatisfied();
+		PartiallyResolvedConfiguration<LoadedEntity> partial = result.get();
+		assertThat(partial.unresolvedVariables()).containsExactly("MISSING");
+		assertThat(partial.configuration().getFs1Value()).isEqualTo("high-priority");
+
+		ValueDescriptor descriptor = LoadedEntity.T.getProperty("cpValue").getVdDirect(partial.configuration());
+		assertThat(descriptor).isInstanceOf(ToString.class);
+		assertThat(((ToString) descriptor).getOperand()).isInstanceOf(Concatenation.class);
+		Concatenation concatenation = (Concatenation) ((ToString) descriptor).getOperand();
+		assertThat(concatenation.getOperands()).hasSize(3);
+		assertThat(concatenation.getOperands().get(0)).isEqualTo("resolved");
+		assertThat(concatenation.getOperands().get(1)).isEqualTo("-");
+		assertThat(concatenation.getOperands().get(2)).isInstanceOf(Variable.class);
+		assertThat(((Variable) concatenation.getOperands().get(2)).getName()).isEqualTo("MISSING");
+	}
+
+	@Test
+	public void staticPartialReadDoesNotInitializeProgrammaticConfiguration() {
+		LoadedEntity registered = createAbsentEntity();
+		registered.setAfterAllValue("must-not-be-assembled");
+		myc.registerConfiguration("runtime contribution", LoadedEntity.T, "", ConfigurationStage.afterEverythingElse, 0, () -> registered);
+
+		PartiallyResolvedConfiguration<LoadedEntity> partial = myc.staticConfigPartiallyReasoned(LoadedEntity.T).get();
+
+		assertThat(partial.configuration().getAfterAllValue()).isNull();
 	}
 
 	private void registerProgrammaticSources() {

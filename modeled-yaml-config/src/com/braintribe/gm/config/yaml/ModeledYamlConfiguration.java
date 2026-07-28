@@ -33,8 +33,10 @@ import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -47,6 +49,7 @@ import com.braintribe.codec.marshaller.api.TypeExplicitnessOption;
 import com.braintribe.codec.marshaller.yaml.YamlMarshaller;
 import com.braintribe.common.lcd.function.CheckedFunction;
 import com.braintribe.gm.config.api.ModeledConfiguration;
+import com.braintribe.gm.config.yaml.api.PartiallyResolvedConfiguration;
 import com.braintribe.gm.config.yaml.index.ClasspathEntry;
 import com.braintribe.gm.config.yaml.index.ClasspathIndex;
 import com.braintribe.gm.model.reason.Maybe;
@@ -222,11 +225,60 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	private record ConfigEntry(GenericEntity entity, String origin) {
 	}
 
+	private record PartialConfigEntries(List<ConfigEntry> entries, Set<String> unresolvedVariables) {
+	}
+
 	@Override
 	public <C extends GenericEntity> Maybe<C> configReasoned(EntityType<C> configType, String useCase) {
 		// using the lazy initialized here is to avoid to block the map access and to do the actual loading afterwards
 		var configKey = new ConfigKey(configType, useCase);
 		return (Maybe<C>) configs.computeIfAbsent(configKey, k -> new Lazy<>(() -> this.loadConfig(configType, useCase))).get();
+	}
+
+	/**
+	 * Loads and merges the static classpath and filesystem layers while retaining placeholders which cannot be resolved in the current environment.
+	 * <p>
+	 * This is the build-time counterpart of {@link #configReasoned(EntityType, String)}. Programmatically registered contributions are deliberately
+	 * excluded because obtaining them would require application wiring and could introduce runtime side effects during assembly.
+	 */
+	public <C extends GenericEntity> Maybe<PartiallyResolvedConfiguration<C>> staticConfigPartiallyReasoned(EntityType<C> configType,
+			String useCase) {
+		Maybe<PartialConfigEntries> cpMaybe = readCpConfigPartially(configType, useCase);
+		Maybe<PartialConfigEntries> fsMaybe = readFsConfigPartially(configType, useCase);
+
+		if (cpMaybe.isUnsatisfied() || fsMaybe.isUnsatisfied()) {
+			var reasonAggregator = Reasons.aggregatorForceWrap(() -> ConfigurationError.create(//
+					"Error while partially loading static config of type [" + configType.getShortName() + "], use-case [" + useCase + "]"));
+
+			reasonAggregator.acceptMaybe(cpMaybe);
+			reasonAggregator.acceptMaybe(fsMaybe);
+
+			return reasonAggregator.get().asMaybe();
+		}
+
+		var reasonAggregator = Reasons.aggregatorForceWrap(() -> ConfigurationError.create(//
+				"Error while merging static config of type [" + configType.getShortName() + "], use-case [" + useCase + "]"));
+
+		ConfigEntry finalEntry = null;
+		finalEntry = mergeEntities(reasonAggregator, finalEntry, cpMaybe.get().entries());
+		finalEntry = mergeEntities(reasonAggregator, finalEntry, fsMaybe.get().entries());
+
+		@SuppressWarnings("unchecked")
+		C result = finalEntry != null ? (C) finalEntry.entity() : configType.create();
+		deepDeabsentify(result);
+
+		Set<String> unresolvedVariables = new LinkedHashSet<>(cpMaybe.get().unresolvedVariables());
+		unresolvedVariables.addAll(fsMaybe.get().unresolvedVariables());
+
+		PartiallyResolvedConfiguration<C> partial = new PartiallyResolvedConfiguration<>(result, unresolvedVariables);
+		if (!reasonAggregator.hasReason())
+			return Maybe.complete(partial);
+
+		return Maybe.incomplete(partial, reasonAggregator.get());
+	}
+
+	public <C extends GenericEntity> Maybe<PartiallyResolvedConfiguration<C>> staticConfigPartiallyReasoned(EntityType<C> configType) {
+		return staticConfigPartiallyReasoned(configType, "");
 	}
 
 	// load from all possible sources and merge
@@ -356,6 +408,20 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 		return listToEntities(configType, "classpath", sortedEpEntries, e -> e.url.openStream(), e -> e.url.toString());
 	}
 
+	private Maybe<PartialConfigEntries> readCpConfigPartially(EntityType<?> configType, String useCase) {
+		if (classpathIndex == null)
+			return Maybe.complete(new PartialConfigEntries(emptyList(), Set.of()));
+
+		String prefix = classpathConfPath + configFilePrefix(configType, useCase);
+		List<ClasspathEntry> cpEntries = classpathIndex.forPrefix(prefix);
+
+		if (cpEntries.isEmpty())
+			return Maybe.complete(new PartialConfigEntries(emptyList(), Set.of()));
+
+		List<ClasspathEntry> sortedCpEntries = ConfigurationEntrySorter.sortClasspathEntries(cpEntries);
+		return listToEntitiesPartially(configType, "classpath", sortedCpEntries, e -> e.url.openStream(), e -> e.url.toString());
+	}
+
 	// FileSystem
 
 	private Maybe<List<ConfigEntry>> readFsConfig(EntityType<?> configType, String useCase) {
@@ -371,6 +437,21 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 		List<File> sortedFiles = ConfigurationEntrySorter.sortFiles(files);
 
 		return listToEntities(configType, "conf directory [" + configFolder.getPath() + "]", //
+				sortedFiles, f -> new BufferedInputStream(new FileInputStream(f)), File::getAbsolutePath);
+	}
+
+	private Maybe<PartialConfigEntries> readFsConfigPartially(EntityType<?> configType, String useCase) {
+		if (configFolder == null)
+			return Maybe.complete(new PartialConfigEntries(emptyList(), Set.of()));
+
+		String prefix = configFilePrefix(configType, useCase);
+		List<File> files = findConfigFiles(configFolder, prefix);
+
+		if (files.isEmpty())
+			return Maybe.complete(new PartialConfigEntries(emptyList(), Set.of()));
+
+		List<File> sortedFiles = ConfigurationEntrySorter.sortFiles(files);
+		return listToEntitiesPartially(configType, "conf directory [" + configFolder.getPath() + "]", //
 				sortedFiles, f -> new BufferedInputStream(new FileInputStream(f)), File::getAbsolutePath);
 	}
 
@@ -414,6 +495,37 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 			return reasonAggregator.get().asMaybe();
 		else
 			return Maybe.complete(result);
+	}
+
+	private <C extends GenericEntity, E> Maybe<PartialConfigEntries> listToEntitiesPartially( //
+			EntityType<C> configType, String configSource, List<E> entries, //
+			CheckedFunction<E, InputStream, IOException> inputStreamProvider, Function<E, String> originProvider) {
+
+		var reasonAggregator = Reasons.aggregatorForceWrap(() -> ConfigurationError.create("Error while partially loading config from " + configSource));
+
+		List<ConfigEntry> result = newList();
+		Set<String> unresolvedVariables = new LinkedHashSet<>();
+		for (E entry : entries) {
+			Maybe<PartiallyResolvedConfiguration<C>> configMaybe = new ModeledYamlConfigurationLoader() //
+					.virtualEnvironment(virtualEnvironment) //
+					.variableResolverReasoned(propertyLookup) //
+					.absentifyMissingProperties(true) //
+					.loadConfigPartially(configType, () -> inputStreamProvider.apply(entry));
+
+			if (configMaybe.isSatisfied()) {
+				PartiallyResolvedConfiguration<C> partial = configMaybe.get();
+				result.add(new ConfigEntry(partial.configuration(), originProvider.apply(entry)));
+				unresolvedVariables.addAll(partial.unresolvedVariables());
+			} else {
+				reasonAggregator.accept(configMaybe.whyUnsatisfied());
+			}
+		}
+
+		PartialConfigEntries partialEntries = new PartialConfigEntries(result, unresolvedVariables);
+		if (reasonAggregator.hasReason())
+			return Maybe.incomplete(partialEntries, reasonAggregator.get());
+
+		return Maybe.complete(partialEntries);
 	}
 
 	//
