@@ -16,12 +16,15 @@
 package com.braintribe.gm.config.yaml;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import com.braintribe.gm.config.yaml.api.PartiallyResolvedConfiguration;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.ReasonException;
 import com.braintribe.gm.model.reason.Reasons;
@@ -80,6 +83,68 @@ public class ModeledYamlConfigurationLoader {
 		} catch (ReasonException e) {
 			return e.getReason().asMaybe();
 		}
+	}
+
+	/**
+	 * Reads a configuration for build-time assembly. Available variables are resolved, while genuinely unavailable variables remain represented by
+	 * value descriptors and are reported in the result. Runtime loading must continue to use {@link #loadConfig(EntityType, InputStreamProvider)},
+	 * which fails for every unresolved variable.
+	 */
+	public <C extends GenericEntity> Maybe<PartiallyResolvedConfiguration<C>> loadConfigPartially(EntityType<C> configType,
+			InputStreamProvider inputStreamProvider) {
+		ConfigVariableResolver configVariableResolver = newConfigVariableResolver(null);
+
+		try (InputStream in = inputStreamProvider.openInputStream()) {
+			return loadConfigPartially(configType, in, configVariableResolver);
+
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+
+		} catch (ReasonException e) {
+			return e.getReason().asMaybe();
+		}
+	}
+
+	public <C extends GenericEntity> Maybe<PartiallyResolvedConfiguration<C>> loadConfigPartially(EntityType<C> configType, File configFile,
+			boolean fileMustExist) {
+		if (!configFile.exists()) {
+			if (fileMustExist)
+				return Reasons.build(NotFound.T).text("Configuration file " + configFile.getAbsolutePath() + " does not exist").toMaybe();
+
+			return Maybe.complete(new PartiallyResolvedConfiguration<>(configType.create(), Set.of()));
+		}
+
+		ConfigVariableResolver configVariableResolver = newConfigVariableResolver(configFile);
+
+		try (InputStream in = new FileInputStream(configFile)) {
+			return loadConfigPartially(configType, in, configVariableResolver);
+
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+
+		} catch (ReasonException e) {
+			return e.getReason().asMaybe();
+		}
+	}
+
+	private ConfigVariableResolver newConfigVariableResolver(File configFile) {
+		ConfigVariableResolver configVariableResolver = new ConfigVariableResolver(virtualEnvironment, configFile);
+		if (variableResolver != null)
+			configVariableResolver.setVariableResolverReasoned(variableResolver);
+		return configVariableResolver;
+	}
+
+	private <C extends GenericEntity> Maybe<PartiallyResolvedConfiguration<C>> loadConfigPartially(EntityType<C> configType, InputStream in,
+			ConfigVariableResolver configVariableResolver) {
+		Maybe<C> configMaybe = YamlConfigurations.<C> read(configType) //
+				.placeholders() //
+				.absentifyMissingProperties(shouldAbsentify) //
+				.from(in);
+
+		if (configMaybe.isUnsatisfied())
+			return configMaybe.whyUnsatisfied().asMaybe();
+
+		return new PartialConfigPlaceholderResolver(configVariableResolver).resolve(configMaybe.get());
 	}
 
 	public <C extends GenericEntity> Maybe<C> loadConfig(EntityType<C> configType, File configFile, boolean fileMustExist) {

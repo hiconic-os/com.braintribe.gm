@@ -65,30 +65,38 @@ public class ConfigVariableResolver {
 	}
 
 	public String resolve(Variable var) {
-		return resolve(var.getName());
+		String name = var.getName();
+		Maybe<String> valueMaybe = resolveReasoned(name);
+
+		if (valueMaybe.isSatisfied())
+			return valueMaybe.get();
+
+		acquireFailure().getReasons().add(valueMaybe.whyUnsatisfied());
+		return "${" + name + "}";
 	}
 
-	private String resolve(String var) {
+	public Maybe<String> resolveReasoned(Variable var) {
+		return resolveReasoned(var.getName());
+	}
+
+	private Maybe<String> resolveReasoned(String var) {
 		if (var.startsWith(PropertyResolutions.ENV_PREFIX)) {
 			String envName = var.substring(PropertyResolutions.ENV_PREFIX.length());
 
 			String value = virtualEnvironment.getEnv(envName);
 
-			if (value == null) {
-				acquireFailure().getReasons().add(PropertyNotFound.create(var));
-				return "${" + var + "}";
-			}
+			if (value == null)
+				return PropertyNotFound.create(var).asMaybe();
 
-			// return var;
-			return value;
+			return Maybe.complete(value);
 		}
 		
 		switch (var) {
 		case "config.base":
 		case "config.dir":
-			return dirProperty;
+			return Maybe.complete(dirProperty);
 		case "config.file":
-			return fileProperty;
+			return Maybe.complete(fileProperty);
 		default:
 			break;
 		}
@@ -97,22 +105,18 @@ public class ConfigVariableResolver {
 			Maybe<String> valueMaybe = variableResolver.apply(var);
 			
 			if (valueMaybe.isSatisfied())
-				return valueMaybe.get();
+				return valueMaybe;
 			
-			if (!valueMaybe.isUnsatisfiedBy(NotFound.T)) {
-				acquireFailure().getReasons().add(valueMaybe.whyUnsatisfied());
-				return "${" + var + "}";
-			}
+			if (!valueMaybe.isUnsatisfiedBy(NotFound.T))
+				return valueMaybe;
 		}
 
 		String value = virtualEnvironment.getProperty(var);
 
-		if (value == null) {
-			acquireFailure().getReasons().add(PropertyNotFound.create(var)); //
-			return "${" + var + "}";
-		}
+		if (value == null)
+			return PropertyNotFound.create(var).asMaybe();
 
-		return value;
+		return Maybe.complete(value);
 	}
 
 	private Reason acquireFailure() {

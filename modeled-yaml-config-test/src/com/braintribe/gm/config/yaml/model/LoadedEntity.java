@@ -37,4 +37,7 @@ public interface LoadedEntity extends GenericEntity {
 	boolean getPrimitiveBoolean();
 	void setPrimitiveBoolean(boolean primitiveBoolean);
 
+	Integer getIntegerValue();
+	void setIntegerValue(Integer integerValue);
+
 }
