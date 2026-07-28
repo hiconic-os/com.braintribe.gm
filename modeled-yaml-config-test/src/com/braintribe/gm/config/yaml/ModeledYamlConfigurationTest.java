@@ -26,6 +26,8 @@ import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.Property;
+import com.braintribe.model.generic.value.Variable;
+import com.braintribe.model.generic.value.ValueDescriptor;
 
 /**
  * Tests for {@link ModeledYamlConfiguration}.
@@ -128,6 +130,32 @@ public class ModeledYamlConfigurationTest {
 
 	}
 
+	@Test
+	public void classpathValueOverridesProgrammaticVdDefault() {
+		setClasspathIndex();
+
+		LoadedEntity beforeClasspath = createAbsentEntity();
+		setVariable(beforeClasspath, "cpValue", "CP_DEFAULT");
+		myc.registerConfiguration("symbolic default", LoadedEntity.T, "", ConfigurationStage.beforeClasspath, 0, () -> beforeClasspath);
+
+		LoadedEntity entity = load();
+
+		assertThat(entity.getCpValue()).isEqualTo("cp-value");
+	}
+
+	@Test
+	public void programmaticVdOverrideSurvivesClasspathMerge() {
+		setClasspathIndex();
+
+		LoadedEntity afterClasspath = createAbsentEntity();
+		setVariable(afterClasspath, "cpValue", "CP_OVERRIDE");
+		myc.registerConfiguration("symbolic override", LoadedEntity.T, "", ConfigurationStage.afterEverythingElse, 0, () -> afterClasspath);
+
+		LoadedEntity entity = load();
+
+		assertVariable(entity, "cpValue", "CP_OVERRIDE");
+	}
+
 	private void registerProgrammaticSources() {
 		LoadedEntity beforeCp = createAbsentEntity();
 		beforeCp.setOrigin("code-before-cp");
@@ -172,6 +200,19 @@ public class ModeledYamlConfigurationTest {
 			p.setAbsenceInformation(e, GMF.absenceInformation());
 
 		return e;
+	}
+
+	private static void setVariable(LoadedEntity entity, String propertyName, String variableName) {
+		Variable variable = Variable.T.create();
+		variable.setName(variableName);
+		LoadedEntity.T.getProperty(propertyName).setVdDirect(entity, variable);
+	}
+
+	private static void assertVariable(LoadedEntity entity, String propertyName, String variableName) {
+		ValueDescriptor descriptor = LoadedEntity.T.getProperty(propertyName).getVdDirect(entity);
+
+		assertThat(descriptor).isInstanceOf(Variable.class);
+		assertThat(((Variable) descriptor).getName()).isEqualTo(variableName);
 	}
 
 }

@@ -16,6 +16,9 @@ import com.braintribe.gm.model.reason.config.IncompatibleMergeTypes;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.pr.AbsenceInformation;
 import com.braintribe.model.generic.reflection.EntityType;
+import com.braintribe.model.generic.reflection.Property;
+import com.braintribe.model.generic.value.Variable;
+import com.braintribe.model.generic.value.ValueDescriptor;
 
 /**
  * Tests for {@link EntityMerger}
@@ -80,6 +83,44 @@ public class EntityMergerTest {
 	}
 
 	@Test
+	public void presentVdProperty_NotOverriddenOrDereferenced() {
+		MergedEntity eRoot = MergedEntity.T.create();
+		setVariable(eRoot, "string", "ENTITY_VALUE");
+
+		MergedEntity dRoot = MergedEntity.T.create();
+		dRoot.setString("default-value");
+
+		merge(eRoot, dRoot);
+
+		assertVariable(eRoot, "string", "ENTITY_VALUE");
+	}
+
+	@Test
+	public void absentProperty_TakesVdFromDefaults() {
+		MergedEntity eRoot = createAbsentEntity();
+
+		MergedEntity dRoot = MergedEntity.T.create();
+		setVariable(dRoot, "string", "DEFAULT_VALUE");
+
+		merge(eRoot, dRoot);
+
+		assertVariable(eRoot, "string", "DEFAULT_VALUE");
+	}
+
+	@Test
+	public void concreteProperty_OverridesVdDefault() {
+		MergedEntity eRoot = MergedEntity.T.create();
+		eRoot.setString("entity-value");
+
+		MergedEntity dRoot = MergedEntity.T.create();
+		setVariable(dRoot, "string", "DEFAULT_VALUE");
+
+		merge(eRoot, dRoot);
+
+		assertThat(eRoot.getString()).isEqualTo("entity-value");
+	}
+
+	@Test
 	public void absentEntityProperty_TakenFromDefaults() {
 		MergedEntity eRoot = createAbsentEntity();
 
@@ -121,6 +162,44 @@ public class EntityMergerTest {
 		merge(eRoot, dRoot);
 
 		assertThat(eRoot.getListStr()).containsExactly("x");
+	}
+
+	@Test
+	public void presentCollectionVd_OverridesConcreteDefaultWithoutMerge() {
+		MergedEntity eRoot = MergedEntity.T.create();
+		setVariable(eRoot, "listStr", "ENTITY_LIST");
+
+		MergedEntity dRoot = MergedEntity.T.create();
+		dRoot.getListStr().add("default");
+
+		merge(eRoot, dRoot);
+
+		assertVariable(eRoot, "listStr", "ENTITY_LIST");
+	}
+
+	@Test
+	public void absentCollection_TakesVdFromDefaults() {
+		MergedEntity eRoot = createAbsentEntity();
+
+		MergedEntity dRoot = MergedEntity.T.create();
+		setVariable(dRoot, "listStr", "DEFAULT_LIST");
+
+		merge(eRoot, dRoot);
+
+		assertVariable(eRoot, "listStr", "DEFAULT_LIST");
+	}
+
+	@Test
+	public void concreteCollection_OverridesVdDefaultWithoutMerge() {
+		MergedEntity eRoot = MergedEntity.T.create();
+		eRoot.getListStr().add("entity");
+
+		MergedEntity dRoot = MergedEntity.T.create();
+		setVariable(dRoot, "listStr", "DEFAULT_LIST");
+
+		merge(eRoot, dRoot);
+
+		assertThat(eRoot.getListStr()).containsExactly("entity");
 	}
 
 	@Test
@@ -602,6 +681,20 @@ public class EntityMergerTest {
 		assertThat(result).isSameAs(eRoot);
 
 		return resultMaybe.whyUnsatisfied();
+	}
+
+	private static void setVariable(MergedEntity entity, String propertyName, String variableName) {
+		Variable variable = Variable.T.create();
+		variable.setName(variableName);
+		MergedEntity.T.getProperty(propertyName).setVdDirect(entity, variable);
+	}
+
+	private static void assertVariable(MergedEntity entity, String propertyName, String variableName) {
+		Property property = MergedEntity.T.getProperty(propertyName);
+		ValueDescriptor descriptor = property.getVdDirect(entity);
+
+		assertThat(descriptor).isInstanceOf(Variable.class);
+		assertThat(((Variable) descriptor).getName()).isEqualTo(variableName);
 	}
 
 	/**

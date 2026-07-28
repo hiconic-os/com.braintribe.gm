@@ -6,6 +6,8 @@ import static com.braintribe.utils.lcd.CollectionTools2.newSet;
 import static com.braintribe.utils.lcd.CollectionTools2.removeFirst;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -27,7 +29,7 @@ import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.model.generic.reflection.Property;
-import com.braintribe.model.generic.reflection.StandardTraversingContext;
+import com.braintribe.model.generic.reflection.VdHolder;
 
 /**
  * @author peter.gazdik
@@ -127,18 +129,34 @@ import com.braintribe.model.generic.reflection.StandardTraversingContext;
 				continue;
 
 			boolean eAbsent = p.isAbsent(entity);
+			Object dDirectValue = p.getDirectUnsafe(defaults);
 			if (eAbsent && !p.getType().areCustomInstancesReachable()) {
-				Object dValue = p.getDirectUnsafe(defaults);
-				p.setDirectUnsafe(entity, dValue);
+				p.setDirectUnsafe(entity, dDirectValue);
 				continue;
 			}
 			if (eAbsent) {
-				Object dValue = p.getDirectUnsafe(defaults);
-				if (dValue instanceof GenericEntity) {
-					p.setDirectUnsafe(entity, findSanitizedElement(dValue));
+				if (dDirectValue instanceof GenericEntity) {
+					p.setDirectUnsafe(entity, findSanitizedElement(dDirectValue));
+					continue;
+				}
+				if (VdHolder.isVdHolder(dDirectValue)) {
+					p.setDirectUnsafe(entity, dDirectValue);
 					continue;
 				}
 			}
+
+			Object eDirectValue = p.getDirectUnsafe(entity);
+			// A value descriptor represents the complete property value. It is therefore
+			// an explicit override, not a collection that can participate in a merge.
+			// Absence information is also represented by a VdHolder, but must continue
+			// into the normal default-filling path.
+			if (!eAbsent && VdHolder.isVdHolder(eDirectValue))
+				continue;
+
+			// A descriptor from defaults only applies when the property is absent. A
+			// concrete value in the higher-priority entity overrides it completely.
+			if (VdHolder.isVdHolder(dDirectValue))
+				continue;
 
 			Object eValue = p.get(entity);
 			if (!eAbsent && eValue == null)
@@ -234,17 +252,34 @@ import com.braintribe.model.generic.reflection.StandardTraversingContext;
 	}
 
 	private static Map<String, GenericEntity> indexByGid(GenericEntity entity) {
-		StandardTraversingContext traversingContext = new StandardTraversingContext();
-
-		entity.entityType().traverse(traversingContext, entity);
-
 		Map<String, GenericEntity> gidToEntity = newMap();
-
-		for (GenericEntity e : traversingContext.getVisitedObjects())
-			if (e.getGlobalId() != null)
-				gidToEntity.put(e.getGlobalId(), e);
-
+		Set<Object> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+		indexByGid(entity, gidToEntity, visited);
 		return gidToEntity;
+	}
+
+	private static void indexByGid(Object value, Map<String, GenericEntity> gidToEntity, Set<Object> visited) {
+		if (value == null || VdHolder.isVdHolder(value) || !visited.add(value))
+			return;
+
+		if (value instanceof GenericEntity entity) {
+			String gid = entity.getGlobalId();
+			if (gid != null)
+				gidToEntity.put(gid, entity);
+
+			for (Property property : entity.entityType().getProperties())
+				indexByGid(property.getDirectUnsafe(entity), gidToEntity, visited);
+
+		} else if (value instanceof Map<?, ?> map) {
+			for (Entry<?, ?> entry : map.entrySet()) {
+				indexByGid(entry.getKey(), gidToEntity, visited);
+				indexByGid(entry.getValue(), gidToEntity, visited);
+			}
+
+		} else if (value instanceof Iterable<?> iterable) {
+			for (Object element : iterable)
+				indexByGid(element, gidToEntity, visited);
+		}
 	}
 
 	//
@@ -262,10 +297,11 @@ import com.braintribe.model.generic.reflection.StandardTraversingContext;
 			if (p.isAbsent(defaults))
 				continue;
 
-			Object dValue = p.get(defaults);
-			if (dValue == null)
+			Object dDirectValue = p.getDirectUnsafe(defaults);
+			if (dDirectValue == null || VdHolder.isVdHolder(dDirectValue))
 				continue;
 
+			Object dValue = p.get(defaults);
 			GenericModelType dType = p.getType();
 			if (dType.isBase())
 				dType = GMF.getTypeReflection().getType(dValue);
