@@ -11,12 +11,15 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import com.braintribe.logging.Logger;
 import com.braintribe.utils.lcd.Lazy;
@@ -35,6 +38,7 @@ public class ClasspathIndex {
 	// getPath : file:/C:/maven-repo/res-on-cp/1.0/res-on-cp-1.0.jar!/META-INF/classpath-index.txt
 	private static final String INDEX_FILE_NAME = "META-INF/classpath-index.txt";
 	private static final String ORIGIN_FILE_NAME = "META-INF/classpath-origin.properties";
+	private static final String FILESYSTEM_INDEX_FILE_NAME = "index.properties";
 
 	private static final Logger log = Logger.getLogger(ClasspathIndex.class);
 
@@ -59,16 +63,35 @@ public class ClasspathIndex {
 	/**
 	 * Creates an index backed exclusively by one or more artifact-scoped filesystem mirrors.
 	 * <p>
-	 * A source's logical prefix is prepended to every path from its artifact indexes. This permits a physically clearer projection such as
-	 * {@code packaged-conf/<artifact>/foo.yaml} to retain its canonical classpath identity {@code HICONIC-CONF/foo.yaml}.
-	 * Later sources replace an entry with the same logical path and artifact origin, allowing projections to coexist with a complete legacy mirror.
+	 * A source's logical prefix is prepended to every indexed or directly discovered path. This permits a physically clearer projection such as
+	 * {@code effective-conf/<artifact>/foo.yaml} to retain its canonical classpath identity {@code HICONIC-CONF/foo.yaml}.
+	 * Later sources replace an entry with the same logical path and artifact origin, allowing effective projections to coexist with a complete
+	 * packaged-resource mirror.
 	 */
 	public ClasspathIndex(List<FilesystemSource> filesystemSources) {
 		this(null, requireFilesystemSources(filesystemSources));
 	}
 
 	public static FilesystemSource filesystemSource(Path root, String logicalPrefix) {
-		return new FilesystemSource(requireFilesystemRoot(root), normalizeLogicalPrefix(logicalPrefix));
+		return filesystemSource(root, logicalPrefix, List.of());
+	}
+
+	/**
+	 * Creates an indexed filesystem source while excluding selected physical resource prefixes.
+	 * This is useful when a packaged resource mirror remains authoritative for general resources,
+	 * but a compiled configuration space replaces its raw {@code HICONIC-CONF/} contributions.
+	 */
+	public static FilesystemSource filesystemSource(Path root, String logicalPrefix, Collection<String> excludedResourcePrefixes) {
+		return new FilesystemSource(requireFilesystemRoot(root), normalizeLogicalPrefix(logicalPrefix),
+				normalizeResourcePrefixes(excludedResourcePrefixes), true);
+	}
+
+	/**
+	 * Creates a direct slot source. Every direct child directory is a slot and every regular file
+	 * below it is exposed without requiring classpath-style {@code META-INF} indexes.
+	 */
+	public static FilesystemSource filesystemSlots(Path root, String logicalPrefix) {
+		return new FilesystemSource(requireFilesystemRoot(root), normalizeLogicalPrefix(logicalPrefix), Set.of(), false);
 	}
 
 	private ClasspathIndex(ClassLoader classLoader, List<FilesystemSource> filesystemSources) {
@@ -207,6 +230,18 @@ public class ClasspathIndex {
 		if (!Files.isDirectory(source.root))
 			throw new IllegalStateException("Classpath resource mirror does not exist: " + source.root);
 
+		if (!source.indexed) {
+			loadFilesystemSlots(source, entries);
+			return;
+		}
+
+		Path centralIndex = source.root.resolve(FILESYSTEM_INDEX_FILE_NAME);
+		if (Files.isRegularFile(centralIndex)) {
+			loadCentralFilesystemIndex(source, centralIndex, entries);
+			return;
+		}
+
+		// Backward compatibility for mirrors produced before the central filesystem index.
 		try (var children = Files.list(source.root)) {
 			for (Path artifactRoot : children.filter(Files::isDirectory).sorted().toList()) {
 				Path index = artifactRoot.resolve(INDEX_FILE_NAME);
@@ -215,6 +250,62 @@ public class ClasspathIndex {
 			}
 		} catch (IOException e) {
 			throw new UncheckedIOException("Error while inspecting classpath resource mirror: " + source.root, e);
+		}
+	}
+
+	private void loadCentralFilesystemIndex(FilesystemSource source, Path index, List<ClasspathEntry> entries) {
+		Properties properties = new Properties();
+		try (var in = Files.newInputStream(index)) {
+			properties.load(in);
+		} catch (IOException e) {
+			throw new UncheckedIOException("Error while reading filesystem resource index: " + index, e);
+		}
+
+		if (!"1".equals(properties.getProperty("formatVersion")))
+			throw new IllegalStateException("Unsupported filesystem resource index format in " + index);
+
+		int artifactCount = requiredInt(properties, "artifact.count", index);
+		for (int a = 0; a < artifactCount; a++) {
+			String prefix = "artifact." + a + ".";
+			String folder = required(properties, prefix + "folder", index);
+			String origin = required(properties, prefix + "origin", index);
+			Path artifactRoot = source.root.resolve(folder).normalize();
+			if (!artifactRoot.startsWith(source.root.normalize()) || !Files.isDirectory(artifactRoot))
+				throw new IllegalStateException("Invalid filesystem resource slot [" + folder + "] in " + index);
+
+			int resourceCount = requiredInt(properties, prefix + "resource.count", index);
+			for (int r = 0; r < resourceCount; r++) {
+				String path = required(properties, prefix + "resource." + r + ".path", index).replace('\\', '/');
+				if (source.excludes(path))
+					continue;
+
+				Path resource = artifactRoot.resolve(path).normalize();
+				if (!resource.startsWith(artifactRoot) || !Files.isRegularFile(resource))
+					throw new IllegalStateException("Indexed filesystem resource does not exist: " + resource);
+				try {
+					entries.add(new ClasspathEntry(source.logicalPrefix + path, resource.toUri().toURL(), origin));
+				} catch (IOException e) {
+					throw new UncheckedIOException("Cannot address filesystem resource " + resource, e);
+				}
+			}
+		}
+	}
+
+	private void loadFilesystemSlots(FilesystemSource source, List<ClasspathEntry> entries) {
+		try (var children = Files.list(source.root)) {
+			for (Path slot : children.filter(Files::isDirectory).sorted().toList()) {
+				try (var paths = Files.walk(slot)) {
+					for (Path resource : paths.filter(Files::isRegularFile).sorted().toList()) {
+						String relative = slot.relativize(resource).toString().replace('\\', '/');
+						if (source.excludes(relative))
+							continue;
+						entries.add(new ClasspathEntry(source.logicalPrefix + relative, resource.toUri().toURL(),
+								slot.getFileName().toString()));
+					}
+				}
+			}
+		} catch (IOException e) {
+			throw new UncheckedIOException("Error while inspecting filesystem resource slots: " + source.root, e);
 		}
 	}
 
@@ -227,6 +318,8 @@ public class ClasspathIndex {
 				lineNum++;
 				line = line.trim();
 				if (line.isEmpty() || line.startsWith("#"))
+					continue;
+				if (source.excludes(line))
 					continue;
 
 				Path resource = artifactRoot.resolve(line).normalize();
@@ -294,6 +387,34 @@ public class ClasspathIndex {
 		return copy;
 	}
 
+	private static Set<String> normalizeResourcePrefixes(Collection<String> prefixes) {
+		if (prefixes == null)
+			throw new NullPointerException("excludedResourcePrefixes must not be null");
+		Set<String> result = new LinkedHashSet<>();
+		for (String prefix : prefixes)
+			result.add(normalizeLogicalPrefix(prefix));
+		return Set.copyOf(result);
+	}
+
+	private static String required(Properties properties, String name, Path source) {
+		String value = properties.getProperty(name);
+		if (value == null || value.isBlank())
+			throw new IllegalStateException("Missing property [" + name + "] in filesystem resource index " + source);
+		return value;
+	}
+
+	private static int requiredInt(Properties properties, String name, Path source) {
+		String value = required(properties, name, source);
+		try {
+			int result = Integer.parseInt(value);
+			if (result < 0)
+				throw new NumberFormatException("negative");
+			return result;
+		} catch (NumberFormatException e) {
+			throw new IllegalStateException("Invalid non-negative integer property [" + name + "] in " + source + ": " + value, e);
+		}
+	}
+
 	private static String normalizeLogicalPrefix(String prefix) {
 		if (prefix == null)
 			throw new NullPointerException("logicalPrefix must not be null");
@@ -313,10 +434,14 @@ public class ClasspathIndex {
 	public static final class FilesystemSource {
 		private final Path root;
 		private final String logicalPrefix;
+		private final Set<String> excludedResourcePrefixes;
+		private final boolean indexed;
 
-		private FilesystemSource(Path root, String logicalPrefix) {
+		private FilesystemSource(Path root, String logicalPrefix, Set<String> excludedResourcePrefixes, boolean indexed) {
 			this.root = root;
 			this.logicalPrefix = logicalPrefix;
+			this.excludedResourcePrefixes = excludedResourcePrefixes;
+			this.indexed = indexed;
 		}
 
 		public Path root() {
@@ -325,6 +450,11 @@ public class ClasspathIndex {
 
 		public String logicalPrefix() {
 			return logicalPrefix;
+		}
+
+		private boolean excludes(String path) {
+			String normalized = path.replace('\\', '/');
+			return excludedResourcePrefixes.stream().anyMatch(normalized::startsWith);
 		}
 	}
 }

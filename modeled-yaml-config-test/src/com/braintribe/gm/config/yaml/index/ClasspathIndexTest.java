@@ -111,6 +111,89 @@ public class ClasspathIndexTest {
 	}
 
 	@Test
+	public void loadsCentralPackagedResourceIndexAndCanExcludeConfiguration() throws Exception {
+		Path root = temporaryFolder.newFolder("packaged-resources").toPath();
+		Path artifact = root.resolve("example-configuration-1.0");
+		Path config = artifact.resolve("HICONIC-CONF/example.yaml");
+		Path logo = artifact.resolve("icons/logo.svg");
+		Files.createDirectories(config.getParent());
+		Files.createDirectories(logo.getParent());
+		Files.writeString(config, "example: true\n", StandardCharsets.UTF_8);
+		Files.writeString(logo, "<svg/>", StandardCharsets.UTF_8);
+		Files.writeString(root.resolve("index.properties"), """
+				formatVersion=1
+				artifact.count=1
+				artifact.0.folder=example-configuration-1.0
+				artifact.0.origin=example-configuration
+				artifact.0.resource.count=2
+				artifact.0.resource.0.path=HICONIC-CONF/example.yaml
+				artifact.0.resource.1.path=icons/logo.svg
+				""", StandardCharsets.UTF_8);
+
+		ClasspathIndex index = new ClasspathIndex(List.of(
+				ClasspathIndex.filesystemSource(root, "", List.of("HICONIC-CONF/"))));
+
+		assertThat(pathsOf(index.all())).containsExactly("icons/logo.svg");
+		assertThat(index.all().get(0).origin).isEqualTo("example-configuration");
+	}
+
+	@Test
+	public void loadsDirectEffectiveConfigurationSlots() throws Exception {
+		Path root = temporaryFolder.newFolder("effective-conf").toPath();
+		Path compiled = root.resolve("compiled/database-configuration.yaml");
+		Path residual = root.resolve("example-configuration/custom.xml");
+		Files.createDirectories(compiled.getParent());
+		Files.createDirectories(residual.getParent());
+		Files.writeString(compiled, "databases: []\n", StandardCharsets.UTF_8);
+		Files.writeString(residual, "<custom/>", StandardCharsets.UTF_8);
+
+		ClasspathIndex index = new ClasspathIndex(List.of(ClasspathIndex.filesystemSlots(root, "HICONIC-CONF")));
+
+		assertThat(pathsOf(index.all())).containsExactlyInAnyOrder(
+				"HICONIC-CONF/database-configuration.yaml",
+				"HICONIC-CONF/custom.xml");
+		assertThat(index.all().stream().map(e -> e.origin)).containsExactlyInAnyOrder("compiled", "example-configuration");
+	}
+
+	@Test
+	public void combinesGeneralPackagedResourcesWithEffectiveConfiguration() throws Exception {
+		Path root = temporaryFolder.newFolder("assembled-application").toPath();
+		Path packagedResources = root.resolve("packaged-resources");
+		Path artifact = packagedResources.resolve("example-configuration-1.0");
+		Path rawConfig = artifact.resolve("HICONIC-CONF/example.yaml");
+		Path logo = artifact.resolve("icons/logo.svg");
+		Files.createDirectories(rawConfig.getParent());
+		Files.createDirectories(logo.getParent());
+		Files.writeString(rawConfig, "source: raw\n", StandardCharsets.UTF_8);
+		Files.writeString(logo, "<svg/>", StandardCharsets.UTF_8);
+		Files.writeString(packagedResources.resolve("index.properties"), """
+				formatVersion=1
+				artifact.count=1
+				artifact.0.folder=example-configuration-1.0
+				artifact.0.origin=example-configuration
+				artifact.0.resource.count=2
+				artifact.0.resource.0.path=HICONIC-CONF/example.yaml
+				artifact.0.resource.1.path=icons/logo.svg
+				""", StandardCharsets.UTF_8);
+
+		Path effectiveConfig = root.resolve("effective-conf/compiled/example.yaml");
+		Files.createDirectories(effectiveConfig.getParent());
+		Files.writeString(effectiveConfig, "source: compiled\n", StandardCharsets.UTF_8);
+
+		ClasspathIndex index = new ClasspathIndex(List.of(
+				ClasspathIndex.filesystemSource(packagedResources, "", List.of("HICONIC-CONF/")),
+				ClasspathIndex.filesystemSlots(root.resolve("effective-conf"), "HICONIC-CONF")));
+
+		assertThat(pathsOf(index.all())).containsExactlyInAnyOrder("HICONIC-CONF/example.yaml", "icons/logo.svg");
+		ClasspathEntry configEntry = index.all().stream()
+				.filter(e -> e.path.equals("HICONIC-CONF/example.yaml"))
+				.findFirst()
+				.orElseThrow();
+		assertThat(configEntry.origin).isEqualTo("compiled");
+		assertThat(Path.of(configEntry.url.toURI())).hasContent("source: compiled");
+	}
+
+	@Test
 	public void findByPrefix_All() throws Exception {
 		List<ClasspathEntry> entries = classpathIndex.forPrefix("simple-");
 
