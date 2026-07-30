@@ -194,6 +194,7 @@ public class ClasspathIndex {
 				line = line.trim();
 				if (line.isEmpty() || line.startsWith("#"))
 					continue;
+				line = canonicalResourcePath(line);
 
 				// From now on we consider line to be a path within given jar / artifact
 				Enumeration<URL> files = classLoader.getResources(line);
@@ -319,6 +320,7 @@ public class ClasspathIndex {
 				line = line.trim();
 				if (line.isEmpty() || line.startsWith("#"))
 					continue;
+				line = canonicalResourcePath(line);
 				if (source.excludes(line))
 					continue;
 
@@ -333,6 +335,10 @@ public class ClasspathIndex {
 		} catch (IOException e) {
 			throw new UncheckedIOException("Error while reading filesystem classpath index: " + index, e);
 		}
+	}
+
+	private static String canonicalResourcePath(String path) {
+		return path.replace('\\', '/');
 	}
 
 	private String filesystemOrigin(Path artifactRoot) {

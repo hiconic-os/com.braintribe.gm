@@ -2,6 +2,7 @@ package com.braintribe.gm.config.yaml.index;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -72,6 +75,36 @@ public class ClasspathIndexTest {
 		assertThat(entries.get(0).path).isEqualTo("HICONIC-CONF/example.yaml");
 		assertThat(entries.get(0).origin).isEqualTo("example-configuration");
 		assertThat(entries.get(0).url.getProtocol()).isEqualTo("file");
+	}
+
+	@Test
+	public void loadsLegacyWindowsClasspathIndex() throws Exception {
+		Path archive = temporaryFolder.newFile("windows-index.jar").toPath();
+		try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(archive))) {
+			writeZipEntry(out, "META-INF/classpath-index.txt", "HICONIC-CONF\\example.yaml\n");
+			writeZipEntry(out, "HICONIC-CONF/example.yaml", "example: true\n");
+		}
+
+		try (URLClassLoader classLoader = new URLClassLoader(new java.net.URL[] { archive.toUri().toURL() }, null)) {
+			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
+
+			assertThat(entries).hasSize(1);
+			assertThat(entries.get(0).path).isEqualTo("HICONIC-CONF/example.yaml");
+		}
+	}
+
+	@Test
+	public void loadsLegacyWindowsFilesystemIndex() throws Exception {
+		Path root = temporaryFolder.newFolder("windows-filesystem-index").toPath();
+		Path artifact = root.resolve("example-configuration-1.0");
+		Path config = artifact.resolve("HICONIC-CONF/example.yaml");
+		writeFilesystemArtifact(artifact, "example-configuration", "HICONIC-CONF\\example.yaml\n",
+				Map.of(config, "example: true\n"));
+
+		List<ClasspathEntry> entries = new ClasspathIndex(root).all();
+
+		assertThat(entries).hasSize(1);
+		assertThat(entries.get(0).path).isEqualTo("HICONIC-CONF/example.yaml");
 	}
 
 	@Test
@@ -257,6 +290,12 @@ public class ClasspathIndexTest {
 			Files.createDirectories(resource.getKey().getParent());
 			Files.writeString(resource.getKey(), resource.getValue(), StandardCharsets.UTF_8);
 		}
+	}
+
+	private void writeZipEntry(ZipOutputStream out, String name, String content) throws Exception {
+		out.putNextEntry(new ZipEntry(name));
+		out.write(content.getBytes(StandardCharsets.UTF_8));
+		out.closeEntry();
 	}
 
 }
