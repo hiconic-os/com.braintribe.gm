@@ -30,6 +30,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -63,21 +64,26 @@ import com.braintribe.utils.lcd.NullSafe;
  * For each {@link Lock}, acquired e.g. via {@link #forIdentifier(String)} (or similar methods), an entry is created with a certain expiration date.
  * This expiration date is the current time plus the configured {@link #setLockExpirationInSecs(int)}.
  * 
- * <h3>Thread ownership</h3>
- *
- * Like with {@link java.util.concurrent.locks.ReentrantReadWriteLock}, a lock must be released by the same thread that acquired it. Each acquisition
- * remembers (per thread) which incarnation of the lock row it acquired, so that a holder whose lease was lost (lock expired and was cleaned up or
- * taken over by another node) cannot accidentally release a newer lock of another owner. {@code unlock()} by a thread that holds no acquisition
- * throws an {@link IllegalMonitorStateException}, re-entering a lock whose lease was lost throws an {@link IllegalStateException}.
- *
  * <h3>Updating expiration dates automatically</h3>
  * 
+ * <b>IMPORTANT:</b> This needs to be configured externally!
+ * <p>
  * This expiration date should be updated automatically, ideally as a scheduled task. It should be configured externally, and the update is performed
  * by calling {@link #refreshLockedLocks()}.
  * <p>
  * Should a node fail to update the expiration date, another node will consider such entry as stale and will try to acquire the lock again.
  * <p>
  * For this reason it is advised to configure the refreshing interval significantly smaller than the lock expiration, for example one half of it.
+ * 
+ * <h3>Thread ownership</h3>
+ *
+ * Like with {@link ReentrantReadWriteLock}, a lock must be released by the same thread that acquired it. Each acquisition remembers (per thread)
+ * which incarnation of the lock row it acquired, so that a lock-owner whose lease was lost (lock expired and was cleaned up or taken over by another
+ * node) cannot accidentally release a newer lock of another owner.
+ * <p>
+ * {@code unlock()} by a thread that holds no lock throws an {@link IllegalMonitorStateException}, re-entering a lock whose lease was lost throws an
+ * {@link IllegalStateException}.
+ *
  */
 public class DbLocking implements Locking, LifecycleAware {
 
