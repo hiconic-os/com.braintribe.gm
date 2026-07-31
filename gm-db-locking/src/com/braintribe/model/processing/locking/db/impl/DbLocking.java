@@ -436,14 +436,21 @@ public class DbLocking implements Locking, LifecycleAware {
 
 		@Override
 		public void lock() {
+			// per Lock.lock() contract this method is not interruptible - keep waiting and restore the interrupt status at the end
+			boolean interrupted = false;
 			try {
-				if (tryLockMs(Long.MAX_VALUE))
-					return;
-			} catch (InterruptedException e) {
-				// ignore as there is a special lock method that supports interruptibility
-				log.debug("non interruptible lock() call internally caught an InterruptedException");
-				Thread.currentThread().interrupt();
-				throw new RuntimeException("Thread was interrupted, cannot lock " + lockContext(), e);
+				while (true) {
+					try {
+						if (tryLockMs(Long.MAX_VALUE))
+							return;
+					} catch (InterruptedException e) {
+						log.debug("Non interruptible lock() call internally caught an InterruptedException, will continue waiting.");
+						interrupted = true;
+					}
+				}
+			} finally {
+				if (interrupted)
+					Thread.currentThread().interrupt();
 			}
 		}
 
@@ -461,6 +468,8 @@ public class DbLocking implements Locking, LifecycleAware {
 			try {
 				return tryLockMs(0);
 			} catch (InterruptedException e) {
+				// Not reachable with 0ms timeout (we never reach the waiting), but just in case
+				Thread.currentThread().interrupt();
 				return false;
 			}
 		}
@@ -737,6 +746,7 @@ public class DbLocking implements Locking, LifecycleAware {
 				}
 			}
 		}
+
 		@Override
 		public void unlock() {
 			LockHoldInfo lockHoldInfo = tlLockHoldInfo.get();
@@ -747,15 +757,18 @@ public class DbLocking implements Locking, LifecycleAware {
 				refresher.stopRefreshing(rwLock);
 
 			try {
+				var lockReleasedIndicator = new Box<Boolean>();
 				JdbcTools.withConnection(dataSource, true, () -> "Deleting unlocked lock " + rwLock.id, connection -> {
 					if (tryChangeCount(connection, lockHoldInfo.created, -1))
-						deleteLockIfExpired(connection);
+						lockReleasedIndicator.value = deleteLockIfExpired(connection);
 					else
 						log.warn("Lock lease was lost while held (the lock expired and was released or taken over by another owner) - mutual "
 								+ "exclusion may have been violated during the critical section." + lockContext());
 				});
 
-				notifyUnlock(rwLock.id);
+				// only notify waiters if the lock row was actually deleted - as long as it exists (count > 0) they cannot acquire it anyway
+				if (Boolean.TRUE.equals(lockReleasedIndicator.value))
+					notifyUnlock(rwLock.id);
 
 			} catch (Exception e) {
 				log.warn("Error while releasing lock " + rwLock.id, e);

@@ -81,6 +81,34 @@ public class DbLocking_MultiThread_Test extends AbstractDbLockingTestBase {
 		assertThat(wasConcurrent.value).isFalse();
 	}
 
+	/** Per {@link Lock#lock()} contract the method is not interruptible - it must keep waiting and only restore the interrupt status at the end. */
+	@Test(timeout = TIMEOUT_MS)
+	public void testLockIsNotInterruptible() throws Exception {
+		Lock holderLock = newRandomReentrantLock().writeLock();
+		holderLock.lock();
+
+		Lock waiterLock = newRandomReentrantLock().writeLock();
+		var interruptedAfterLock = new Box<Boolean>();
+
+		Thread waiter = new Thread(() -> {
+			waiterLock.lock(); // must survive the interrupt below and keep waiting
+			interruptedAfterLock.value = Thread.currentThread().isInterrupted();
+			waiterLock.unlock();
+		});
+		waiter.start();
+
+		// let the waiter block on the lock, then interrupt it
+		Thread.sleep(300);
+		waiter.interrupt();
+		// give the waiter a chance to (wrongly) die on the interrupt before we release the lock
+		Thread.sleep(100);
+
+		holderLock.unlock();
+		waiter.join();
+
+		assertThat(interruptedAfterLock.value).as("lock() must survive an interrupt, acquire the lock and restore the interrupt status").isTrue();
+	}
+
 	// #############################################
 	// ## . . . . . . . . Helpers . . . . . . . . ##
 	// #############################################
