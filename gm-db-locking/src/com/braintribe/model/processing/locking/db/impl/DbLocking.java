@@ -53,6 +53,7 @@ import com.braintribe.transport.messaging.api.MessagingSession;
 import com.braintribe.util.jdbc.JdbcTools;
 import com.braintribe.util.jdbc.dialect.JdbcDialect;
 import com.braintribe.utils.DigestGenerator;
+import com.braintribe.utils.lcd.Lazy;
 import com.braintribe.utils.lcd.NullSafe;
 
 /**
@@ -73,6 +74,10 @@ import com.braintribe.utils.lcd.NullSafe;
  * Should a node fail to update the expiration date, another node will consider such entry as stale and will try to acquire the lock again.
  * <p>
  * For this reason it is advised to configure the refreshing interval significantly smaller than the lock expiration, for example one half of it.
+ * 
+ * <h3>Fairness</h3>
+ * 
+ * This class does not support reader/writer fairness.
  * 
  * <h3>Thread ownership</h3>
  *
@@ -107,13 +112,10 @@ public class DbLocking implements Locking, LifecycleAware {
 
 	private String topicName = "hc-locking";
 	private long topicExpiration = 5000L;
-	private Topic topic;
-	private MessageProducer messageProducer;
-
-	protected boolean messagingInitialized = false;
-	private MessagingSession messagingSession;
 
 	private final DbLockRefresher refresher = new DbLockRefresher(this);
+
+	private final Lazy<DbLockingMsg> lazyMsg = new Lazy<>(DbLockingMsg::new);
 
 	@Required
 	public void setDataSource(DataSource dataSource) {
@@ -226,20 +228,7 @@ public class DbLocking implements Locking, LifecycleAware {
 
 	@Override
 	public void preDestroy() {
-		if (messageProducer != null) {
-			try {
-				messageProducer.close();
-			} catch (Exception e) {
-				log.warn("error while closing message producer");
-			}
-		}
-		if (messagingSession != null) {
-			try {
-				messagingSession.close();
-			} catch (MessagingException e) {
-				log.warn("error while closing messaging session");
-			}
-		}
+		lazyMsg.close();
 	}
 
 	@Override
@@ -361,12 +350,12 @@ public class DbLocking implements Locking, LifecycleAware {
 	}
 
 	protected MessageConsumer listenForUnlockNotification(String id, Object monitor) {
-		ensureMessagingInitialized();
-		if (messagingSession == null)
+		DbLockingMsg msg = lazyMsg.get();
+		if (msg.messagingSession == null)
 			return null;
 
 		try {
-			MessageConsumer messageConsumer = messagingSession.createMessageConsumer(topic);
+			MessageConsumer messageConsumer = msg.messagingSession.createMessageConsumer(msg.topic);
 			messageConsumer.setMessageListener(message -> onUnlockMessage(id, monitor, message));
 
 			return messageConsumer;
@@ -832,14 +821,14 @@ public class DbLocking implements Locking, LifecycleAware {
 	}
 
 	private void notifyUnlock(String id) {
-		ensureMessagingInitialized();
-		if (messagingSession != null && messageProducer != null) {
+		DbLockingMsg msg = lazyMsg.get();
+		if (msg.messagingSession != null && msg.messageProducer != null) {
 			try {
-				Message message = messagingSession.createMessage();
+				Message message = msg.messagingSession.createMessage();
 				message.setBody(id);
 				message.setTimeToLive(topicExpiration);
 
-				messageProducer.sendMessage(message);
+				msg.messageProducer.sendMessage(message);
 
 			} catch (MessagingException e) {
 				log.error("error while producing message for a lock", e);
@@ -847,22 +836,41 @@ public class DbLocking implements Locking, LifecycleAware {
 		}
 	}
 
-	private void ensureMessagingInitialized() {
-		if (messagingInitialized)
-			return;
+	class DbLockingMsg implements AutoCloseable {
+		private Topic topic;
+		private MessageProducer messageProducer;
+		private MessagingSession messagingSession;
 
-		messagingInitialized = true;
+		public DbLockingMsg() {
+			if (messagingSessionProvider == null)
+				return;
 
-		if (messagingSessionProvider == null)
-			return;
+			try {
+				messagingSession = messagingSessionProvider.get();
+				topic = messagingSession.createTopic(topicName);
+				messageProducer = messagingSession.createMessageProducer(topic);
 
-		try {
-			messagingSession = messagingSessionProvider.get();
-			topic = messagingSession.createTopic(topicName);
-			messageProducer = messagingSession.createMessageProducer(topic);
+			} catch (MessagingException e) {
+				log.error("error while retrieving messaging components", e);
+				close();
+			}
+		}
 
-		} catch (MessagingException e) {
-			log.error("error while retrieving messaging components", e);
+		@Override
+		public void close() {
+			if (messageProducer != null)
+				try {
+					messageProducer.close();
+				} catch (Exception e) {
+					log.warn("error while closing message producer");
+				}
+
+			if (messagingSession != null)
+				try {
+					messagingSession.close();
+				} catch (MessagingException e) {
+					log.warn("error while closing messaging session");
+				}
 		}
 	}
 
