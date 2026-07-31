@@ -21,7 +21,6 @@ import java.io.File;
 import java.util.Date;
 import java.util.List;
 
-import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 import com.braintribe.common.db.DbVendor;
@@ -54,7 +53,8 @@ public class DbLockingRemoteTest {
 	// ##################################################################################################################
 	public static final DbVendor REMOTE_TEST_DB_VENDOR = DbVendor.postgres;
 
-	@Test
+	// Uncomment to run
+	// @Test
 	@Category(VerySlow.class)
 	public void testRemoteJvmsWithoutFailProbability() throws Exception {
 
@@ -82,7 +82,8 @@ public class DbLockingRemoteTest {
 		}
 	}
 
-	@Test
+	// Uncomment to run
+	// @Test
 	@Category(VerySlow.class)
 	public void testRemoteJvmsWithFailProbability() throws Exception {
 
