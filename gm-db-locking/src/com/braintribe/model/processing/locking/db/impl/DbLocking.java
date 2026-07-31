@@ -102,6 +102,8 @@ public class DbLocking implements Locking, LifecycleAware {
 	public static final int DEFAULT_POLL_INTERVAL_MS = 100;
 	public static final int DEFAULT_LOCK_EXPIRATION_MS = 5 * 60 * 1000;
 
+	private static final long NANOS_PER_MS = 1_000_000L;
+
 	/* package */ DataSource dataSource;
 	/* package */ JdbcDialect dialect;
 
@@ -109,7 +111,7 @@ public class DbLocking implements Locking, LifecycleAware {
 
 	private Supplier<MessagingSession> messagingSessionProvider;
 
-	private long pollIntervalInMillies = DEFAULT_POLL_INTERVAL_MS;
+	private long pollIntervalInNanos = DEFAULT_POLL_INTERVAL_MS * NANOS_PER_MS;
 	/* package */ long lockExpirationInMs = DEFAULT_LOCK_EXPIRATION_MS;
 
 	private int[] unlockRetryDelaysMs = { 500, 1000, 5000 };
@@ -138,7 +140,7 @@ public class DbLocking implements Locking, LifecycleAware {
 	 * <p>
 	 * Default value is {@value #DEFAULT_POLL_INTERVAL_MS} 
 	 */
-	@Configurable public void setPollIntervalInMillies(int pollIntervalInMillies) { this.pollIntervalInMillies = pollIntervalInMillies; }
+	@Configurable public void setPollIntervalInMillies(int pollIntervalInMillies) { this.pollIntervalInNanos = pollIntervalInMillies * NANOS_PER_MS; }
 	@Configurable public void setLockExpirationInSecs(int lockExpirationInSecs) { this.lockExpirationInMs = 1000L * lockExpirationInSecs; }
 
 	/**
@@ -417,7 +419,7 @@ public class DbLocking implements Locking, LifecycleAware {
 			try {
 				while (true) {
 					try {
-						if (tryLockMs(Long.MAX_VALUE))
+						if (tryLockNanos(Long.MAX_VALUE))
 							return;
 					} catch (InterruptedException e) {
 						log.debug("Non interruptible lock() call internally caught an InterruptedException, will continue waiting.");
@@ -435,16 +437,16 @@ public class DbLocking implements Locking, LifecycleAware {
 			if (Thread.interrupted())
 				throw new InterruptedException();
 
-			if (tryLockMs(Long.MAX_VALUE))
+			if (tryLockNanos(Long.MAX_VALUE))
 				return;
 		}
 
 		@Override
 		public boolean tryLock() {
 			try {
-				return tryLockMs(0);
+				return tryLockNanos(0);
 			} catch (InterruptedException e) {
-				// Not reachable with 0ms timeout (we never reach the waiting), but just in case
+				// Not reachable with 0 timeout (we never reach the waiting), but just in case
 				Thread.currentThread().interrupt();
 				return false;
 			}
@@ -452,14 +454,16 @@ public class DbLocking implements Locking, LifecycleAware {
 
 		@Override
 		public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
-			return tryLockMs(unit.toMillis(time));
+			// toNanos saturates at Long.MAX_VALUE on overflow, which is fine - that means "forever" (~292 years) below
+			return tryLockNanos(unit.toNanos(time));
 		}
 
-		private boolean tryLockMs(long tryMs) throws InterruptedException {
-			long now = System.currentTimeMillis();
-			long tryUntil = now + tryMs;
-			if (tryUntil < 0)
-				tryUntil = Long.MAX_VALUE;
+		private boolean tryLockNanos(long tryNanos) throws InterruptedException {
+			// The remaining time is counted down using the monotonic System.nanoTime(), so wall-clock adjustments (NTP etc.) can neither shorten
+			// nor extend the wait. We track it as a count-down rather than a deadline, because nanoTime values have an arbitrary origin and only
+			// their differences are meaningful. Long.MAX_VALUE (~292 years) effectively means "wait forever".
+			long remainingNanos = tryNanos;
+			long lastNanoTime = System.nanoTime();
 
 			Thread currentThread = Thread.currentThread();
 			String oldThreadName = currentThread.getName();
@@ -502,13 +506,16 @@ public class DbLocking implements Locking, LifecycleAware {
 						}
 					}
 
-					long millisLeft = tryUntil - System.currentTimeMillis();
-					if (millisLeft <= 0) {
+					long now = System.nanoTime();
+					remainingNanos -= now - lastNanoTime;
+					lastNanoTime = now;
+
+					if (remainingNanos <= 0) {
 						if (hasWriteLocking)
 							releaseWriteLocking();
 						return false;
 					}
-					waitBeforeTryLockAgain(millisLeft);
+					waitBeforeTryLockAgain(remainingNanos);
 				}
 
 			} catch (InterruptedException e) {
@@ -692,13 +699,13 @@ public class DbLocking implements Locking, LifecycleAware {
 			return result.value;
 		}
 
-		private void waitBeforeTryLockAgain(long millisLeft) throws InterruptedException {
-			long waitMillies = Math.min(millisLeft, pollIntervalInMillies);
+		private void waitBeforeTryLockAgain(long nanosLeft) throws InterruptedException {
+			long waitNanos = Math.min(nanosLeft, pollIntervalInNanos);
 
 			CountDownLatch unlockLatch = registerUnlockWaiter(rwLock.id);
 			try {
 				// an unlock notification that arrives right after registering still wakes us up - a counted-down latch doesn't wait at all
-				unlockLatch.await(waitMillies, TimeUnit.MILLISECONDS);
+				unlockLatch.await(waitNanos, TimeUnit.NANOSECONDS);
 			} finally {
 				unregisterUnlockWaiter(rwLock.id, unlockLatch);
 			}

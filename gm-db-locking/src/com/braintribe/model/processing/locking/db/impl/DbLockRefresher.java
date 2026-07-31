@@ -96,6 +96,10 @@ import com.braintribe.utils.CollectionTools;
 						ps.setTimestamp(3, lock.created());
 						ps.addBatch();
 					}
+					// TODO once LockStats is implemented, use the update counts (index-aligned with lockBatch) to detect lost leases early:
+					// a count of exactly 0 for an entry that is still registered in s_locks (recheck after the batch, as it may have been unlocked
+					// since our snapshot) means its lease was lost while held - warn + report via LockStats. Note that some drivers return
+					// Statement.SUCCESS_NO_INFO (-2) instead of real counts - only an exact 0 is a signal.
 					ps.executeBatch();
 				}
 			});
