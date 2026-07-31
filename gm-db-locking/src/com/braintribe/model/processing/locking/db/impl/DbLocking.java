@@ -21,7 +21,6 @@ import java.lang.StackWalker.StackFrame;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.List;
@@ -655,16 +654,19 @@ public class DbLocking implements Locking, LifecycleAware {
 				return true;
 
 			} catch (Exception e) {
-				if (e.getCause() instanceof SQLSyntaxErrorException)
-					throw new RuntimeException(e);
+				SQLException sqlE = JdbcTools.unwrapSqlException(e);
+				if (sqlE != null) {
+					String sqlState = sqlE.getSQLState();
+					// indicates a constraint violation, e.g. duplicate key, which means a row with given lock id already exists
+					boolean isIntegrityConstraintViolation = sqlState != null && sqlState.startsWith("23");
+					if (isIntegrityConstraintViolation)
+						return false;
+				}
 
-				// Exception is expected here if a row already exists
-				log.trace(() -> "Lock not obtained due to " + e.getClass().getSimpleName() + ""
-						+ (e.getMessage() != null ? ": " + e.getMessage() : ""));
-
-				return false;
+				throw e;
 			}
 		}
+
 		private boolean tryIncreaseCount(Connection c) {
 			Timestamp created = queryCreatedTime(c);
 			if (created == null || !tryChangeCount(c, created, +1))

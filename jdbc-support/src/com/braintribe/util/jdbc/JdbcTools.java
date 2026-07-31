@@ -17,6 +17,7 @@ package com.braintribe.util.jdbc;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Collection;
@@ -169,6 +170,17 @@ public class JdbcTools {
 
 	public static String questionMarks(int times) {
 		return " (" + StringTools.repeat("?,", times).substring(0, 2 * times - 1) + ")";
+	}
+
+	/** Returns the first {@link SQLException} it encounters when examining givent {@link Throwable} and its causes. */
+	public static SQLException unwrapSqlException(Throwable t) {
+		while (t != null) {
+			if (t instanceof SQLException sqlE)
+				return sqlE;
+
+			t = t.getCause();
+		}
+		return null;
 	}
 
 }
