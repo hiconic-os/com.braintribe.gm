@@ -67,9 +67,8 @@ public class JdbcMessagingSession implements MessagingSession {
 	}
 
 	private void validateDestinationName(String name) throws MessagingException {
-		if (name == null || name.trim().isEmpty()) {
-			throw new MessagingException("Destination name [ " + name + " ] is not valid");
-		}
+		if (name == null || name.trim().isEmpty())
+			throw new MessagingException("Empty destination name [ " + name + " ] is not valid!");
 	}
 
 	@Override
@@ -78,7 +77,7 @@ public class JdbcMessagingSession implements MessagingSession {
 	}
 
 	@Override
-	public MessageProducer createMessageProducer(Destination destination) throws MessagingException {
+	public MessageProducer createMessageProducer(Destination destination) {
 		logger.debug(() -> "Creating message producer for destination: " + destination + ", name: "
 				+ (destination != null ? destination.getName() : "<null>"));
 
@@ -90,7 +89,7 @@ public class JdbcMessagingSession implements MessagingSession {
 	}
 
 	@Override
-	public MessageConsumer createMessageConsumer(Destination destination) throws MessagingException {
+	public MessageConsumer createMessageConsumer(Destination destination) {
 		NullSafe.nonNull(destination, "destination");
 
 		logger.debug(() -> "Creating message consumer for destination: " + destination);

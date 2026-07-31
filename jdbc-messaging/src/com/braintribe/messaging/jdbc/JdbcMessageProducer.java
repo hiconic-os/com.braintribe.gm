@@ -55,7 +55,7 @@ public class JdbcMessageProducer extends JdbcAbstractMessageHandler implements M
 	@Override
 	public void sendMessage(Message message) throws MessagingException {
 		if (destination == null)
-			throw new UnsupportedOperationException("Cannot send message as no destination was assigned to the message producer at creation time");
+			throw new UnsupportedOperationException("Cannot send message as no default destination was assigned to the producer.");
 
 		sendMessage(message, destination);
 	}

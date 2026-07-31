@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -111,6 +112,8 @@ public class DbLocking implements Locking, LifecycleAware {
 	private long pollIntervalInMillies = DEFAULT_POLL_INTERVAL_MS;
 	/* package */ long lockExpirationInMs = DEFAULT_LOCK_EXPIRATION_MS;
 
+	private int[] unlockRetryDelaysMs = { 500, 1000, 5000 };
+
 	private boolean autoUpdateSchema = true;
 
 	private String topicName = "hc-locking";
@@ -137,6 +140,14 @@ public class DbLocking implements Locking, LifecycleAware {
 	 */
 	@Configurable public void setPollIntervalInMillies(int pollIntervalInMillies) { this.pollIntervalInMillies = pollIntervalInMillies; }
 	@Configurable public void setLockExpirationInSecs(int lockExpirationInSecs) { this.lockExpirationInMs = 1000L * lockExpirationInSecs; }
+
+	/**
+	 * Delays (in milliseconds) between retries of the DB update that releases a lock, should it fail with an error (e.g. connection loss). One retry
+	 * is attempted per array entry. Without a successful release the lock stays blocked for everyone until its lease expires, hence the retries.
+	 * <p>
+	 * Default value is {500, 1000, 5000}
+	 */
+	@Configurable public void setUnlockRetryDelaysMs(int[] unlockRetryDelaysMs) { this.unlockRetryDelaysMs = NullSafe.nonNull(unlockRetryDelaysMs, "unlockRetryDelaysMs"); }
 
 	@Configurable public void setTopicExpiration(long topicExpiration) { this.topicExpiration = topicExpiration; }
 	@Configurable public void setTopicName(String topicName) { this.topicName = topicName; }
@@ -254,9 +265,9 @@ public class DbLocking implements Locking, LifecycleAware {
 	}
 
 	private ReentrableReadWriteLock forIdentifierAndReentranceId(String id, String reentranceId) {
-		String tuncId = truncateTo240Chars(id);
+		String truncId = truncateTo240Chars(id);
 		String caller = identifyCaller();
-		return new DbRwLock(tuncId, reentranceId, caller);
+		return new DbRwLock(truncId, reentranceId, caller);
 	}
 
 	private static final StackWalker WALKER = StackWalker.getInstance(Set.of(StackWalker.Option.RETAIN_CLASS_REFERENCE), 8);
@@ -639,6 +650,7 @@ public class DbLocking implements Locking, LifecycleAware {
 			return true;
 		}
 
+		// Throws wrapped SQLExceptions!!!
 		private boolean tryChangeCount(Connection c, Timestamp created, int diff) {
 			long current = System.currentTimeMillis();
 			long expires = current + lockExpirationInMs;
@@ -648,28 +660,17 @@ public class DbLocking implements Locking, LifecycleAware {
 			String query = "update " + DB_TABLE_NAME + " set count = count + ?, expires = ? where id = ? and reentranceId = ? and created = ?";
 
 			var updated = new Box<Integer>();
-			try {
-				JdbcTools.withPreparedStatement(c, query, () -> "updating count for lock with id " + rwLock.id, ps -> {
-					ps.setInt(1, diff);
-					ps.setTimestamp(2, expiresTs);
-					ps.setString(3, rwLock.id);
-					ps.setString(4, reentranceId);
-					ps.setTimestamp(5, created);
+			JdbcTools.withPreparedStatement(c, query, () -> "updating count for lock with id " + rwLock.id, ps -> {
+				ps.setInt(1, diff);
+				ps.setTimestamp(2, expiresTs);
+				ps.setString(3, rwLock.id);
+				ps.setString(4, reentranceId);
+				ps.setTimestamp(5, created);
 
-					updated.value = ps.executeUpdate();
-				});
+				updated.value = ps.executeUpdate();
+			});
 
-				if (updated.value == 0)
-					return false;
-
-				return true;
-
-			} catch (Exception e) {
-				log.debug(() -> "Lock not obtained due to " + e.getClass().getSimpleName() + ""
-						+ (e.getMessage() != null ? ": " + e.getMessage() : ""));
-
-				return false;
-			}
+			return updated.value > 0;
 		}
 
 		private Timestamp queryCreatedTime(Connection c) {
@@ -713,27 +714,101 @@ public class DbLocking implements Locking, LifecycleAware {
 				refresher.stopRefreshing(rwLock, lockHoldInfo.created);
 
 			try {
-				var lockReleasedIndicator = new Box<Boolean>();
-				JdbcTools.withConnection(dataSource, true, () -> "Deleting unlocked lock " + rwLock.id, connection -> {
-					if (tryChangeCount(connection, lockHoldInfo.created, -1))
-						lockReleasedIndicator.value = deleteLockIfExpired(connection);
-					else
-						log.warn("Lock lease was lost while held (the lock expired and was released or taken over by another owner) - mutual "
-								+ "exclusion may have been violated during the critical section." + lockContext());
-				});
+				boolean lockReleased = releaseLockInDb(lockHoldInfo);
 
 				// only notify waiters if the lock row was actually deleted - as long as it exists (count > 0) they cannot acquire it anyway
-				if (Boolean.TRUE.equals(lockReleasedIndicator.value))
+				if (lockReleased)
 					notifyUnlock(rwLock.id);
 
 			} catch (Exception e) {
-				log.warn("Error while releasing lock " + rwLock.id, e);
+				log.warn("Error while releasing lock " + rwLock.id + ", it will stay blocked for everyone until its lease expires.", e);
 
 			} finally {
 				if (--lockHoldInfo.count == 0)
 					tlLockHoldInfo.remove();
 				if (isWriteLocking)
 					releaseWriteLocking();
+			}
+		}
+
+		/**
+		 * Releases this thread's hold in the DB and says whether the lock row was actually deleted (i.e. waiters can now acquire the lock).
+		 * <p>
+		 * DB errors are retried as per {@link #setUnlockRetryDelaysMs(int[])}, to really try not to leave behind a stale lock.
+		 */
+		private boolean releaseLockInDb(LockHoldInfo lockHoldInfo) throws Exception {
+			// Common case: we are the sole holder - delete the row outright, with a single statement.
+			if (deleteLockIfSoleHolder(lockHoldInfo))
+				return true;
+
+			// Other holders exist - just decrement the count.
+			if (!decrementLockCount(lockHoldInfo)) {
+				// Our row incarnation is gone: the lease was lost, or (rarely) a delete retry above reached the DB but reporting its result failed.
+				log.warn("Lock lease was lost while held (the lock expired and was released or taken over by another owner) - mutual "
+						+ "exclusion may have been violated during the critical section." + lockContext());
+				return false;
+			}
+
+			// In case a concurrent unlock brought the count down to 1 between our two statements above, our decrement left the row at 0 - delete it.
+			return retryingOnDbErrors(() -> {
+				var deleted = new Box<Boolean>();
+				JdbcTools.withConnection(dataSource, true, () -> "Deleting released lock " + rwLock.id, connection -> {
+					deleted.value = deleteLockIfExpired(connection);
+				});
+
+				return Boolean.TRUE.equals(deleted.value);
+			});
+		}
+
+		private boolean deleteLockIfSoleHolder(LockHoldInfo lockHoldInfo) throws Exception {
+			String query = "delete from " + DB_TABLE_NAME + " where id = ? and reentranceId = ? and created = ? and count = 1";
+
+			return retryingOnDbErrors(() -> {
+				var deleted = new Box<Integer>();
+				JdbcTools.withConnection(dataSource, true, () -> "Deleting unlocked lock " + rwLock.id, connection -> {
+					JdbcTools.withPreparedStatement(connection, query, () -> "deleting entry for lock with id " + rwLock.id, ps -> {
+						ps.setString(1, rwLock.id);
+						ps.setString(2, reentranceId);
+						ps.setTimestamp(3, lockHoldInfo.created);
+
+						deleted.value = ps.executeUpdate();
+					});
+				});
+
+				return deleted.value > 0;
+			});
+		}
+
+		private boolean decrementLockCount(LockHoldInfo lockHoldInfo) throws Exception {
+			var decremented = new Box<Boolean>();
+			JdbcTools.withConnection(dataSource, true, () -> "Decrementing count of lock " + rwLock.id, connection -> {
+				decremented.value = tryChangeCount(connection, lockHoldInfo.created, -1);
+			});
+
+			return Boolean.TRUE.equals(decremented.value);
+		}
+
+		private boolean retryingOnDbErrors(Callable<Boolean> dbTask) throws Exception {
+			int nextRetry = 0;
+
+			while (true) {
+				try {
+					return dbTask.call();
+
+				} catch (Exception e) {
+					if (nextRetry >= unlockRetryDelaysMs.length)
+						throw e;
+
+					long delayMs = unlockRetryDelaysMs[nextRetry++];
+					log.warn("Error while releasing lock " + rwLock.id + ", retrying in " + delayMs + " ms.", e);
+
+					try {
+						Thread.sleep(delayMs);
+					} catch (InterruptedException ie) {
+						Thread.currentThread().interrupt();
+						throw e; // interrupted - give up retrying
+					}
+				}
 			}
 		}
 
