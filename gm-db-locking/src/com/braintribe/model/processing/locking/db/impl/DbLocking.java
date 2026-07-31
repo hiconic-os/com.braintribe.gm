@@ -17,6 +17,7 @@ package com.braintribe.model.processing.locking.db.impl;
 
 import static com.braintribe.utils.lcd.CollectionTools2.asList;
 
+import java.lang.StackWalker.StackFrame;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -271,6 +272,17 @@ public class DbLocking implements Locking, LifecycleAware {
 		return new DbRwLock(tuncId, reentranceId, caller);
 	}
 
+	private static final StackWalker WALKER = StackWalker.getInstance(Set.of(StackWalker.Option.RETAIN_CLASS_REFERENCE), 8);
+
+	private String identifyCaller() {
+		return WALKER.walk(framesStream -> framesStream //
+				.dropWhile(f -> isFrameworkFrame(f)) //
+				.findFirst() //
+				.map(DbLocking::format) //
+				.orElse("unknown") //
+		);
+	}
+
 	/**
 	 * Stacktrace might have many different forms, but with no proxy the earliest possible caller position is 3.
 	 * 
@@ -284,31 +296,35 @@ public class DbLocking implements Locking, LifecycleAware {
 		 StackTraceElement[x]: >> Caller <<
 	 * }
 	 */
-	private String identifyCaller() {
-		int n = 3;
+	private static boolean isFrameworkFrame(StackFrame frame) {
+		// Old way using class names, not sure it's needed,
+		// String className = frame.getClassName();
+		// return className.startsWith(DbLocking.class.getName()) || //
+		// className.startsWith(Locking.class.getName()) || //
+		// className.startsWith("tribefire.proxy.deploy.Locking");
 
-		while (true) {
-			StackTraceElement stackTraceElement = Thread.currentThread().getStackTrace()[n++];
+		Class<?> c = frame.getDeclaringClass();
 
-			String className = stackTraceElement.getClassName();
-			if (className.startsWith(DbLocking.class.getName()) || className.startsWith(Locking.class.getName())
-					|| className.startsWith("tribefire.proxy.deploy.Locking"))
-				continue;
+		return Locking.class.isAssignableFrom(c) || // covers the deploy proxy
+				c == DbLocking.class || //
+				c.getName().startsWith("tribefire.proxy.deploy.Locking");
+	}
 
-			int lineNumber = stackTraceElement.getLineNumber();
-			String methodName = stackTraceElement.getMethodName();
+	private static String format(StackFrame f) {
+		String className = f.getClassName();
+		int i = className.lastIndexOf('.');
+		if (i > 0)
+			className = className.substring(i + 1);
 
-			int i = className.lastIndexOf(".");
-			if (i > 0)
-				className = className.substring(i + 1);
+		int lineNumber = f.getLineNumber();
+		String methodName = f.getMethodName();
 
-			String caller = className + '.' + methodName + '(' + (lineNumber >= 0 ? lineNumber : "") + ')';
-			if (caller.length() <= 240)
-				return caller;
+		String caller = className + '.' + methodName + ':' + (lineNumber >= 0 ? lineNumber : "-");
+		if (caller.length() <= 240)
+			return caller;
 
-			int len = caller.length();
-			return caller.substring(len - 240, len);
-		}
+		int len = caller.length();
+		return caller.substring(len - 240, len);
 	}
 
 	/* package */ class DbRwLock implements ReentrableReadWriteLock {
@@ -443,7 +459,6 @@ public class DbLocking implements Locking, LifecycleAware {
 		}
 
 		private boolean tryLockMs(long tryMs) throws InterruptedException {
-
 			long now = System.currentTimeMillis();
 			long tryUntil = now + tryMs;
 			if (tryUntil < 0)
