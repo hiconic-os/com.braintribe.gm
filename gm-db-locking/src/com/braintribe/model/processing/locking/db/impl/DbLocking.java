@@ -30,6 +30,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -91,7 +92,6 @@ import com.braintribe.utils.lcd.NullSafe;
  * <p>
  * {@code unlock()} by a thread that holds no lock throws an {@link IllegalMonitorStateException}, re-entering a lock whose lease was lost throws an
  * {@link IllegalStateException}.
- *
  */
 public class DbLocking implements Locking, LifecycleAware {
 
@@ -100,9 +100,13 @@ public class DbLocking implements Locking, LifecycleAware {
 	public static final String DB_TABLE_NAME = "hc_locking";
 
 	public static final int DEFAULT_POLL_INTERVAL_MS = 100;
+	public static final int DEFAULT_MAX_POLL_INTERVAL_MS = 5000;
 	public static final int DEFAULT_LOCK_EXPIRATION_MS = 5 * 60 * 1000;
 
 	private static final long NANOS_PER_MS = 1_000_000L;
+
+	// the longer current lock has been held, the less frequently we poll: interval = lock age / this ratio (within min/max limits).
+	private static final long LOCK_AGE_TO_POLL_INTERVAL_RATIO = 10;
 
 	/* package */ DataSource dataSource;
 	/* package */ JdbcDialect dialect;
@@ -112,6 +116,7 @@ public class DbLocking implements Locking, LifecycleAware {
 	private Supplier<MessagingSession> messagingSessionProvider;
 
 	private long pollIntervalInNanos = DEFAULT_POLL_INTERVAL_MS * NANOS_PER_MS;
+	private long maxPollIntervalInNanos = DEFAULT_MAX_POLL_INTERVAL_MS * NANOS_PER_MS;
 	/* package */ long lockExpirationInMs = DEFAULT_LOCK_EXPIRATION_MS;
 
 	private int[] unlockRetryDelaysMs = { 500, 1000, 5000 };
@@ -136,11 +141,21 @@ public class DbLocking implements Locking, LifecycleAware {
 	@Configurable public void setAutoUpdateSchema(boolean autoUpdateSchema) { this.autoUpdateSchema = autoUpdateSchema; }
 
 	/**
-	 * Determines the re-try interval to acquire a lock in case the first try wasn't successful.  
+	 * Determines the minimum re-try interval to acquire a lock in case the first try wasn't successful. The actual interval grows with the age of
+	 * the currently held lock (see {@link #setMaxPollIntervalInMillies(int)}) and is jittered to avoid waiters polling in lockstep.
 	 * <p>
-	 * Default value is {@value #DEFAULT_POLL_INTERVAL_MS} 
+	 * Default value is {@value #DEFAULT_POLL_INTERVAL_MS}
 	 */
 	@Configurable public void setPollIntervalInMillies(int pollIntervalInMillies) { this.pollIntervalInNanos = pollIntervalInMillies * NANOS_PER_MS; }
+
+	/**
+	 * Upper limit for the re-try interval: the longer the current lock has already been held, the less likely it is to be released in the very next
+	 * moment, so waiters poll less frequently (lock age / {@value #LOCK_AGE_TO_POLL_INTERVAL_RATIO}), but never less frequently than this limit.
+	 * <p>
+	 * Default value is {@value #DEFAULT_MAX_POLL_INTERVAL_MS}
+	 */
+	@Configurable public void setMaxPollIntervalInMillies(int maxPollIntervalInMillies) { this.maxPollIntervalInNanos = maxPollIntervalInMillies * NANOS_PER_MS; }
+
 	@Configurable public void setLockExpirationInSecs(int lockExpirationInSecs) { this.lockExpirationInMs = 1000L * lockExpirationInSecs; }
 
 	/**
@@ -389,6 +404,11 @@ public class DbLocking implements Locking, LifecycleAware {
 		}
 	}
 
+	/** Snapshot of the lock row as observed by a waiter while trying to acquire the lock. */
+	private record LockRow(String reentranceId, Timestamp expires, Timestamp created) {
+		// empty
+	}
+
 	private class DistributedLock implements Lock {
 		private final DbRwLock rwLock;
 		private final String reentranceId;
@@ -469,8 +489,12 @@ public class DbLocking implements Locking, LifecycleAware {
 			String oldThreadName = currentThread.getName();
 			currentThread.setName(oldThreadName + " > waiting for lock " + rwLock.id);
 			boolean hasWriteLocking = false;
+
+			// On first attempt, and upon unlock notification, be optimistic and insert right away
+			// after failed insert, do a select to assess the situation
+			boolean tryInsertFirst = true;
+
 			try {
-				var successIndicator = new Box<Boolean>();
 				while (true) {
 					if (!hasWriteLocking)
 						hasWriteLocking = acquireWriteLocking();
@@ -479,43 +503,43 @@ public class DbLocking implements Locking, LifecycleAware {
 						LockHoldInfo lockHoldInfo = tlLockHoldInfo.get();
 						if (lockHoldInfo != null)
 							return reEnter(lockHoldInfo);
+					}
 
-						JdbcTools.withConnection(dataSource, true, () -> "Trying to acquire lock " + rwLock.id, connection -> {
-							if (tryInsert(connection)) {
-								successIndicator.value = Boolean.TRUE;
-								return;
+					// register before DB attempt so an unlock notification is not lost
+					CountDownLatch unlockLatch = registerUnlockWaiter(rwLock.id);
+					try {
+						var observedRow = new Box<LockRow>();
+
+						if (hasWriteLocking) {
+							boolean insertFirst = tryInsertFirst;
+							var acquired = new Box<Boolean>();
+							JdbcTools.withConnection(dataSource, true, () -> "Trying to acquire lock " + rwLock.id, connection -> {
+								acquired.value = tryAcquire(connection, insertFirst, observedRow);
+							});
+
+							if (Boolean.TRUE.equals(acquired.value)) {
+								refresher.startRefreshing(rwLock, tlLockHoldInfo.get().created);
+								return true;
 							}
-
-							if (tryIncreaseCount(connection)) {
-								successIndicator.value = Boolean.TRUE;
-								return;
-							}
-
-							if (!deleteLockIfExpired(connection))
-								return;
-
-							if (tryInsert(connection)) {
-								successIndicator.value = Boolean.TRUE;
-								return;
-							}
-						});
-
-						if (successIndicator.value != null) {
-							refresher.startRefreshing(rwLock, tlLockHoldInfo.get().created);
-							return true;
 						}
-					}
 
-					long now = System.nanoTime();
-					remainingNanos -= now - lastNanoTime;
-					lastNanoTime = now;
+						long now = System.nanoTime();
+						remainingNanos -= now - lastNanoTime;
+						lastNanoTime = now;
 
-					if (remainingNanos <= 0) {
-						if (hasWriteLocking)
-							releaseWriteLocking();
-						return false;
+						if (remainingNanos <= 0) {
+							if (hasWriteLocking)
+								releaseWriteLocking();
+							return false;
+						}
+
+						long waitNanos = Math.min(remainingNanos, nextPollIntervalNanos(observedRow.value));
+						// an unlock notification that arrived since registering still wakes us up - a counted-down latch doesn't wait at all
+						tryInsertFirst = unlockLatch.await(waitNanos, TimeUnit.NANOSECONDS);
+
+					} finally {
+						unregisterUnlockWaiter(rwLock.id, unlockLatch);
 					}
-					waitBeforeTryLockAgain(remainingNanos);
 				}
 
 			} catch (InterruptedException e) {
@@ -552,6 +576,60 @@ public class DbLocking implements Locking, LifecycleAware {
 
 			hold.count++;
 			return true;
+		}
+
+		/**
+		 * Single acquisition attempt. If insertFirst, optimistically tries an insert (the row probably doesn't exist); otherwise it starts with a
+		 * select of the current row state and only attempts the write that state calls for - this way a failed attempt of a blocked waiter costs just
+		 * one cheap single-row select.
+		 * <p>
+		 * If not acquired, the observed row (null if there was none) is stored in observedRow and drives the length of the subsequent wait.
+		 */
+		private boolean tryAcquire(Connection c, boolean insertFirst, Box<LockRow> observedRow) throws Exception {
+			if (insertFirst && tryInsert(c))
+				return true;
+
+			LockRow row = queryLockRow(c);
+			observedRow.value = row;
+
+			if (row == null)
+				// no row (or it disappeared since our failed insert) - grab it
+				return tryInsert(c);
+
+			if (reentranceId.equals(row.reentranceId())) {
+				// a lock with our reentranceId exists (e.g. another read lock) - join it by incrementing its count
+				if (tryChangeCount(c, row.created(), +1)) {
+					tlLockHoldInfo.set(new LockHoldInfo(row.created()));
+					return true;
+				}
+				// the row changed between our select and update - try again next round
+				return false;
+			}
+
+			if (isExpired(row) && deleteLockIfExpired(c))
+				return tryInsert(c);
+
+			return false;
+		}
+
+		private boolean isExpired(LockRow row) {
+			return row.expires().getTime() <= System.currentTimeMillis();
+		}
+
+		private LockRow queryLockRow(Connection c) {
+			String query = "select reentranceId, expires, created from " + DB_TABLE_NAME + " where id = ?";
+
+			var result = new Box<LockRow>();
+			JdbcTools.withPreparedStatement(c, query, () -> "Querying lock row with id " + rwLock.id, ps -> {
+				ps.setString(1, rwLock.id);
+
+				try (ResultSet rs = ps.executeQuery()) {
+					if (rs.next())
+						result.value = new LockRow(rs.getString(1), rs.getTimestamp(2), rs.getTimestamp(3));
+				}
+			});
+
+			return result.value;
 		}
 
 		// id, expires, created, caller, machine
@@ -648,15 +726,6 @@ public class DbLocking implements Locking, LifecycleAware {
 			}
 		}
 
-		private boolean tryIncreaseCount(Connection c) {
-			Timestamp created = queryCreatedTime(c);
-			if (created == null || !tryChangeCount(c, created, +1))
-				return false;
-
-			tlLockHoldInfo.set(new LockHoldInfo(created));
-			return true;
-		}
-
 		// Throws wrapped SQLExceptions!!!
 		private boolean tryChangeCount(Connection c, Timestamp created, int diff) {
 			long current = System.currentTimeMillis();
@@ -680,35 +749,36 @@ public class DbLocking implements Locking, LifecycleAware {
 			return updated.value > 0;
 		}
 
-		private Timestamp queryCreatedTime(Connection c) {
-			String query = "select created from " + DB_TABLE_NAME + " where id = ? and reentranceId = ?";
-			List<Object> params = asList(rwLock.id, reentranceId);
+		/**
+		 * Wait time depends on how long current lock row was held - the longer, the less likely it will be released soon, within limits.
+		 * <p>
+		 * Result is jittered to +-50% so that concurrent waiters don't poll in lock-step.
+		 * <p>
+		 * But if the lock is about to expire, we wake up right expiration.
+		 */
+		private long nextPollIntervalNanos(LockRow row) {
+			if (row == null)
+				return jittered(pollIntervalInNanos);
 
-			var result = new Box<Timestamp>();
-			JdbcTools.withPreparedStatement(c, query, params, () -> "Querying lock if expired with id " + rwLock.id, ps -> {
-				ps.setString(1, rwLock.id);
-				ps.setString(2, reentranceId);
+			long now = System.currentTimeMillis();
 
-				try (ResultSet rs = ps.executeQuery()) {
-					if (rs.next()) {
-						result.value = rs.getTimestamp(1);
-					}
-				}
-			});
+			long lockAgeMs = now - row.created().getTime(); // may even be negative with cross-node clock skew
+			long ageBasedNanos = lockAgeMs / LOCK_AGE_TO_POLL_INTERVAL_RATIO * NANOS_PER_MS;
+			long baseNanos = Math.min(maxPollIntervalInNanos, Math.max(pollIntervalInNanos, ageBasedNanos));
 
-			return result.value;
+			long jitteredNanos = jittered(baseNanos);
+
+			// +1 ms so we wake up just after the expiration, not just before it
+			long untilExpirationNanos = (row.expires().getTime() - now + 1) * NANOS_PER_MS;
+			if (untilExpirationNanos > 0)
+				return Math.min(jitteredNanos, untilExpirationNanos);
+
+			return jitteredNanos;
 		}
 
-		private void waitBeforeTryLockAgain(long nanosLeft) throws InterruptedException {
-			long waitNanos = Math.min(nanosLeft, pollIntervalInNanos);
-
-			CountDownLatch unlockLatch = registerUnlockWaiter(rwLock.id);
-			try {
-				// an unlock notification that arrives right after registering still wakes us up - a counted-down latch doesn't wait at all
-				unlockLatch.await(waitNanos, TimeUnit.NANOSECONDS);
-			} finally {
-				unregisterUnlockWaiter(rwLock.id, unlockLatch);
-			}
+		/** Random value between 50% and 150% of nanos */
+		private long jittered(long nanos) {
+			return nanos / 2 + ThreadLocalRandom.current().nextLong(nanos + 1);
 		}
 
 		@Override
