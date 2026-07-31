@@ -104,7 +104,7 @@ public class DbLocking_SingleThread_Test extends AbstractDbLockingTestBase {
 	}
 
 	@Test(timeout = TIMEOUT_MS)
-	public void readIstReentrant() {
+	public void readIsReentrant() {
 		readLock.lock();
 		assertCanLock(readLock);
 		readLock.unlock();

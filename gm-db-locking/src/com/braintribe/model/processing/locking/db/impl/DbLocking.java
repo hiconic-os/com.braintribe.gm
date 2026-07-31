@@ -63,6 +63,13 @@ import com.braintribe.utils.lcd.NullSafe;
  * For each {@link Lock}, acquired e.g. via {@link #forIdentifier(String)} (or similar methods), an entry is created with a certain expiration date.
  * This expiration date is the current time plus the configured {@link #setLockExpirationInSecs(int)}.
  * 
+ * <h3>Thread ownership</h3>
+ *
+ * Like with {@link java.util.concurrent.locks.ReentrantReadWriteLock}, a lock must be released by the same thread that acquired it. Each acquisition
+ * remembers (per thread) which incarnation of the lock row it acquired, so that a holder whose lease was lost (lock expired and was cleaned up or
+ * taken over by another node) cannot accidentally release a newer lock of another owner. {@code unlock()} by a thread that holds no acquisition
+ * throws an {@link IllegalMonitorStateException}, re-entering a lock whose lease was lost throws an {@link IllegalStateException}.
+ *
  * <h3>Updating expiration dates automatically</h3>
  * 
  * This expiration date should be updated automatically, ideally as a scheduled task. It should be configured externally, and the update is performed
@@ -315,8 +322,6 @@ public class DbLocking implements Locking, LifecycleAware {
 		public final DistributedLock readLock;
 		public final DistributedLock writeLock;
 
-		public Timestamp created;
-
 		public DbRwLock(String id, String reentranceId, String caller) {
 			this.id = id;
 			this.caller = caller;
@@ -387,11 +392,31 @@ public class DbLocking implements Locking, LifecycleAware {
 	// ## . . . . . . . . . Lock . . . . . . . . . ##
 	// ##############################################
 
+	/**
+	 * Tracks one thread's hold on a {@link DistributedLock}: which incarnation of the lock row it acquired - a timestamp and how many times it
+	 * (re-)entered the lock.
+	 */
+	private static class LockHoldInfo {
+		final Timestamp created;
+		int count = 1;
+
+		LockHoldInfo(Timestamp created) {
+			this.created = created;
+		}
+	}
+
 	private class DistributedLock implements Lock {
 		private final DbRwLock rwLock;
 		private final String reentranceId;
 		private final boolean isWriteLock;
 		private volatile boolean isWriteLocking; // to make sure writeLock is not re-entrant
+
+		/**
+		 * This thread's hold on this lock, null if it doesn't hold it. Each acquisition remembers the {@code created} timestamp of the row
+		 * incarnation it acquired, and unlock only releases that exact incarnation. This implies lock and unlock must happen on the same thread, just
+		 * like with {@link java.util.concurrent.locks.ReentrantReadWriteLock}.
+		 */
+		private final ThreadLocal<LockHoldInfo> tlLockHoldInfo = new ThreadLocal<>();
 
 		public DistributedLock(DbRwLock rwLock, String reentranceId, boolean isWriteLock) {
 			this.rwLock = rwLock;
@@ -456,6 +481,10 @@ public class DbLocking implements Locking, LifecycleAware {
 						hasWriteLocking = acquireWriteLocking();
 
 					if (hasWriteLocking) {
+						LockHoldInfo lockHoldInfo = tlLockHoldInfo.get();
+						if (lockHoldInfo != null)
+							return reEnter(lockHoldInfo);
+
 						JdbcTools.withConnection(dataSource, true, () -> "Trying to acquire lock " + rwLock.id, connection -> {
 							if (tryInsert(connection)) {
 								successIndicator.value = Boolean.TRUE;
@@ -496,6 +525,12 @@ public class DbLocking implements Locking, LifecycleAware {
 					releaseWriteLocking();
 				throw e;
 
+			} catch (IllegalStateException e) {
+				// lost lease detected while re-entering - propagate as is
+				if (hasWriteLocking)
+					releaseWriteLocking();
+				throw e;
+
 			} catch (Exception e) {
 				if (hasWriteLocking)
 					releaseWriteLocking();
@@ -504,6 +539,21 @@ public class DbLocking implements Locking, LifecycleAware {
 			} finally {
 				currentThread.setName(oldThreadName);
 			}
+		}
+
+		/** This thread already holds the lock, so the only legitimate outcome is incrementing the count of our own row incarnation. */
+		private boolean reEnter(LockHoldInfo hold) {
+			var successIndicator = new Box<Boolean>();
+			JdbcTools.withConnection(dataSource, true, () -> "Re-entering lock " + rwLock.id, connection -> {
+				successIndicator.value = tryChangeCount(connection, hold.created, +1);
+			});
+
+			if (!Boolean.TRUE.equals(successIndicator.value))
+				throw new IllegalStateException("Cannot re-enter lock, even though it's already held by current thread. "
+						+ "Its lease was lost - the lock expired, probably due to some error with keeping it alive: " + lockContext());
+
+			hold.count++;
+			return true;
 		}
 
 		// id, expires, created, caller, machine
@@ -517,7 +567,7 @@ public class DbLocking implements Locking, LifecycleAware {
 			boolean result = tryInsert(c, currentTs, expiresTs);
 
 			if (result)
-				rwLock.created = currentTs;
+				tlLockHoldInfo.set(new LockHoldInfo(currentTs));
 			return result;
 		}
 
@@ -599,10 +649,10 @@ public class DbLocking implements Locking, LifecycleAware {
 		}
 		private boolean tryIncreaseCount(Connection c) {
 			Timestamp created = queryCreatedTime(c);
-			if (!tryChangeCount(c, created, +1))
+			if (created == null || !tryChangeCount(c, created, +1))
 				return false;
 
-			rwLock.created = created;
+			tlLockHoldInfo.set(new LockHoldInfo(created));
 			return true;
 		}
 
@@ -683,20 +733,30 @@ public class DbLocking implements Locking, LifecycleAware {
 		}
 		@Override
 		public void unlock() {
-			refresher.stopRefreshing(rwLock);
+			LockHoldInfo lockHoldInfo = tlLockHoldInfo.get();
+			if (lockHoldInfo == null)
+				throw new IllegalMonitorStateException("Attempt to unlock a lock, not locked by current thread: " + lockContext());
+
+			if (lockHoldInfo.count == 1)
+				refresher.stopRefreshing(rwLock);
 
 			try {
 				JdbcTools.withConnection(dataSource, true, () -> "Deleting unlocked lock " + rwLock.id, connection -> {
-					if (tryChangeCount(connection, rwLock.created, -1))
+					if (tryChangeCount(connection, lockHoldInfo.created, -1))
 						deleteLockIfExpired(connection);
+					else
+						log.warn("Lock lease was lost while held (the lock expired and was released or taken over by another owner) - mutual "
+								+ "exclusion may have been violated during the critical section." + lockContext());
 				});
 
 				notifyUnlock(rwLock.id);
-				return;
 
 			} catch (Exception e) {
 				log.warn("Error while releasing lock " + rwLock.id, e);
+
 			} finally {
+				if (--lockHoldInfo.count == 0)
+					tlLockHoldInfo.remove();
 				if (isWriteLocking)
 					releaseWriteLocking();
 			}
