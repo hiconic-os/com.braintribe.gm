@@ -24,16 +24,14 @@ import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 import java.sql.Statement;
 import java.sql.Timestamp;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import javax.sql.DataSource;
 
@@ -88,8 +86,8 @@ public class DbLocking implements Locking, LifecycleAware {
 
 	private Supplier<MessagingSession> messagingSessionProvider;
 
-	private int pollIntervalInMillies = DEFAULT_POLL_INTERVAL_MS;
-	/* package */ int lockExpirationInMs = DEFAULT_LOCK_EXPIRATION_MS;
+	private long pollIntervalInMillies = DEFAULT_POLL_INTERVAL_MS;
+	/* package */ long lockExpirationInMs = DEFAULT_LOCK_EXPIRATION_MS;
 
 	private boolean autoUpdateSchema = true;
 
@@ -118,7 +116,7 @@ public class DbLocking implements Locking, LifecycleAware {
 	 * Default value is {@value #DEFAULT_POLL_INTERVAL_MS} 
 	 */
 	@Configurable public void setPollIntervalInMillies(int pollIntervalInMillies) { this.pollIntervalInMillies = pollIntervalInMillies; }
-	@Configurable public void setLockExpirationInSecs(int lockExpirationInSecs) { this.lockExpirationInMs = 1000 * lockExpirationInSecs; }
+	@Configurable public void setLockExpirationInSecs(int lockExpirationInSecs) { this.lockExpirationInMs = 1000L * lockExpirationInSecs; }
 
 	@Configurable public void setTopicExpiration(long topicExpiration) { this.topicExpiration = topicExpiration; }
 	@Configurable public void setTopicName(String topicName) { this.topicName = topicName; }
@@ -130,10 +128,8 @@ public class DbLocking implements Locking, LifecycleAware {
 		if (autoUpdateSchema)
 			try {
 				ensureLocksTable();
-				// We start the ensuring of the indices in a separate thread to not slow down
-				// the startup procedure. We do not need the indices right away, so it's
-				// ok to wait a bit.
-				Thread.ofVirtual().start(this::ensureIndices);
+
+				Thread.ofVirtual().start(this::removeObsoleteIndices);
 
 			} catch (Exception e) {
 				throw new RuntimeException("Error while ensuring " + DB_TABLE_NAME + " table used by Locking", e);
@@ -147,48 +143,32 @@ public class DbLocking implements Locking, LifecycleAware {
 		}
 	}
 
-	private void ensureIndices() {
+	// 28.7.2026: we used to create these, they serve no purpose, let's make sure to remove them to improve efficiency
+	private void removeObsoleteIndices() {
 		try (Connection connection = dataSource.getConnection()) {
-			log.debug(() -> "Ensuring indices on " + DB_TABLE_NAME);
+			log.debug(() -> "Dropping indices on " + DB_TABLE_NAME);
 
-			List<String> columns = List.of("reentranceId", "count", "expires", "created");
+			List<String> indexNames = Stream.of("reentranceId", "count", "expires", "created") //
+					.map(col -> (DB_TABLE_NAME + "_" + col + "_idx").toLowerCase()) //
+					.toList();
 
-			Map<String, String> indexPairs = new HashMap<>();
-			//@formatter:off
-			columns.stream().forEach(col -> {
-				String indexName = (DB_TABLE_NAME + "_" + col + "_idx").toLowerCase();
-				indexPairs.put(indexName, col);
-			});
-			//@formatter:on
-
-			Set<String> existingInstances = JdbcTools.indicesExist(connection, DB_TABLE_NAME, indexPairs.keySet());
-			if (existingInstances.size() == indexPairs.size()) {
-				// Indices already exist.
+			Set<String> existingInstances = JdbcTools.indicesExist(connection, DB_TABLE_NAME, indexNames);
+			if (existingInstances.isEmpty())
 				return;
-			}
-
-			Set<String> indices = new HashSet<>(indexPairs.keySet());
-			indices.removeAll(existingInstances);
-			if (indices.isEmpty()) {
-				return;
-			}
 
 			try (Statement statement = connection.createStatement()) {
-
-				for (String indexName : indices) {
-					String col = indexPairs.get(indexName);
-
-					String sql = "CREATE INDEX " + indexName + " ON " + DB_TABLE_NAME + " (" + col + ");";
-					log.debug(() -> "Creating index with statement: " + sql);
+				for (String indexName : indexNames) {
+					String sql = "DROP INDEX IF EXISTS " + indexName + ";";
+					log.info("Deleting index with statement: " + sql);
 					statement.executeUpdate(sql);
-					log.debug(() -> "Successfully created index on column " + col + " in table " + DB_TABLE_NAME);
+					log.info("Successfully deleted index " + indexName + " in table " + DB_TABLE_NAME);
 				}
 
 			} catch (Exception e) {
-				log.debug(() -> "Error while trying to ensure indices: " + e.getMessage(), e);
+				log.warn("Error while trying to drop indices: " + e.getMessage(), e);
 			}
 		} catch (Exception e) {
-			log.debug(() -> "Error while connecting to the DB to ensure indices: " + e.getMessage(), e);
+			log.warn("Error while connecting to the DB to drop indices: " + e.getMessage(), e);
 		}
 	}
 
@@ -278,7 +258,7 @@ public class DbLocking implements Locking, LifecycleAware {
 		return WALKER.walk(framesStream -> framesStream //
 				.dropWhile(f -> isFrameworkFrame(f)) //
 				.findFirst() //
-				.map(DbLocking::format) //
+				.map(DbLocking::printCaller) //
 				.orElse("unknown") //
 		);
 	}
@@ -306,11 +286,12 @@ public class DbLocking implements Locking, LifecycleAware {
 		Class<?> c = frame.getDeclaringClass();
 
 		return Locking.class.isAssignableFrom(c) || // covers the deploy proxy
+				ReentrableLocking.class.isAssignableFrom(c) || // covers
 				c == DbLocking.class || //
 				c.getName().startsWith("tribefire.proxy.deploy.Locking");
 	}
 
-	private static String format(StackFrame f) {
+	private static String printCaller(StackFrame f) {
 		String className = f.getClassName();
 		int i = className.lastIndexOf('.');
 		if (i > 0)
