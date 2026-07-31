@@ -18,9 +18,9 @@ package com.braintribe.model.processing.locking.db.impl;
 import static com.braintribe.utils.lcd.CollectionTools2.newList;
 
 import java.sql.Timestamp;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import com.braintribe.model.processing.locking.db.impl.DbLocking.DbRwLock;
 import com.braintribe.util.jdbc.JdbcTools;
@@ -35,20 +35,26 @@ import com.braintribe.utils.CollectionTools;
 
 	private final DbLocking dbLocking;
 
-	private final List<DbRwLock> s_locks = newList();
+	/* We update the row by id and timestamp to ensure we only ever refresh rows for locks we acquired, but not newer rows of another owner which
+	 * could have been acquired if we lost connection to DB and our lock expired. */
+	private record LockToRefresh(String id, Timestamp created) {
+		// empty
+	}
+
+	private final List<LockToRefresh> s_locks = newList();
 	private volatile int nLocks = 0;
 
 	public DbLockRefresher(DbLocking dbLocking) {
 		this.dbLocking = dbLocking;
 	}
 
-	public synchronized void startRefreshing(DbRwLock rwLock) {
-		s_locks.add(rwLock);
+	public synchronized void startRefreshing(DbRwLock lock, Timestamp created) {
+		s_locks.add(new LockToRefresh(lock.id, created));
 		nLocks++;
 	}
 
-	public synchronized void stopRefreshing(DbRwLock rwLock) {
-		s_locks.remove(rwLock);
+	public synchronized void stopRefreshing(DbRwLock lock, Timestamp created) {
+		s_locks.remove(new LockToRefresh(lock.id, created));
 		nLocks--;
 	}
 
@@ -56,44 +62,43 @@ import com.braintribe.utils.CollectionTools;
 		if (nLocks == 0)
 			return;
 
-		List<DbRwLock> locksToRefresh = locksToRefresh();
+		List<LockToRefresh> locksToRefresh = locksToRefresh();
 		if (locksToRefresh.isEmpty())
 			return;
 
 		refresh(locksToRefresh);
 	}
 
-	private synchronized List<DbRwLock> locksToRefresh() {
+	private synchronized List<LockToRefresh> locksToRefresh() {
 		return newList(s_locks);
 	}
 
-	private void refresh(List<DbRwLock> locksToRefresh) {
-		Set<String> lockIds = locksToRefresh.stream() //
-				.map(dbRwLock -> dbRwLock.id) //
-				.collect(Collectors.toSet());
+	private void refresh(List<LockToRefresh> locksToRefresh) {
+		// dedup - the same incarnation may be held by multiple threads
+		Set<LockToRefresh> locks = new HashSet<>(locksToRefresh);
 
 		long current = System.currentTimeMillis();
 		long expires = current + dbLocking.lockExpirationInMs;
 
 		Timestamp expiresTs = new Timestamp(expires);
 
-		List<List<String>> lockIdBatches = CollectionTools.split(lockIds, UPDATE_BATCH_SIZE);
+		List<List<LockToRefresh>> lockBatches = CollectionTools.split(locks, UPDATE_BATCH_SIZE);
 
-		JdbcTools.withConnection(dbLocking.dataSource, true, () -> "Refreshing locks " + lockIds, c -> {
+		String sql = "update " + DbLocking.DB_TABLE_NAME + " set expires = ? where id = ? and created = ?";
 
-			for (List<String> lockIdBatch : lockIdBatches) {
-				String sql = "update " + DbLocking.DB_TABLE_NAME + " set expires = ? where id in " + JdbcTools.questionMarks(lockIdBatch.size());
+		JdbcTools.withConnection(dbLocking.dataSource, true, () -> "Refreshing " + locks.size() + " locks", c -> {
 
-				JdbcTools.withPreparedStatement(c, sql, () -> "", ps -> {
-					ps.setTimestamp(1, expiresTs);
-
-					int i = 2;
-					for (String lockId : lockIdBatch)
-						ps.setString(i++, lockId);
-
-					ps.executeUpdate();
-				});
-			}
+			JdbcTools.withPreparedStatement(c, sql, () -> "", ps -> {
+				for (List<LockToRefresh> lockBatch : lockBatches) {
+					for (LockToRefresh lock : lockBatch) {
+						ps.setTimestamp(1, expiresTs);
+						ps.setString(2, lock.id());
+						ps.setTimestamp(3, lock.created());
+						ps.addBatch();
+					}
+					ps.executeBatch();
+				}
+			});
 
 		});
 	}

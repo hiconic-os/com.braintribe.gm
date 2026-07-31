@@ -486,7 +486,7 @@ public class DbLocking implements Locking, LifecycleAware {
 						});
 
 						if (successIndicator.value != null) {
-							refresher.startRefreshing(rwLock);
+							refresher.startRefreshing(rwLock, tlLockHoldInfo.get().created);
 							return true;
 						}
 					}
@@ -545,9 +545,9 @@ public class DbLocking implements Locking, LifecycleAware {
 			Timestamp expiresTs = new Timestamp(expires);
 
 			boolean result = tryInsert(c, currentTs, expiresTs);
-
 			if (result)
 				tlLockHoldInfo.set(new LockHoldInfo(currentTs));
+
 			return result;
 		}
 
@@ -609,7 +609,7 @@ public class DbLocking implements Locking, LifecycleAware {
 					ps.setTimestamp(i++, expiresTs);
 					ps.setTimestamp(i++, currentTs);
 					ps.setString(i++, rwLock.caller);
-					ps.setString(i++, "machine"); // TODO machine
+					ps.setString(i++, nodeId);
 
 					ps.executeUpdate();
 				});
@@ -710,7 +710,7 @@ public class DbLocking implements Locking, LifecycleAware {
 				throw new IllegalMonitorStateException("Attempt to unlock a lock, not locked by current thread: " + lockContext());
 
 			if (lockHoldInfo.count == 1)
-				refresher.stopRefreshing(rwLock);
+				refresher.stopRefreshing(rwLock, lockHoldInfo.created);
 
 			try {
 				var lockReleasedIndicator = new Box<Boolean>();
