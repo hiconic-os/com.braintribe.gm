@@ -23,7 +23,8 @@ limitations under the License.
     <version>2.0.27</version>
     <properties>
         <archetype>library</archetype>
-    </properties>
+		<java.version>21</java.version>
+	</properties>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
