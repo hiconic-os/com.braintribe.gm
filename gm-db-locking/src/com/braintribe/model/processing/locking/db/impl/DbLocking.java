@@ -448,9 +448,9 @@ public class DbLocking implements Locking, LifecycleAware {
 			Thread currentThread = Thread.currentThread();
 			String oldThreadName = currentThread.getName();
 			currentThread.setName(oldThreadName + " > waiting for lock " + rwLock.id);
+			boolean hasWriteLocking = false;
 			try {
 				var successIndicator = new Box<Boolean>();
-				boolean hasWriteLocking = false;
 				while (true) {
 					if (!hasWriteLocking)
 						hasWriteLocking = acquireWriteLocking();
@@ -484,18 +484,21 @@ public class DbLocking implements Locking, LifecycleAware {
 
 					long millisLeft = tryUntil - System.currentTimeMillis();
 					if (millisLeft <= 0) {
-						releaseWriteLocking();
+						if (hasWriteLocking)
+							releaseWriteLocking();
 						return false;
 					}
 					waitBeforeTryLockAgain(millisLeft);
 				}
 
 			} catch (InterruptedException e) {
-				releaseWriteLocking();
+				if (hasWriteLocking)
+					releaseWriteLocking();
 				throw e;
 
 			} catch (Exception e) {
-				releaseWriteLocking();
+				if (hasWriteLocking)
+					releaseWriteLocking();
 				throw new RuntimeException("Could not get lock.", e);
 
 			} finally {
@@ -694,7 +697,8 @@ public class DbLocking implements Locking, LifecycleAware {
 			} catch (Exception e) {
 				log.warn("Error while releasing lock " + rwLock.id, e);
 			} finally {
-				releaseWriteLocking();
+				if (isWriteLocking)
+					releaseWriteLocking();
 			}
 		}
 

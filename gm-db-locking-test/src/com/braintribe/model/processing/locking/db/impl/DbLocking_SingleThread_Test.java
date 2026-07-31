@@ -80,6 +80,7 @@ public class DbLocking_SingleThread_Test extends AbstractDbLockingTestBase {
 	public void writeIsNotReentrant() throws InterruptedException {
 		writeLock.lock();
 		assertThat(writeLock.tryLock(1, TimeUnit.SECONDS)).isFalse();
+		assertThat(writeLock.tryLock(1, TimeUnit.SECONDS)).isFalse();
 		writeLock.unlock();
 
 		// can lock again
