@@ -97,6 +97,8 @@ public class DbLocking implements Locking, LifecycleAware {
 	/* package */ DataSource dataSource;
 	/* package */ JdbcDialect dialect;
 
+	private String nodeId = "machine";
+
 	private Supplier<MessagingSession> messagingSessionProvider;
 
 	private long pollIntervalInMillies = DEFAULT_POLL_INTERVAL_MS;
@@ -121,6 +123,7 @@ public class DbLocking implements Locking, LifecycleAware {
 	}
 
 	// @formatter:off
+	@Configurable public void setNodeId(String nodeId) { this.nodeId = nodeId; }
 	@Configurable public void setAutoUpdateSchema(boolean autoUpdateSchema) { this.autoUpdateSchema = autoUpdateSchema; }
 
 	/**
@@ -611,7 +614,7 @@ public class DbLocking implements Locking, LifecycleAware {
 				ps.setTimestamp(i++, expiresTs);
 				ps.setTimestamp(i++, currentTs);
 				ps.setString(i++, rwLock.caller);
-				ps.setString(i++, "machine"); // TODO machine
+				ps.setString(i++, nodeId);
 
 				updated.value = ps.executeUpdate();
 			});
