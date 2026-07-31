@@ -24,8 +24,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -347,35 +350,6 @@ public class DbLocking implements Locking, LifecycleAware {
 		} catch (Exception e) {
 			throw Exceptions.unchecked(e, "Could not generate MD5 of lock id " + id);
 		}
-	}
-
-	protected MessageConsumer listenForUnlockNotification(String id, Object monitor) {
-		DbLockingMsg msg = lazyMsg.get();
-		if (msg.messagingSession == null)
-			return null;
-
-		try {
-			MessageConsumer messageConsumer = msg.messagingSession.createMessageConsumer(msg.topic);
-			messageConsumer.setMessageListener(message -> onUnlockMessage(id, monitor, message));
-
-			return messageConsumer;
-
-		} catch (MessagingException e) {
-			log.error("error while adding message listener for a lock queue", e);
-			return null;
-		}
-	}
-
-	private void onUnlockMessage(String id, Object monitor, Message message) {
-		Object body = message.getBody();
-		if (!(body instanceof String))
-			return;
-
-		String lockId = (String) body;
-		if (lockId.equals(id))
-			synchronized (monitor) {
-				monitor.notify();
-			}
 	}
 
 	/**
@@ -718,26 +692,14 @@ public class DbLocking implements Locking, LifecycleAware {
 		}
 
 		private void waitBeforeTryLockAgain(long millisLeft) throws InterruptedException {
-			// TODO use CountDownLatch instead? This could not-catch a notification
-			Object monitor = new Object();
+			long waitMillies = Math.min(millisLeft, pollIntervalInMillies);
 
-			MessageConsumer consumer = listenForUnlockNotification(rwLock.id, monitor);
-
+			CountDownLatch unlockLatch = registerUnlockWaiter(rwLock.id);
 			try {
-				long waitMillies = Math.min(millisLeft, pollIntervalInMillies);
-
-				synchronized (monitor) {
-					monitor.wait(waitMillies);
-				}
-
+				// an unlock notification that arrives right after registering still wakes us up - a counted-down latch doesn't wait at all
+				unlockLatch.await(waitMillies, TimeUnit.MILLISECONDS);
 			} finally {
-				if (consumer != null) {
-					try {
-						consumer.close();
-					} catch (MessagingException e) {
-						log.error("error while closing message consumer", e);
-					}
-				}
+				unregisterUnlockWaiter(rwLock.id, unlockLatch);
 			}
 		}
 
@@ -820,15 +782,15 @@ public class DbLocking implements Locking, LifecycleAware {
 
 	}
 
-	private void notifyUnlock(String id) {
+	private void notifyUnlock(String lockId) {
 		DbLockingMsg msg = lazyMsg.get();
-		if (msg.messagingSession != null && msg.messageProducer != null) {
+		if (msg.msgSession != null && msg.msgProducer != null) {
 			try {
-				Message message = msg.messagingSession.createMessage();
-				message.setBody(id);
+				Message message = msg.msgSession.createMessage();
+				message.setBody(lockId);
 				message.setTimeToLive(topicExpiration);
 
-				msg.messageProducer.sendMessage(message);
+				msg.msgProducer.sendMessage(message);
 
 			} catch (MessagingException e) {
 				log.error("error while producing message for a lock", e);
@@ -838,17 +800,21 @@ public class DbLocking implements Locking, LifecycleAware {
 
 	class DbLockingMsg implements AutoCloseable {
 		private Topic topic;
-		private MessageProducer messageProducer;
-		private MessagingSession messagingSession;
+		private MessageProducer msgProducer;
+		/** Shared consumer for all lock waiters of this instance, dispatching unlock notifications via {@link DbLocking#onUnlockMessage(Message)}. */
+		private MessageConsumer msgConsumer;
+		private MessagingSession msgSession;
 
 		public DbLockingMsg() {
 			if (messagingSessionProvider == null)
 				return;
 
 			try {
-				messagingSession = messagingSessionProvider.get();
-				topic = messagingSession.createTopic(topicName);
-				messageProducer = messagingSession.createMessageProducer(topic);
+				msgSession = messagingSessionProvider.get();
+				topic = msgSession.createTopic(topicName);
+				msgProducer = msgSession.createMessageProducer(topic);
+				msgConsumer = msgSession.createMessageConsumer(topic);
+				msgConsumer.setMessageListener(DbLocking.this::onUnlockMessage);
 
 			} catch (MessagingException e) {
 				log.error("error while retrieving messaging components", e);
@@ -858,20 +824,80 @@ public class DbLocking implements Locking, LifecycleAware {
 
 		@Override
 		public void close() {
-			if (messageProducer != null)
+			if (msgProducer != null)
 				try {
-					messageProducer.close();
+					msgProducer.close();
 				} catch (Exception e) {
-					log.warn("error while closing message producer");
+					log.warn("error while closing message producer", e);
+				} finally {
+					msgProducer = null;
 				}
 
-			if (messagingSession != null)
+			if (msgConsumer != null)
 				try {
-					messagingSession.close();
+					msgConsumer.close();
+				} catch (Exception e) {
+					log.warn("error while closing message consumer", e);
+				} finally {
+					msgConsumer = null;
+				}
+
+			if (msgSession != null)
+				try {
+					msgSession.close();
 				} catch (MessagingException e) {
-					log.warn("error while closing messaging session");
+					log.warn("error while closing messaging session", e);
+				} finally {
+					msgSession = null;
 				}
 		}
+	}
+
+	// ##############################################
+	// ## . . . . Waiting for unlock . . . . . . .##
+	// ##############################################
+
+	/** Threads waiting for a lock, per lock id, to be woken up by an unlock notification. See {@link #registerUnlockWaiter(String)}. */
+	private final Map<String, Set<CountDownLatch>> lockIdToWaiterCdls = new ConcurrentHashMap<>();
+
+	/**
+	 * Registers a latch that is counted down when an unlock notification for given lock id arrives via the shared {@link DbLockingMsg#msgConsumer
+	 * message consumer}. The caller must {@link #unregisterUnlockWaiter(String, CountDownLatch) unregister} it in a finally block.
+	 * <p>
+	 * If messaging is not configured, the latch is never counted down and waiting on it degrades to pure polling.
+	 */
+	private CountDownLatch registerUnlockWaiter(String lockId) {
+		lazyMsg.get(); // ensures the shared consumer is listening (if messaging is configured at all)
+
+		CountDownLatch latch = new CountDownLatch(1);
+		lockIdToWaiterCdls.compute(lockId, (id, latches) -> {
+			Set<CountDownLatch> result = latches == null ? ConcurrentHashMap.newKeySet() : latches;
+			result.add(latch);
+			return result;
+		});
+
+		return latch;
+	}
+
+	private void unregisterUnlockWaiter(String lockId, CountDownLatch latch) {
+		lockIdToWaiterCdls.compute(lockId, (id, latches) -> {
+			if (latches == null)
+				return null;
+
+			latches.remove(latch);
+			return latches.isEmpty() ? null : latches;
+		});
+	}
+
+	private void onUnlockMessage(Message message) {
+		Object body = message.getBody();
+		if (!(body instanceof String))
+			return;
+
+		String lockId = (String) body;
+		Set<CountDownLatch> latches = lockIdToWaiterCdls.get(lockId);
+		if (latches != null)
+			latches.forEach(CountDownLatch::countDown);
 	}
 
 }
