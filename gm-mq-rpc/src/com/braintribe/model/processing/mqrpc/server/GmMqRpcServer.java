@@ -27,6 +27,7 @@ import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import com.braintribe.cfg.Configurable;
 import com.braintribe.cfg.LifecycleAware;
@@ -112,6 +113,7 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 	private ThreadRenamer threadRenamer = ThreadRenamer.NO_OP;
 	private boolean trusted;
 	private long keepAliveInterval;
+	private Supplier<AttributeContext> attributeContextProvider = AttributeContexts::peek;
 
 	// internals
 	private String fromTag;
@@ -222,6 +224,16 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 	@Configurable
 	public void setKeepAliveInterval(long keepAliveInterval) {
 		this.keepAliveInterval = keepAliveInterval;
+	}
+
+	/**
+	 * Configures the context on top of which transport attributes are added for
+	 * incoming requests. The current thread context remains the default for
+	 * backwards compatibility.
+	 */
+	@Configurable
+	public void setAttributeContextProvider(Supplier<AttributeContext> attributeContextProvider) {
+		this.attributeContextProvider = Objects.requireNonNull(attributeContextProvider, "attributeContextProvider must not be null");
 	}
 
 	// ################################################
@@ -452,7 +464,7 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 		Map<String, Object> headers = requestMessage.getHeaders();
 		Map<String,Object> properties = requestMessage.getProperties();
 
-		AttributeContext attributeContext = AttributeContexts.peek();
+		AttributeContext attributeContext = attributeContextProvider.get();
 
 		//@formatter:off
 		AttributeContextBuilder builder = attributeContext.derive()

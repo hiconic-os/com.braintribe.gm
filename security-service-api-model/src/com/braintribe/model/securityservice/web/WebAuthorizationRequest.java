@@ -32,6 +32,12 @@ import com.braintribe.model.service.api.ServiceRequest;
 public interface WebAuthorizationRequest extends ServiceRequest {
 
 	EntityType<WebAuthorizationRequest> T = EntityTypes.T(WebAuthorizationRequest.class);
+	String webAuthDomainId = "web-auth";
+
+	@Override
+	default String domainId() {
+		return webAuthDomainId;
+	}
 
 	@Override
 	default boolean system() {

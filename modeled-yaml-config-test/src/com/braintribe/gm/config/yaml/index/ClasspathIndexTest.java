@@ -2,6 +2,7 @@ package com.braintribe.gm.config.yaml.index;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -85,11 +86,30 @@ public class ClasspathIndexTest {
 			writeZipEntry(out, "HICONIC-CONF/example.yaml", "example: true\n");
 		}
 
-		try (URLClassLoader classLoader = new URLClassLoader(new java.net.URL[] { archive.toUri().toURL() }, null)) {
+		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { archive.toUri().toURL() }, null)) {
 			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
 
 			assertThat(entries).hasSize(1);
 			assertThat(entries.get(0).path).isEqualTo("HICONIC-CONF/example.yaml");
+		}
+	}
+
+	@Test
+	public void infersArtifactOriginFromEclipseProjectOutput() throws Exception {
+		Path project = temporaryFolder.newFolder("example-configuration").toPath();
+		Path output = project.resolve("classes");
+		Path config = output.resolve("HICONIC-CONF/example-configuration.yaml");
+		Path index = output.resolve("META-INF/classpath-index.txt");
+		Files.createDirectories(config.getParent());
+		Files.createDirectories(index.getParent());
+		Files.writeString(config, "example: true\n", StandardCharsets.UTF_8);
+		Files.writeString(index, "HICONIC-CONF/example-configuration.yaml\n", StandardCharsets.UTF_8);
+
+		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { output.toUri().toURL() }, null)) {
+			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
+
+			assertThat(entries).hasSize(1);
+			assertThat(entries.get(0).origin).isEqualTo("example-configuration");
 		}
 	}
 

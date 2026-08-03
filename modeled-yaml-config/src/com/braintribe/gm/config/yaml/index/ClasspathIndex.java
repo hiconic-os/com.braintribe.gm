@@ -6,6 +6,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -365,6 +366,29 @@ public class ClasspathIndex {
 			String artifactWithVersion = value.substring(slash + 1, jarEnd);
 			int versionSeparator = artifactWithVersion.lastIndexOf('-');
 			return versionSeparator > 0 ? artifactWithVersion.substring(0, versionSeparator) : artifactWithVersion;
+		}
+
+		/*
+		 * Eclipse exposes project resources from the configured output directory,
+		 * e.g. <project>/classes/META-INF/classpath-index.txt. Unlike a jar URL this
+		 * URL carries no artifact coordinates, but the project directory is the
+		 * artifact id by DevRock convention. Maven-style target/classes and
+		 * build/classes layouts are handled as well for standalone classpaths.
+		 */
+		if ("file".equals(indexFileUrl.getProtocol())) {
+			try {
+				Path index = Path.of(indexFileUrl.toURI());
+				Path outputDirectory = index.getParent() == null ? null : index.getParent().getParent();
+				Path artifactDirectory = outputDirectory == null ? null : outputDirectory.getParent();
+				if (artifactDirectory != null && ("target".equals(artifactDirectory.getFileName().toString())
+						|| "build".equals(artifactDirectory.getFileName().toString())))
+					artifactDirectory = artifactDirectory.getParent();
+
+				if (artifactDirectory != null && artifactDirectory.getFileName() != null)
+					return artifactDirectory.getFileName().toString();
+			} catch (URISyntaxException e) {
+				throw new IllegalStateException("Invalid filesystem classpath index URL: " + indexFileUrl, e);
+			}
 		}
 		return "";
 	}
