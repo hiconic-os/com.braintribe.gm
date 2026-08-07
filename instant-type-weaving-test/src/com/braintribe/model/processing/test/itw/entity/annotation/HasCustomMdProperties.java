@@ -49,6 +49,10 @@ public interface HasCustomMdProperties extends GenericEntity {
 	String getCustomMd();
 	void setCustomMd(String customMd);
 
+	@CustomMd_Annotation(value = 1, nullableString = "explicit")
+	String getCustomMdWithNullableString();
+	void setCustomMdWithNullableString(String customMdWithNullableString);
+
 	@CustomRepeatableMd_Annotation("one")
 	String getSingleRepeatableMd();
 	void setSingleRepeatableMd(String singleRepeatableMd);

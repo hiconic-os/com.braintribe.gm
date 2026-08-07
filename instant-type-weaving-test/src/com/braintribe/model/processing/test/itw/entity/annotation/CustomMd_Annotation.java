@@ -20,6 +20,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import com.braintribe.model.generic.annotation.meta.AnnotationDefaults;
+import com.braintribe.model.generic.annotation.meta.NullDefault;
+
 /**
  * Annotation for {@link CustomMd} meta-data.
  * 
@@ -36,6 +39,8 @@ public @interface CustomMd_Annotation {
 
 	long value();
 	String name() default "DEFAULT_NAME";
+	@NullDefault
+	String nullableString() default AnnotationDefaults.NULL_STRING;
 	CustomMdEnum customEnum() default CustomMdEnum.aaa;
 	CustomMdEnum[] customEnumList() default {};
 	CustomMdEnum[] customEnumSet() default {};

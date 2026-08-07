@@ -27,6 +27,9 @@ public interface CustomMd extends UniversalMetaData {
 	String getName();
 	void setName(String name);
 
+	String getNullableString();
+	void setNullableString(String nullableString);
+
 	// mapped by value
 	long getLength();
 	void setLength(long length);
