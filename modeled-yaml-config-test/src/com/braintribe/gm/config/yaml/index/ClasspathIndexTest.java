@@ -114,6 +114,50 @@ public class ClasspathIndexTest {
 	}
 
 	@Test
+	public void scansExplodedClasspathWithoutGeneratedIndex() throws Exception {
+		Path project = temporaryFolder.newFolder("exploded-configuration").toPath();
+		Path output = project.resolve("classes");
+		Path config = output.resolve("HICONIC-CONF/database-configuration.yaml");
+		Path imports = output.resolve("META-INF/configuration-imports.yaml");
+		Path generatedDescriptor = output.resolve("META-INF/artifact-descriptor.properties");
+		Path bytecode = output.resolve("example/Generated.class");
+		Files.createDirectories(config.getParent());
+		Files.createDirectories(imports.getParent());
+		Files.createDirectories(bytecode.getParent());
+		Files.writeString(config, "name: auth\n", StandardCharsets.UTF_8);
+		Files.writeString(imports, "imports: []\n", StandardCharsets.UTF_8);
+		Files.writeString(generatedDescriptor, "artifactId=exploded-configuration\n", StandardCharsets.UTF_8);
+		Files.write(bytecode, new byte[] { 0 });
+
+		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { output.toUri().toURL() }, null)) {
+			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
+
+			assertThat(pathsOf(entries)).containsExactlyInAnyOrder(
+					"HICONIC-CONF/database-configuration.yaml",
+					"META-INF/configuration-imports.yaml");
+			assertThat(entries).allMatch(entry -> entry.origin.equals("exploded-configuration"));
+		}
+	}
+
+	@Test
+	public void doesNotScanUnindexedFilesBesideExistingExplodedIndex() throws Exception {
+		Path project = temporaryFolder.newFolder("indexed-exploded-configuration").toPath();
+		Path output = project.resolve("classes");
+		Path config = output.resolve("HICONIC-CONF/indexed.yaml");
+		Path unindexed = output.resolve("HICONIC-CONF/unindexed.yaml");
+		Path index = output.resolve("META-INF/classpath-index.txt");
+		Files.createDirectories(config.getParent());
+		Files.createDirectories(index.getParent());
+		Files.writeString(config, "indexed: true\n", StandardCharsets.UTF_8);
+		Files.writeString(unindexed, "indexed: false\n", StandardCharsets.UTF_8);
+		Files.writeString(index, "HICONIC-CONF/indexed.yaml\n", StandardCharsets.UTF_8);
+
+		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { output.toUri().toURL() }, null)) {
+			assertThat(pathsOf(new ClasspathIndex(classLoader).all())).containsExactly("HICONIC-CONF/indexed.yaml");
+		}
+	}
+
+	@Test
 	public void loadsLegacyWindowsFilesystemIndex() throws Exception {
 		Path root = temporaryFolder.newFolder("windows-filesystem-index").toPath();
 		Path artifact = root.resolve("example-configuration-1.0");

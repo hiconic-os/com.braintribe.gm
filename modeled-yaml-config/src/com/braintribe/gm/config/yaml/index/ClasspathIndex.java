@@ -40,6 +40,11 @@ public class ClasspathIndex {
 	private static final String INDEX_FILE_NAME = "META-INF/classpath-index.txt";
 	private static final String ORIGIN_FILE_NAME = "META-INF/classpath-origin.properties";
 	private static final String FILESYSTEM_INDEX_FILE_NAME = "index.properties";
+	private static final Set<String> EXPLODED_CLASSPATH_INFRASTRUCTURE = Set.of(
+			INDEX_FILE_NAME,
+			ORIGIN_FILE_NAME,
+			"META-INF/classpath-resource-only",
+			"META-INF/artifact-descriptor.properties");
 
 	private static final Logger log = Logger.getLogger(ClasspathIndex.class);
 
@@ -174,9 +179,73 @@ public class ClasspathIndex {
 			while (resources.hasMoreElements())
 				addEntriesFromIndexFile(resources.nextElement(), entries);
 
+			/*
+			 * A jar needs an explicit index because a ClassLoader cannot enumerate its
+			 * contents. An IDE, however, exposes project outputs as ordinary filesystem
+			 * directories. Treat those directories as exploded jars so a workspace does
+			 * not need an Eclipse-specific builder merely to materialize the index.
+			 */
+			loadExplodedClasspathEntries(entries);
+
 		} catch (IOException e) {
 			throw new UncheckedIOException("Error while getting Resources: " + INDEX_FILE_NAME, e);
 		}
+	}
+
+	private void loadExplodedClasspathEntries(List<ClasspathEntry> entries) throws IOException {
+		Set<String> knownEntries = new LinkedHashSet<>();
+		for (ClasspathEntry entry : entries)
+			knownEntries.add(entry.path + "\u0000" + entry.origin);
+
+		Enumeration<URL> roots = classLoader.getResources("");
+		Set<Path> visitedRoots = new LinkedHashSet<>();
+		while (roots.hasMoreElements()) {
+			URL rootUrl = roots.nextElement();
+			if (!"file".equals(rootUrl.getProtocol()))
+				continue;
+
+			Path root;
+			try {
+				root = Path.of(rootUrl.toURI()).toAbsolutePath().normalize();
+			} catch (URISyntaxException e) {
+				throw new IllegalStateException("Invalid exploded classpath root URL: " + rootUrl, e);
+			}
+			if (!visitedRoots.add(root) || !Files.isDirectory(root) || Files.isRegularFile(root.resolve(INDEX_FILE_NAME)))
+				continue;
+
+			String origin = artifactOrigin(root);
+			try (var paths = Files.walk(root)) {
+				for (Path resource : paths.filter(Files::isRegularFile).sorted().toList()) {
+					String path = root.relativize(resource).toString().replace('\\', '/');
+					if (!isExplodedClasspathResource(path))
+						continue;
+
+					String key = path + "\u0000" + origin;
+					if (knownEntries.add(key))
+						entries.add(new ClasspathEntry(path, resource.toUri().toURL(), origin));
+				}
+			}
+		}
+	}
+
+	private static boolean isExplodedClasspathResource(String path) {
+		return !path.endsWith(".class")
+				&& !path.endsWith("/.gitignore")
+				&& !path.equals(".gitignore")
+				&& !EXPLODED_CLASSPATH_INFRASTRUCTURE.contains(path);
+	}
+
+	private static String artifactOrigin(Path classpathRoot) {
+		Path artifactDirectory = classpathRoot.getParent();
+		if (artifactDirectory == null)
+			return "";
+
+		String outputName = classpathRoot.getFileName() == null ? "" : classpathRoot.getFileName().toString();
+		if ((outputName.equals("classes") || outputName.equals("test-classes")) && artifactDirectory.getFileName() != null
+				&& (artifactDirectory.getFileName().toString().equals("target") || artifactDirectory.getFileName().toString().equals("build")))
+			artifactDirectory = artifactDirectory.getParent();
+
+		return artifactDirectory == null || artifactDirectory.getFileName() == null ? "" : artifactDirectory.getFileName().toString();
 	}
 
 	private void addEntriesFromIndexFile(URL indexFileUrl, List<ClasspathEntry> entries) {
