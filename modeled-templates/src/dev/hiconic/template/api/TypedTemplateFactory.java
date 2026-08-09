@@ -40,7 +40,26 @@ public final class TypedTemplateFactory<I> {
 		return rootType;
 	}
 
+	/**
+	 * A fresh, fully configured expert registry (a copy) matching this factory's parse configuration.
+	 * A custom sink (e.g. the document evaluation context) uses it to dispatch node/VD evaluators and
+	 * to register its own sink-specific node evaluators (such as the {@code DocumentNode} evaluator).
+	 */
+	public ConfigurableTemplateExpertRegistry registry() {
+		return factory.registry();
+	}
+
 	public Maybe<Template<I>> parse(String source) {
+		return parse(new dev.hiconic.template.impl.parser.StringTemplateSource(Objects.requireNonNull(source, "source")));
+	}
+
+	/**
+	 * Parses from an arbitrary {@link TemplateSource}. The string entry point wraps its argument into
+	 * a {@code StringTemplateSource}; a document-oriented front-end (e.g. the Aspose scanner) supplies
+	 * its own implementation. The resolver, expert registry and resulting {@link Template} are built
+	 * exactly as for the string path &mdash; only the front-end source differs.
+	 */
+	public Maybe<Template<I>> parse(TemplateSource source) {
 		ConfigurableTemplateExpertRegistry registry = factory.registry();
 		CmdResolver inputCmdResolver = effectiveInputCmdResolver();
 		CmdResolver expertCmdResolver = effectiveExpertCmdResolver();

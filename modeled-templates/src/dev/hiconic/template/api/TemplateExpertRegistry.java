@@ -5,7 +5,19 @@ import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.value.ValueDescriptor;
 
 import dev.hiconic.template.model.core.TemplateNode;
+import dev.hiconic.template.model.core.output.SafeOutput;
 public interface TemplateExpertRegistry {
+
+	/**
+	 * The ceiling of output types this configuration's sink admits (the sink capability behind
+	 * {@code ValidationContext.supportedOutputType()}). Defaults to {@code SafeOutput} — the
+	 * text-capable branch every sink understands; a document sink widens it (e.g. to {@code Output})
+	 * so it may emit sink-specific outputs like images.
+	 */
+	default GenericModelType supportedOutputType() {
+		return SafeOutput.T;
+	}
+
 	<V extends ValueDescriptor, I, O> void registerConversion(EntityType<V> descriptorType, GenericModelType inType,
 			GenericModelType outType, ValueConversion<I, V, O> conversion);
 	default <V extends ValueDescriptor, I, O> void registerDefaultConversion(EntityType<V> descriptorType,

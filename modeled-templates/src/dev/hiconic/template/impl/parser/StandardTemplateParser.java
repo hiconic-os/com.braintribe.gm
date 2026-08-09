@@ -19,6 +19,8 @@ import dev.hiconic.template.api.ParseRecoveryMode;
 import dev.hiconic.template.api.TemplateParser;
 import dev.hiconic.template.api.TemplateParserOptions;
 import dev.hiconic.template.api.TemplateParserResolver;
+import dev.hiconic.template.api.TemplateSource;
+import dev.hiconic.template.api.TemplateSource.MarkerToken;
 import dev.hiconic.template.api.ValidationContext;
 import dev.hiconic.template.model.core.CommentNode;
 import dev.hiconic.template.model.core.ErrorNode;
@@ -27,19 +29,14 @@ import dev.hiconic.template.model.core.SequenceNode;
 import dev.hiconic.template.model.core.TemplateNode;
 import dev.hiconic.template.model.core.TextNode;
 import dev.hiconic.template.model.core.SourceText;
-import dev.hiconic.template.model.core.instr.BlockInstructionNode;
 import dev.hiconic.template.model.core.instr.BlockClause;
 import dev.hiconic.template.model.core.instr.ClauseOnlyBlockNode;
 import dev.hiconic.template.model.core.instr.BlockNode;
 import dev.hiconic.template.model.core.instr.DirectiveNode;
 import dev.hiconic.template.model.core.instr.SilentNode;
-import dev.hiconic.template.model.core.instr.InvokeInstruction;
 import dev.hiconic.template.model.core.instr.InstructionNode;
-import dev.hiconic.template.model.core.instr.WhitespaceAction;
-import dev.hiconic.template.model.core.instr.WhitespacePolicy;
 import dev.hiconic.template.model.core.instr.StatementInstructionNode;
 import dev.hiconic.template.model.parse.TemplateParseError;
-import dev.hiconic.template.model.parse.TextPosition;
 import dev.hiconic.template.model.parse.TextRange;
 
 public class StandardTemplateParser implements TemplateParser {
@@ -55,6 +52,15 @@ public class StandardTemplateParser implements TemplateParser {
 
 	@Override
 	public Maybe<TemplateNode> parse(String source) {
+		return parse(new StringTemplateSource(Objects.requireNonNull(source, "source")));
+	}
+
+	/**
+	 * Parses the given {@link TemplateSource}. The string entry point wraps its argument into a
+	 * {@link StringTemplateSource}; a document-oriented front-end supplies its own implementation.
+	 * The block/scope/predeclaration/wiring logic below is identical regardless of the source.
+	 */
+	public Maybe<TemplateNode> parse(TemplateSource source) {
 		resolver.beginParse();
 		try {
 			State state = new State(Objects.requireNonNull(source, "source"));
@@ -64,11 +70,11 @@ public class StandardTemplateParser implements TemplateParser {
 			if (rootChunk.marker() != null)
 				state.addError("Unexpected block marker '" + rootChunk.marker().name() + "'", rootChunk.marker().range(), null);
 
-			Reason wiringError = resolver.completeAndValidate(validationContext, rootSequence, state.range(0, source.length()));
+			Reason wiringError = resolver.completeAndValidate(validationContext, rootSequence, state.range(0, state.sourceLength()));
 			if (wiringError != null) {
-				state.addError("Template wiring or completion failed", state.range(0, source.length()), wiringError);
+				state.addError("Template wiring or completion failed", state.range(0, state.sourceLength()), wiringError);
 				if (options.recoveryMode() != ParseRecoveryMode.STRICT)
-					rootSequence.getNodes().add(state.errorNode("Template wiring or completion failed", state.range(0, source.length())));
+					rootSequence.getNodes().add(state.errorNode("Template wiring or completion failed", state.range(0, state.sourceLength())));
 			}
 
 			TemplateNode root = state.compact(rootSequence);
@@ -88,18 +94,16 @@ public class StandardTemplateParser implements TemplateParser {
 	}
 
 	private final class State {
-		private final String source;
-		private final int[] lines;
-		private final int[] columns;
+		private final TemplateSource source;
 		private final List<Reason> errors = new ArrayList<>();
 		private int offset;
-		private WhitespaceAction pendingWhitespace = WhitespaceAction.preserve;
 
-		private State(String source) {
+		private State(TemplateSource source) {
 			this.source = source;
-			this.lines = new int[source.length() + 1];
-			this.columns = new int[source.length() + 1];
-			indexPositions();
+		}
+
+		private int sourceLength() {
+			return source.length();
 		}
 
 		private Chunk parseSequence(Set<String> stopMarkers) {
@@ -108,30 +112,30 @@ public class StandardTemplateParser implements TemplateParser {
 			predeclareSequence(stopMarkers);
 
 			while (offset < source.length()) {
-				int markerStart = findNextMarker(offset);
+				int markerStart = source.findNextMarker(offset);
 				if (markerStart < 0) {
-					addText(nodes, offset, source.length());
+					source.materializeStatic(nodes, offset, source.length());
 					offset = source.length();
 					break;
 				}
 
-				addText(nodes, offset, markerStart);
-				char sigil = source.charAt(markerStart);
-				char closing = sigil == '%' ? ')' : '}';
-				int close = findMarkerEnd(markerStart + 2, closing);
-				if (close < 0) {
-					TextRange range = range(markerStart, source.length());
-					nodes.add(recover("Unterminated '" + sigil + (sigil == '%' ? "(" : "{") + "' construct", range, null));
+				source.materializeStatic(nodes, offset, markerStart);
+				MarkerToken token = source.scanMarker(markerStart);
+				if (!token.terminated()) {
+					char sigil = token.sigil();
+					nodes.add(recover("Unterminated '" + sigil + (sigil == '%' ? "(" : "{") + "' construct",
+							token.constructRange(), null));
 					offset = source.length();
 					break;
 				}
 
 				boolean blockFree = false;
-				int constructEnd = close + 1;
-				String rawContent = source.substring(markerStart + 2, close);
+				char sigil = token.sigil();
+				int constructEnd = token.constructEnd();
+				String rawContent = token.rawContent();
 				String content = rawContent.trim();
-				TextRange constructRange = range(markerStart, constructEnd);
-				TextRange contentRange = range(markerStart + 2, close);
+				TextRange constructRange = token.constructRange();
+				TextRange contentRange = token.contentRange();
 				offset = constructEnd;
 
 				if (sigil == '%') {
@@ -155,9 +159,9 @@ public class StandardTemplateParser implements TemplateParser {
 					SourceText text = SourceText.T.create();
 					text.setValue(rawContent);
 					comment.setText(text);
-					applyWhitespaceBefore(nodes, comment);
+					source.applyWhitespaceBefore(nodes, comment);
 					nodes.add(comment);
-					applyWhitespaceAfter(comment);
+					source.applyWhitespaceAfter(comment);
 					continue;
 				}
 
@@ -174,11 +178,11 @@ public class StandardTemplateParser implements TemplateParser {
 				}
 
 				boolean blockInstruction = isBlockInstruction(node);
-				applyWhitespaceBefore(nodes, node);
+				source.applyWhitespaceBefore(nodes, node);
 				if (blockInstruction && !blockFree) {
 					Reason scopeCompletion = resolver.completeScope(node, constructRange);
 					if (scopeCompletion != null) addError("Could not complete instruction scope", constructRange, scopeCompletion);
-					String blockIndent = lineIndentAt(markerStart);
+					String blockIndent = source.lineIndentAt(markerStart);
 					enterBlock(node, "block", constructRange);
 					Chunk body;
 					try {
@@ -188,10 +192,10 @@ public class StandardTemplateParser implements TemplateParser {
 					}
 					if (node instanceof SilentNode && node instanceof DirectiveNode directive
 							&& directive.getWhitespace() == null)
-						trimSilentBlockBoundaries(body.sequence());
+						source.trimSilentBlockBoundaries(body.sequence());
 					else {
-						stripBlockBodyIndent(body.sequence(), blockIndent);
-						trimBlockEndBoundary(body.sequence());
+						source.stripBlockBodyIndent(body.sequence(), blockIndent);
+						source.trimBlockEndBoundary(body.sequence());
 					}
 					TemplateNode primaryBlock = compact(body.sequence());
 					if (node instanceof ClauseOnlyBlockNode && !isStructuralWhitespace(primaryBlock))
@@ -206,7 +210,7 @@ public class StandardTemplateParser implements TemplateParser {
 					}
 					while (marker != null && !"end".equals(marker.name())) {
 						Marker secondaryMarker = marker;
-						String secondaryIndent = lineIndentAt(marker.range().getStart().getOffset());
+						String secondaryIndent = source.lineIndentAt(marker.range().getStart().getOffset());
 						enterBlock(node, marker.name(), marker.range());
 						Chunk secondary;
 						try {
@@ -214,8 +218,8 @@ public class StandardTemplateParser implements TemplateParser {
 						} finally {
 							resolver.exitBlock(node, marker.name());
 						}
-						stripBlockBodyIndent(secondary.sequence(), secondaryIndent);
-						trimBlockEndBoundary(secondary.sequence());
+						source.stripBlockBodyIndent(secondary.sequence(), secondaryIndent);
+						source.trimBlockEndBoundary(secondary.sequence());
 						if (!wireSecondaryBlock(node, marker, compact(secondary.sequence())))
 							nodes.add(errorNode("Could not wire secondary block '" + marker.name() + "'", marker.range()));
 						marker = secondary.marker();
@@ -230,7 +234,7 @@ public class StandardTemplateParser implements TemplateParser {
 					nodes.add(node);
 				else
 					nodes.add(recover("Completion or validation failed for '" + firstWord(content) + "'", constructRange, completionError));
-				applyWhitespaceAfter(node);
+				source.applyWhitespaceAfter(node);
 			}
 
 			return chunk(nodes, sequenceStart, null);
@@ -240,17 +244,15 @@ public class StandardTemplateParser implements TemplateParser {
 			int cursor = offset;
 			int depth = 0;
 			while (cursor < source.length()) {
-				int markerStart = findNextMarker(cursor);
+				int markerStart = source.findNextMarker(cursor);
 				if (markerStart < 0)
 					return;
-				char sigil = source.charAt(markerStart);
-				char closing = sigil == '%' ? ')' : '}';
-				int close = findMarkerEnd(markerStart + 2, closing);
-				if (close < 0)
+				MarkerToken token = source.scanMarker(markerStart);
+				if (!token.terminated())
 					return;
-				boolean blockFree = false;
-				int constructEnd = close + 1;
-				String content = source.substring(markerStart + 2, close).trim();
+				char sigil = token.sigil();
+				int constructEnd = token.constructEnd();
+				String content = token.rawContent().trim();
 				String markerName = firstWord(content);
 
 				if (sigil == '%' && isMarker(content)) {
@@ -263,11 +265,9 @@ public class StandardTemplateParser implements TemplateParser {
 						return;
 					}
 				} else if (depth == 0 && sigil == '%' && "declare-instruction".equals(markerName)) {
-					TextRange range = range(markerStart, constructEnd);
-					Reason reason = resolver.predeclareDirective(sigil, source.substring(markerStart + 2, close),
-							range(markerStart + 2, close));
+					Reason reason = resolver.predeclareDirective(sigil, token.rawContent(), token.contentRange());
 					if (reason != null)
-						addError("Could not predeclare directive", range, reason);
+						addError("Could not predeclare directive", token.constructRange(), reason);
 					depth++;
 				} else if (sigil == '%' && isKnownBlockStart(markerName)) {
 					depth++;
@@ -440,176 +440,6 @@ public class StandardTemplateParser implements TemplateParser {
 			errors.add(error);
 		}
 
-		private void addText(List<TemplateNode> nodes, int start, int end) {
-			if (start == end)
-				return;
-			String value = applyLeadingWhitespace(source.substring(start, end), pendingWhitespace);
-			pendingWhitespace = WhitespaceAction.preserve;
-			if (value.isEmpty())
-				return;
-			TextNode text = TextNode.T.create();
-			text.setText(unescapeTemplateText(value));
-			nodes.add(text);
-		}
-
-		private void applyWhitespaceBefore(List<TemplateNode> nodes, TemplateNode node) {
-			WhitespaceAction action = whitespace(node, true);
-			if (action == WhitespaceAction.preserve || nodes.isEmpty())
-				return;
-			TemplateNode previous = nodes.get(nodes.size() - 1);
-			if (!(previous instanceof TextNode text))
-				return;
-			String trimmed = applyTrailingWhitespace(text.getText(), action);
-			if (trimmed.isEmpty()) nodes.remove(nodes.size() - 1); else text.setText(trimmed);
-		}
-
-		private void applyWhitespaceAfter(TemplateNode node) {
-			pendingWhitespace = whitespace(node, false);
-		}
-
-		private void trimSilentBlockBoundaries(SequenceNode sequence) {
-			List<TemplateNode> nodes = sequence.getNodes();
-			if (nodes.isEmpty()) return;
-			if (nodes.get(0) instanceof TextNode first) {
-				String value = applyLeadingWhitespace(first.getText(), WhitespaceAction.trimLine);
-				if (value.isEmpty()) nodes.remove(0); else first.setText(value);
-			}
-			if (!nodes.isEmpty() && nodes.get(nodes.size() - 1) instanceof TextNode last) {
-				String value = applyTrailingWhitespace(last.getText(), WhitespaceAction.trimLine);
-				if (value.isEmpty()) nodes.remove(nodes.size() - 1); else last.setText(value);
-			}
-		}
-
-		private void trimBlockEndBoundary(SequenceNode sequence) {
-			List<TemplateNode> nodes = sequence.getNodes();
-			if (nodes.isEmpty()) return;
-			if (nodes.get(nodes.size() - 1) instanceof TextNode last) {
-				String value = applyTrailingWhitespace(last.getText(), WhitespaceAction.trimLine);
-				if (value.isEmpty()) nodes.remove(nodes.size() - 1); else last.setText(value);
-			}
-		}
-
-		private void stripBlockBodyIndent(SequenceNode sequence, String indent) {
-			if (indent == null || indent.isEmpty())
-				return;
-			for (TemplateNode node : sequence.getNodes()) {
-				if (node instanceof TextNode text)
-					text.setText(stripLineIndent(text.getText(), indent));
-			}
-		}
-
-		private String stripLineIndent(String text, String indent) {
-			StringBuilder result = null;
-			boolean lineStart = true;
-			int i = 0;
-			while (i < text.length()) {
-				if (lineStart && startsWith(text, i, indent)) {
-					if (result == null) {
-						result = new StringBuilder(text.length());
-						result.append(text, 0, i);
-					}
-					i += indent.length();
-					lineStart = false;
-					continue;
-				}
-				char ch = text.charAt(i++);
-				if (result != null)
-					result.append(ch);
-				lineStart = ch == '\n';
-			}
-			return result == null ? text : result.toString();
-		}
-
-		private boolean startsWith(String text, int index, String prefix) {
-			if (index + prefix.length() > text.length())
-				return false;
-			for (int i = 0; i < prefix.length(); i++) {
-				if (text.charAt(index + i) != prefix.charAt(i))
-					return false;
-			}
-			return true;
-		}
-
-		private WhitespaceAction whitespace(TemplateNode node, boolean before) {
-			if (!(node instanceof DirectiveNode directive))
-				return node instanceof SilentNode ? WhitespaceAction.trimLine : WhitespaceAction.preserve;
-			WhitespacePolicy policy = directive.getWhitespace();
-			if (policy == null && node instanceof InvokeInstruction)
-				return WhitespaceAction.preserve;
-			if (policy == null && node instanceof BlockInstructionNode)
-				return before ? WhitespaceAction.trimLine : WhitespaceAction.preserve;
-			if (policy == null)
-				return WhitespaceAction.trimLine;
-			WhitespaceAction action = before ? policy.getBefore() : policy.getAfter();
-			return action == null ? WhitespaceAction.preserve : action;
-		}
-
-		private String applyLeadingWhitespace(String text, WhitespaceAction action) {
-			if (action == WhitespaceAction.preserve) return text;
-			int i = 0;
-			if (action == WhitespaceAction.trim) {
-				while (i < text.length() && Character.isWhitespace(text.charAt(i))) i++;
-			} else {
-				while (i < text.length() && (text.charAt(i) == ' ' || text.charAt(i) == '\t' || text.charAt(i) == '\r')) i++;
-				if (i < text.length() && text.charAt(i) == '\n') i++; else return text;
-			}
-			return text.substring(i);
-		}
-
-		private String applyTrailingWhitespace(String text, WhitespaceAction action) {
-			int i = text.length();
-			if (action == WhitespaceAction.trim) {
-				while (i > 0 && Character.isWhitespace(text.charAt(i - 1))) i--;
-			} else {
-				while (i > 0 && (text.charAt(i - 1) == ' ' || text.charAt(i - 1) == '\t' || text.charAt(i - 1) == '\r')) i--;
-				if (i > 0 && text.charAt(i - 1) == '\n') {
-					i--;
-					if (i > 0 && text.charAt(i - 1) == '\r') i--;
-				} else {
-					return text;
-				}
-			}
-			return text.substring(0, i);
-		}
-
-		private String lineIndentAt(int offset) {
-			int lineStart = offset;
-			while (lineStart > 0) {
-				char ch = source.charAt(lineStart - 1);
-				if (ch == '\n' || ch == '\r')
-					break;
-				lineStart--;
-			}
-			for (int i = lineStart; i < offset; i++) {
-				char ch = source.charAt(i);
-				if (ch != ' ' && ch != '\t')
-					return "";
-			}
-			return source.substring(lineStart, offset);
-		}
-
-		private String unescapeTemplateText(String text) {
-			StringBuilder result = null;
-			for (int i = 0; i < text.length(); i++) {
-				char ch = text.charAt(i);
-				boolean escapedMarker = ch == '\\' && i + 2 < text.length()
-						&& ((text.charAt(i + 1) == '$' || text.charAt(i + 1) == '#') && text.charAt(i + 2) == '{'
-								|| text.charAt(i + 1) == '%' && text.charAt(i + 2) == '(');
-				boolean escapedBackslash = ch == '\\' && i + 1 < text.length() && text.charAt(i + 1) == '\\';
-				if (!escapedMarker && !escapedBackslash) {
-					if (result != null)
-						result.append(ch);
-					continue;
-				}
-				if (result == null) {
-					result = new StringBuilder(text.length());
-					result.append(text, 0, i);
-				}
-				result.append(text.charAt(++i));
-			}
-			return result == null ? text : result.toString();
-		}
-
 		private Chunk chunk(List<TemplateNode> nodes, int start, Marker marker) {
 			SequenceNode sequence = SequenceNode.T.create();
 			sequence.setNodes(nodes);
@@ -635,59 +465,6 @@ public class StandardTemplateParser implements TemplateParser {
 			return false;
 		}
 
-		private int findNextMarker(int from) {
-			for (int i = from; i + 1 < source.length(); i++) {
-				char ch = source.charAt(i);
-				if (((ch == '$' || ch == '#') && source.charAt(i + 1) == '{'
-						|| ch == '%' && source.charAt(i + 1) == '(') && !isEscaped(i))
-					return i;
-			}
-			return -1;
-		}
-
-		private int findMarkerEnd(int from, char closing) {
-			char quote = 0;
-			int nestedBraces = 0;
-			int nestedBrackets = 0;
-			int nestedParentheses = 0;
-			for (int i = from; i < source.length(); i++) {
-				char ch = source.charAt(i);
-				if (quote != 0) {
-					if (ch == quote && !isEscaped(i))
-						quote = 0;
-				} else if (isEscaped(i)) {
-					continue;
-				} else if (ch == '\'' || ch == '"') {
-					quote = ch;
-				} else if (ch == '{') {
-					nestedBraces++;
-				} else if (ch == '}') {
-					if (closing == '}' && nestedBraces == 0 && nestedBrackets == 0 && nestedParentheses == 0)
-						return i;
-					if (nestedBraces > 0)
-						nestedBraces--;
-				} else if (ch == '[') {
-					nestedBrackets++;
-				} else if (ch == ']') {
-					nestedBrackets = Math.max(0, nestedBrackets - 1);
-				} else if (ch == '(') {
-					nestedParentheses++;
-				} else if (ch == ')') {
-					if (closing == ')' && nestedParentheses == 0 && nestedBraces == 0 && nestedBrackets == 0)
-						return i;
-					nestedParentheses = Math.max(0, nestedParentheses - 1);
-				}
-			}
-			return -1;
-		}
-
-		private boolean isEscaped(int index) {
-			int backslashes = 0;
-			for (int i = index - 1; i >= 0 && source.charAt(i) == '\\'; i--)
-				backslashes++;
-			return (backslashes & 1) == 1;
-		}
-
 		private boolean isMarker(String content) {
 			String word = firstWord(content);
 			return "end".equals(word) || "else".equals(word) || "empty".equals(word)
@@ -707,45 +484,15 @@ public class StandardTemplateParser implements TemplateParser {
 		}
 
 		private TextRange range(int start, int end) {
-			TextRange range = TextRange.T.create();
-			range.setStart(position(start));
-			range.setEnd(position(end));
-			return range;
-		}
-
-		private TextPosition position(int at) {
-			TextPosition position = TextPosition.T.create();
-			position.setOffset(at);
-			position.setLine(lines[at]);
-			position.setColumn(columns[at]);
-			return position;
-		}
-
-		private void indexPositions() {
-			int line = 1;
-			int column = 1;
-			for (int i = 0; i <= source.length(); i++) {
-				lines[i] = line;
-				columns[i] = column;
-				if (i < source.length()) {
-					if (source.charAt(i) == '\n') {
-						line++;
-						column = 1;
-					} else {
-						column++;
-					}
-				}
-			}
+			return source.range(start, end);
 		}
 
 		private String location(TextRange range) {
-			return "line " + range.getStart().getLine() + ", column " + range.getStart().getColumn();
+			return source.location(range);
 		}
 
 		private String fragment(TextRange range) {
-			int start = range.getStart().getOffset();
-			int end = Math.min(range.getEnd().getOffset(), start + 160);
-			return source.substring(start, end);
+			return source.fragment(range);
 		}
 	}
 

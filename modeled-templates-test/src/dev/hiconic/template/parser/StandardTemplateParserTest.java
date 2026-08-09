@@ -51,6 +51,7 @@ import dev.hiconic.template.model.core.instr.Switch;
 import dev.hiconic.template.model.core.output.FormatDate;
 import dev.hiconic.template.model.core.output.HtmlEsc;
 import dev.hiconic.template.model.core.output.RawOutput;
+import dev.hiconic.template.model.core.output.SafeOutput;
 import dev.hiconic.template.model.core.output.UrlComponentEscape;
 import dev.hiconic.template.model.core.vd.UnaryOperation;
 import dev.hiconic.template.model.parse.TemplateParseError;
@@ -90,7 +91,7 @@ public class StandardTemplateParserTest {
 				.parse("${string:\"a } b { c\"}");
 
 		assertTrue(maybe.isSatisfied());
-		assertEquals("string:\"a } b { c\"", ((OutputNode) maybe.get()).getOutput().getText());
+		assertEquals("string:\"a } b { c\"", ((SafeOutput) ((OutputNode) maybe.get()).getOutput()).getText());
 	}
 
 	@Test
@@ -114,7 +115,7 @@ public class StandardTemplateParserTest {
 		SequenceNode root = (SequenceNode) maybe.get();
 		assertEquals(3, root.getNodes().size());
 		assertEquals("a", ((TextNode) root.getNodes().get(0)).getText());
-		assertEquals("value", ((OutputNode) root.getNodes().get(1)).getOutput().getText());
+		assertEquals("value", ((SafeOutput) ((OutputNode) root.getNodes().get(1)).getOutput()).getText());
 		assertEquals("b", ((TextNode) root.getNodes().get(2)).getText());
 	}
 

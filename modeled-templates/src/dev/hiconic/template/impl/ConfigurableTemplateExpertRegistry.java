@@ -20,6 +20,7 @@ import dev.hiconic.template.api.ValueConversion;
 import dev.hiconic.template.api.ValueConversionBinding;
 import dev.hiconic.template.api.VdEvaluator;
 import dev.hiconic.template.model.core.TemplateNode;
+import dev.hiconic.template.model.core.output.SafeOutput;
 
 public class ConfigurableTemplateExpertRegistry implements TemplateExpertRegistry {
 	private final Map<EntityType<?>, TemplateNodeEvaluator<?>> evaluators = new HashMap<>();
@@ -27,6 +28,7 @@ public class ConfigurableTemplateExpertRegistry implements TemplateExpertRegistr
 	private final Map<EntityType<?>, ScalarEntityParser<?>> scalarParsers = new HashMap<>();
 	private final Map<ConversionKey, ValueConversion<?, ?, ?>> conversions = new HashMap<>();
 	private final List<ValueConversionBinding> conversionBindings = new ArrayList<>();
+	private GenericModelType supportedOutputType = SafeOutput.T;
 
 	public ConfigurableTemplateExpertRegistry() {
 	}
@@ -37,6 +39,17 @@ public class ConfigurableTemplateExpertRegistry implements TemplateExpertRegistr
 		scalarParsers.putAll(source.scalarParsers);
 		conversions.putAll(source.conversions);
 		conversionBindings.addAll(source.conversionBindings);
+		supportedOutputType = source.supportedOutputType;
+	}
+
+	/** Widens the sink's admitted output ceiling (default {@link SafeOutput}); e.g. a document sink to {@code Output}. */
+	public void setSupportedOutputType(GenericModelType supportedOutputType) {
+		this.supportedOutputType = supportedOutputType;
+	}
+
+	@Override
+	public GenericModelType supportedOutputType() {
+		return supportedOutputType;
 	}
 
 	public ConfigurableTemplateExpertRegistry copy() {

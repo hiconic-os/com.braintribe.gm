@@ -39,7 +39,9 @@ public class StandardOutputExpressionParser {
 			output.setOutput(null);
 			return Maybe.complete(output);
 		}
-		Maybe<ParsedValueExpression> completed = completeTo(parsed.get(), SafeOutput.T);
+		// Complete a bare expression to the sink's admitted output ceiling (default SafeOutput; a
+		// document sink widens it to Output, so a bare Resource can complete to ImageOutput).
+		Maybe<ParsedValueExpression> completed = completeTo(parsed.get(), registry.supportedOutputType());
 		if (completed.isUnsatisfied()) return Maybe.empty(completed.whyUnsatisfied());
 		OutputNode output = OutputNode.T.create();
 		Object value = completed.get().value();
