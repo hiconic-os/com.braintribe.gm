@@ -5,10 +5,20 @@ import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.PropertyLiteral;
+import dev.hiconic.template.model.core.output.Output;
+import dev.hiconic.template.model.core.output.SafeOutput;
 import dev.hiconic.template.model.parse.TextRange;
 
 public interface ValidationContext {
 	GenericModelType getType(GenericEntity entity, Property property);
+
+	/**
+	 * The most general {@link Output} type the active sink can emit. An {@code OutputNode}'s value
+	 * type must be assignable to this. The default is {@link SafeOutput} &mdash; the text-capable
+	 * branch every sink understands; a document-oriented sink widens this to {@link Output} so it
+	 * also accepts its document-fragment derivatives.
+	 */
+	default GenericModelType supportedOutputType() { return SafeOutput.T; }
 
 	/** True iff the parser supplied the property explicitly with the null literal. */
 	default boolean isExplicitNull(GenericEntity entity, Property property) { return false; }

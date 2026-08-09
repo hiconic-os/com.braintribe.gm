@@ -194,6 +194,16 @@ public final class StandardTemplateExperts {
 		registry.registerDefaultConversion(UrlComponentEscape.T, SimpleTypes.TYPE_STRING, UrlComponentOutput.T, new UrlComponentEscaper());
 	}
 
+	/**
+	 * Plain-text defaults: date/number formatting like the escaping factories, but the default string
+	 * conversion is non-escaping ({@code String -> RawOutput}). For sinks that hold literal text and
+	 * must not HTML-escape (e.g. a Word document run); useful for any plain-text templating.
+	 */
+	public static void registerTextDefaults(TemplateExpertRegistry registry) {
+		registerDateDefaults(registry);
+		registry.registerDefaultConversion(NoEscape.T, SimpleTypes.TYPE_STRING, RawOutput.T, new NoEscapeConversion());
+	}
+
 	private static void registerNodes(TemplateExpertRegistry registry) {
 		registry.registerEvaluator(TextNode.T, new TextNodeEvaluator());
 		registry.registerEvaluator(CommentNode.T, new CommentNodeEvaluator());

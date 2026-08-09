@@ -19,6 +19,8 @@ public final class TemplateFactories {
 			.derive(StandardTemplateExperts::registerJavaScriptDefaults));
 	private static final Lazy<TemplateFactory> URL_COMPONENT = new Lazy<>(() -> BASE.get()
 			.derive(StandardTemplateExperts::registerUrlComponentDefaults));
+	private static final Lazy<TemplateFactory> TEXT = new Lazy<>(() -> BASE.get()
+			.derive(StandardTemplateExperts::registerTextDefaults));
 
 	private TemplateFactories() {
 	}
@@ -29,6 +31,11 @@ public final class TemplateFactories {
 
 	public static TemplateFactory html() {
 		return HTML.get();
+	}
+
+	/** Plain-text output: date/number formatting, but non-escaping string default (e.g. document runs). */
+	public static TemplateFactory text() {
+		return TEXT.get();
 	}
 
 	public static TemplateFactory xml() {

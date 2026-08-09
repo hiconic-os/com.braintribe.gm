@@ -119,6 +119,11 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 	private final TemplateTypeNameResolver expertTypeNameResolver;
 	private TextRange activeRange;
 
+	@Override
+	public com.braintribe.model.generic.reflection.GenericModelType supportedOutputType() {
+		return registry.supportedOutputType();
+	}
+
 	public StandardTemplateApiResolver(ConfigurableTemplateExpertRegistry registry, GenericModelType rootType,
 			String rootVariable, CmdResolver cmdResolver) {
 		this(registry, rootType, rootVariable, cmdResolver, cmdResolver);
