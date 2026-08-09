@@ -32,19 +32,28 @@ public class GmDbInitializerManager extends AbstractInitializerManager {
 	private static final Logger log = Logger.getLogger(GmDbInitializerManager.TaskEntry.class);
 
 	private String nodeId;
-	private GmDb gmDb;
+	private DataSource dataSource;
 	private String tableName;
 	private Locking locking;
 
+	private final Lazy<GmDb> gmDbLazy = new Lazy<>(this::newGmDb);
 	private final Lazy<TasksTable> tasksTableLazy = new Lazy<GmDbInitializerManager.TasksTable>(TasksTable::new);
 
 	// @formatter:off
 	/** Node id to be inserted to the DB table as updatedBy. */
 	@Required public void setNodeId(String nodeId) { this.nodeId = nodeId; }
-	@Required public void setDataSource(DataSource dataSource) { this.gmDb = GmDb.newDb(dataSource).done(); }
+	/**
+	 * Configures the data source without accessing it. Initializer managers are created while modules register their initializer tasks, which may
+	 * happen before a deployed data source is available. The connection and dialect are therefore resolved lazily when initializers actually run.
+	 */
+	@Required public void setDataSource(DataSource dataSource) { this.dataSource = nonNull(dataSource, "dataSource"); }
 	@Required public void setTasksTableName(String tableName) { this.tableName = nonNull(tableName, "tableName"); }
 	@Required public void setLocking(Locking locking) { this.locking = nonNull(locking, "locking"); }
 	// @formatter:on
+
+	private GmDb newGmDb() {
+		return GmDb.newDb(dataSource).done();
+	}
 
 	// #################################################
 	// ## . . . . . . . Initialization . . . . . . . .##
@@ -151,6 +160,7 @@ public class GmDbInitializerManager extends AbstractInitializerManager {
 	}
 
 	private class TasksTable {
+		private final GmDb gmDb = gmDbLazy.get();
 
 		private final GmColumn<Long> colId = gmDb.autoIncrementPrimaryKeyCol("id");
 		private final GmColumn<Date> colCreated = gmDb.date("created").notNull().done();

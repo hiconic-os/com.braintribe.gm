@@ -1,5 +1,10 @@
 package com.braintribe.gm.initializer.jdbc.processing;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.lang.reflect.Proxy;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import javax.sql.DataSource;
 
 import org.junit.After;
@@ -62,6 +67,24 @@ public class GmDbInitializerManagerTest extends AbstractInitializerManagerTest<G
 	@Override @Test public void failingTask_DoesNotUpdateFingerprint() { super.failingTask_DoesNotUpdateFingerprint(); }
 	@Override @Test public void exceptionInTask_DoesNotUpdateFingerprint() { super.exceptionInTask_DoesNotUpdateFingerprint(); }
 	// @formatter:on
+
+	@Test
+	public void configuringDataSourceDoesNotOpenConnection() {
+		AtomicInteger invocations = new AtomicInteger();
+		DataSource dataSource = (DataSource) Proxy.newProxyInstance( //
+				DataSource.class.getClassLoader(), //
+				new Class<?>[] { DataSource.class }, //
+				(proxy, method, args) -> {
+					invocations.incrementAndGet();
+					throw new AssertionError("DataSource must not be accessed while configuring the initializer manager: " + method.getName());
+				});
+
+		GmDbInitializerManager manager = new GmDbInitializerManager();
+		manager.setDataSource(dataSource);
+		manager.runInitializers(); // no registered tasks must not initialize the database either
+
+		assertThat(invocations).hasValue(0);
+	}
 
 	@Override
 	protected GmDbInitializerManager newManager() {
