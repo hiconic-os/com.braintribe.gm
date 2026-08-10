@@ -106,7 +106,7 @@ public class DbLocking implements Locking, LifecycleAware {
 	private static final long NANOS_PER_MS = 1_000_000L;
 
 	// the longer current lock has been held, the less frequently we poll: interval = lock age / this ratio (within min/max limits).
-	private static final long LOCK_AGE_TO_POLL_INTERVAL_RATIO = 10;
+	private static final long LOCK_AGE_TO_POLL_INTERVAL_RATIO = 4;
 
 	/* package */ DataSource dataSource;
 	/* package */ JdbcDialect dialect;
