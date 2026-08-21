@@ -31,6 +31,7 @@ import com.braintribe.model.processing.session.impl.persistence.BasicPersistence
 import com.braintribe.model.processing.smood.Smood;
 import com.braintribe.testing.tools.TestTools;
 import com.braintribe.testing.tools.gm.access.TransientNonIncrementalAccess;
+import com.braintribe.testing.tools.gm.resource.InMemoryResourceAccessFactory;
 import com.braintribe.testing.tools.gm.session.TestModelAccessory;
 import com.braintribe.utils.genericmodel.GmTools;
 
@@ -90,6 +91,44 @@ public abstract class GmTestTools {
 	 */
 	public static PersistenceGmSession newSessionWithSmoodAccessMemoryOnly() {
 		return newSession(newSmoodAccessMemoryOnly());
+	}
+
+	// ###############################################
+	// ## . . . . . . . . Resources . . . . . . . . ##
+	// ###############################################
+
+	/**
+	 * Creates a new session on given <code>access</code>, whose {@link PersistenceGmSession#resources() resources()} keep their binary data in memory.
+	 * <p>
+	 * Pass the very same <code>resourceAccessFactory</code> for every session on that access, otherwise one session cannot read what another session
+	 * has written.
+	 * <p>
+	 * Note that the model of the access must contain <code>Resource</code> and <code>BlobSource</code>.
+	 * 
+	 * @see #newInMemoryResourceAccessFactory()
+	 */
+	public static PersistenceGmSession newSessionWithInMemoryResources(IncrementalAccess access,
+			InMemoryResourceAccessFactory resourceAccessFactory) {
+
+		BasicPersistenceGmSession session = (BasicPersistenceGmSession) newSession(access);
+		session.setResourcesAccessFactory(resourceAccessFactory);
+
+		return session;
+	}
+
+	/**
+	 * Makes {@link PersistenceGmSession#resources() resources()} of given session work, by storing the binary data in memory.
+	 */
+	public static InMemoryResourceAccessFactory attachInMemoryResources(BasicPersistenceGmSession session) {
+		InMemoryResourceAccessFactory result = newInMemoryResourceAccessFactory();
+		session.setResourcesAccessFactory(result);
+
+		return result;
+	}
+
+	/** One factory stands for the resource storage of one access. */
+	public static InMemoryResourceAccessFactory newInMemoryResourceAccessFactory() {
+		return new InMemoryResourceAccessFactory();
 	}
 
 	/**

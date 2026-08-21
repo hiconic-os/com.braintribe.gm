@@ -22,6 +22,7 @@ limitations under the License.
     <artifactId>gm-test-tools</artifactId>
     <version>2.0.22</version>
     <properties>
+    	<java.version>21</java.version>
         <archetype>library</archetype>
     </properties>
     <licenses>
@@ -47,6 +48,20 @@ limitations under the License.
             <groupId>com.braintribe.gm</groupId>
             <artifactId>resource-model-processing</artifactId>
             <version>${V.com.braintribe.gm}</version>
+        </dependency>
+        <!-- BlobSource, for the in-memory ResourceAccess -->
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>basic-resource-model</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+            <?tag asset ?>
+        </dependency>
+        <!-- DeletionScope, StreamRange, for the in-memory ResourceAccess -->
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>resource-api-model</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+            <?tag asset ?>
         </dependency>
         <dependency>
             <groupId>com.braintribe.common</groupId>

@@ -23,6 +23,7 @@ limitations under the License.
     <artifactId>gm-test-tools-test</artifactId>
     <version>2.0.10</version>
     <properties>
+    	<java.version>21</java.version>
         <archetype>test</archetype>
     </properties>
     <licenses>
@@ -34,6 +35,16 @@ limitations under the License.
         </license>
     </licenses>
     <dependencies>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>gm-test-tools</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>meta-model-generation</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
             <artifactId>gm-unit-test-deps</artifactId>
