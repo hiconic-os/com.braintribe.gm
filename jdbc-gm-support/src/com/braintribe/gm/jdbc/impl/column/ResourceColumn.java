@@ -81,6 +81,11 @@ public class ResourceColumn extends MultiGmColumn<Resource> {
 				blobColumnName());
 	}
 
+	@Override
+	public List<String> getBlobSqlColumns() {
+		return asList(blobColumnName());
+	}
+
 	private String strColumnName() {
 		return name;
 	}

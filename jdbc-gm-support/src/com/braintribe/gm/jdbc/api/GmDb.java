@@ -126,9 +126,25 @@ public class GmDb implements DestructionAware {
 
 		/* package */ ExecutorService executor;
 		/* package */ int executorPoolSize = 5;
+		/* package */ boolean blobCleanup = true;
 
 		public GmDbBuilder(DataSource dataSource) {
 			this.dataSource = dataSource;
+		}
+
+		/**
+		 * Only relevant for PostgreSQL - configures whether {@link GmTable#ensure()} may create the DB artifacts needed to delete BLOBs whose
+		 * life-cycle is not bound to their row - see {@link GmColumn#getBlobSqlColumns()}. Default is <tt>true</tt>.
+		 * <p>
+		 * In PG BLOBs are Large Objects, i.e. separate entities referenced by the rows. On every other supported DB the BLOB is part of the row and
+		 * is deleted automatically and we don't do any extra work.
+		 * <p>
+		 * NOTE: Set this to <tt>false</tt> if the DB user is not permitted to create functions and triggers, or if the Large Objects are managed
+		 * externally, e.g. with the <tt>lo</tt> extension or a periodic <tt>vacuumlo</tt>.
+		 */
+		public GmDbBuilder withBlobCleanup(boolean blobCleanup) {
+			this.blobCleanup = blobCleanup;
+			return this;
 		}
 
 		/**
@@ -179,6 +195,7 @@ public class GmDb implements DestructionAware {
 	public final JdbcDialect dialect;
 	public final GmCodec<Object, String> defaultCodec;
 	public final StreamPipeFactory pipeFactory;
+	public final boolean blobCleanup;
 
 	private ExecutorService executor;
 	private final boolean ownExecutor;
@@ -189,6 +206,7 @@ public class GmDb implements DestructionAware {
 		this.dialect = JdbcDialect.detectDialect(dataSource);
 		this.defaultCodec = builder.defaultCodec;
 		this.pipeFactory = builder.pipeFactory;
+		this.blobCleanup = builder.blobCleanup;
 
 		this.executor = builder.executor;
 		this.ownExecutor = builder.executor == null;

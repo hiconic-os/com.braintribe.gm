@@ -15,6 +15,7 @@
 // ============================================================================
 package com.braintribe.gm.jdbc.impl.column;
 
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 
 import java.sql.PreparedStatement;
@@ -68,6 +69,11 @@ public abstract class AbstractGmColumn<T> implements GmColumn<T> {
 	@Override
 	public boolean storesLobs() {
 		return false;
+	}
+
+	@Override
+	public List<String> getBlobSqlColumns() {
+		return emptyList();
 	}
 
 	@Override
@@ -219,6 +225,7 @@ public abstract class AbstractGmColumn<T> implements GmColumn<T> {
 		@Override public String getSingleSqlColumn() { return delegate.getSingleSqlColumn(); }
 		@Override public Stream<String> streamSqlColumnDeclarations() { return delegate.streamSqlColumnDeclarations(); }
 		@Override public List<String> getSqlColumns() { return delegate.getSqlColumns(); }
+		@Override public List<String> getBlobSqlColumns() { return delegate.getBlobSqlColumns(); }
 		@Override public String getGmName() { return name; }
 	// @formatter:on
 	}

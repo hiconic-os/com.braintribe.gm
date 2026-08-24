@@ -15,10 +15,14 @@
 // ============================================================================
 package com.braintribe.gm.jdbc.api;
 
+import static java.util.Collections.emptyList;
+
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.List;
 import java.util.stream.Stream;
+
+import com.braintribe.util.jdbc.dialect.JdbcDialect;
 
 /**
  * @param <T>
@@ -68,6 +72,16 @@ public interface GmColumn<T> {
 
 	/** @return true if at least one of the {@link #getSqlColumns() DB columns} which back this GM column if a BLOB or a CLOB. */
 	boolean storesLobs();
+
+	/**
+	 * Returns those of this column's {@link #getSqlColumns() SQL columns} which are declared with the {@link JdbcDialect#blobType() dialect's BLOB
+	 * type}, i.e. store binary data.
+	 * <p>
+	 * Useful as in some DBs (Postgres) a BLOB is not a value stored inside the row, but merely a reference to an object managed separately by the DB,
+	 * with a life-cycle independent of the row. Deleting the row only deletes the reference, not the object. Such columns therefore need extra care,
+	 * which is taken care of by {@link GmTable#ensure()}.
+	 */
+	List<String> getBlobSqlColumns();
 
 	boolean isStoredAsLob(ResultSet rs);
 

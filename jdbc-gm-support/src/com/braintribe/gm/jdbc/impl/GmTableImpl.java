@@ -156,6 +156,16 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 	}
 
 	private void ensureExists(Connection c) {
+		// Special case for Postgres - we setup a trigger to automatically delete BLOBs when the row is deleted or updated.
+		PgBlobCleanupTools pgBlobCleanupTools = new PgBlobCleanupTools(this);
+
+		// We acquire the advisory lock before any statement which locks the table itself, rather than down in
+		// ensureBlobCleanup where it's needed. Both locks are held until our transaction ends, and the cleanup
+		// needs both, as CREATE TRIGGER locks the table just like ALTER TABLE ADD COLUMN does. Taking them in this order
+		// always, i.e. never table-then-advisory, means two nodes can never deadlock.
+		if (pgBlobCleanupTools.needsBlobCleanup())
+			pgBlobCleanupTools.lockTableAdvisory(c);
+
 		String table = JdbcTools.tableExists(c, tableName);
 		if (table == null) {
 			createTableWithAllColumns(c);
@@ -164,6 +174,9 @@ public class GmTableImpl implements GmTable, GmTableBuilder {
 			addMissingColumns(c, table);
 			addMissingIndices(c, table);
 		}
+
+		if (pgBlobCleanupTools.needsBlobCleanup())
+			pgBlobCleanupTools.ensureBlobCleanup(c);
 	}
 
 	private void createTableWithAllColumns(Connection c) {
