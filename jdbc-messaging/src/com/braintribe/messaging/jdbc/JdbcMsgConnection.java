@@ -24,6 +24,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import javax.sql.DataSource;
 
+import com.braintribe.codec.marshaller.api.Marshaller;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.messaging.Destination;
 import com.braintribe.model.messaging.Topic;
@@ -32,6 +33,8 @@ import com.braintribe.transport.messaging.api.MessagingConnection;
 import com.braintribe.transport.messaging.api.MessagingContext;
 import com.braintribe.transport.messaging.api.MessagingException;
 import com.braintribe.transport.messaging.api.MessagingSession;
+import com.braintribe.utils.stream.api.StreamPipeFactory;
+import com.braintribe.utils.stream.api.StreamPipes;
 
 /**
  * {@link MessagingConnection} implementation representing a connection to a Pub/Sub server.
@@ -43,6 +46,12 @@ public class JdbcMsgConnection implements MessagingConnection {
 	public static final String ETCD_CLIENT_CERTIFICATE = "ETCD_CLIENT_CERTIFICATE";
 
 	public final MessagingContext messagingContext;
+
+	/** Marshals and unmarshals the message bodies. @see JdbcConnectionProvider#setMarshaller(Marshaller) */
+	public final Marshaller marshaller;
+
+	/** Buffers a marshalled message body, so it never has to be held in memory as a whole. */
+	public final StreamPipeFactory pipeFactory = StreamPipes.simpleFactory();
 
 	private MessagingComponentStatus status = MessagingComponentStatus.NEW;
 
@@ -59,8 +68,9 @@ public class JdbcMsgConnection implements MessagingConnection {
 	private final Map<String, Set<JdbcMessageConsumer>> topicConsumers = newConcurrentMap();
 	private final Map<String, Set<JdbcMessageConsumer>> queueConsumers = newConcurrentMap();
 
-	public JdbcMsgConnection(String sqlPrefix, DataSource dataSource, MessagingContext messagingContext) {
+	public JdbcMsgConnection(String sqlPrefix, DataSource dataSource, MessagingContext messagingContext, Marshaller marshaller) {
 		this.messagingContext = messagingContext;
+		this.marshaller = marshaller;
 
 		this.db = new JdbcMsgGmDb(dataSource, sqlPrefix, messagingContext, this);
 	}

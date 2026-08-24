@@ -21,6 +21,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import javax.sql.DataSource;
 
 import com.braintribe.cfg.Required;
+import com.braintribe.codec.marshaller.api.Marshaller;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.messaging.Message;
 import com.braintribe.transport.messaging.api.MessagingConnectionProvider;
@@ -44,6 +45,7 @@ public class JdbcConnectionProvider implements MessagingConnectionProvider<JdbcM
 	private String sqlPrefix = "hc";
 	private DataSource dataSource;
 	private MessagingContext messagingContext;
+	private Marshaller marshaller;
 
 	private final Set<JdbcMsgConnection> connections = new HashSet<>();
 	private final ReentrantLock connectionsLock = new ReentrantLock();
@@ -57,6 +59,11 @@ public class JdbcConnectionProvider implements MessagingConnectionProvider<JdbcM
 	@Required public void setMessagingContext(MessagingContext messagingContext)        { this.messagingContext = messagingContext; }
 	// @formatter:on
 
+	@Required
+	public void setMarshallerWithResourceSupport(Marshaller marshaller) {
+		this.marshaller = marshaller;
+	}
+
 	/**
 	 * WTF - this impl makes no sense <br>
 	 * why would you even create multiple instances?<br>
@@ -64,7 +71,7 @@ public class JdbcConnectionProvider implements MessagingConnectionProvider<JdbcM
 	 */
 	@Override
 	public JdbcMsgConnection provideMessagingConnection() throws MessagingException {
-		JdbcMsgConnection connection = new JdbcMsgConnection(sqlPrefix, dataSource, messagingContext);
+		JdbcMsgConnection connection = new JdbcMsgConnection(sqlPrefix, dataSource, messagingContext, marshaller);
 
 		connectionsLock.lock();
 		try {

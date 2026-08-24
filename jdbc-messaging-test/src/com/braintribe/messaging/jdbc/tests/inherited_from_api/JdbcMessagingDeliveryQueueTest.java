@@ -57,7 +57,6 @@ public class JdbcMessagingDeliveryQueueTest extends GmMessagingDeliveryQueueTest
 		return msgInstance.messagingContext;
 	}
 
-	
 	// This is weird, it says the addresses should be ignored for Queue and all messages should be delivered.
 	// But the etcd impl this was based on didn't do that either, and I don't see any reason why that is a good idea. 
 	@Override

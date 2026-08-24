@@ -13,18 +13,24 @@
 // ============================================================================
 package com.braintribe.messaging.jdbc;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Base64;
 import java.util.Map;
 
 import com.braintribe.logging.Logger;
 import com.braintribe.model.messaging.Destination;
 import com.braintribe.model.messaging.Message;
+import com.braintribe.model.resource.Resource;
 import com.braintribe.transport.messaging.api.MessageProducer;
 import com.braintribe.transport.messaging.api.MessageProperties;
 import com.braintribe.transport.messaging.api.MessagingComponentStatus;
 import com.braintribe.transport.messaging.api.MessagingException;
+import com.braintribe.utils.IOTools;
 import com.braintribe.utils.RandomTools;
 import com.braintribe.utils.lcd.NullSafe;
+import com.braintribe.utils.stream.api.StreamPipe;
 
 /**
  * {@link MessageProducer} implementation for JDBC Messaging.
@@ -71,8 +77,11 @@ public class JdbcMessageProducer extends JdbcAbstractMessageHandler implements M
 			log.trace("Publishing message to " + destination.getName() + ": " + message + " with message ID " + message.getMessageId()
 					+ ", correlation ID: " + message.getCorrelationId() + ", and body " + message.getBody());
 
-		JdbcMessageEnvelope envelope = toEnvelope(message);
-		connection.sendMessage(envelope, destination);
+		// The pipe buffers the marshalled body, spilling to disk if needed, so a big message never sits in memory as a whole.
+		try (StreamPipe bodyPipe = connection.pipeFactory.newPipe("jdbc-message-body")) {
+			JdbcMessageEnvelope envelope = toEnvelope(message, bodyPipe);
+			connection.sendMessage(envelope, destination);
+		}
 
 		if (log.isTraceEnabled())
 			log.trace("Published message to " + destination.getName() + ": " + message + " with message ID " + message.getMessageId()
@@ -100,14 +109,12 @@ public class JdbcMessageProducer extends JdbcAbstractMessageHandler implements M
 		messagingContext.enrichOutbound(message);
 	}
 
-	private JdbcMessageEnvelope toEnvelope(Message message) {
-		byte[] messageBody = messagingContext.marshallMessage(message);
-		String encodedMessageBody = Base64.getEncoder().encodeToString(messageBody);
+	private JdbcMessageEnvelope toEnvelope(Message message, StreamPipe bodyPipe) {
+		JdbcMessageEnvelope envelope = new JdbcMessageEnvelope();
+
+		marshalBody(message, bodyPipe, envelope);
 
 		Long expiration = message.getExpiration();
-
-		JdbcMessageEnvelope envelope = new JdbcMessageEnvelope();
-		envelope.body = encodedMessageBody;
 		envelope.expiration = expiration != null ? expiration : System.currentTimeMillis() + timeToLive;
 
 		Map<String, Object> props = message.getProperties();
@@ -115,6 +122,48 @@ public class JdbcMessageProducer extends JdbcAbstractMessageHandler implements M
 		envelope.addresseeNodeId = (String) props.get(MessageProperties.addreseeNodeId.getName());
 
 		return envelope;
+	}
+
+	/** Marshals the message into given pipe and then decides, based on its size, which of the two body columns it goes to. */
+	private void marshalBody(Message message, StreamPipe bodyPipe, JdbcMessageEnvelope envelope) {
+		try (OutputStream out = bodyPipe.openOutputStream()) {
+			connection.marshaller.marshall(out, message);
+
+		} catch (IOException e) {
+			throw new MessagingException("Error while marshalling message with id " + message.getMessageId(), e);
+		}
+
+		long size = bodyPipe.bytesWritten();
+
+		if (base64Length(size) <= JdbcMessageEnvelope.INLINE_BODY_CHARS_LIMIT)
+			envelope.bodyInline = toInlineBody(bodyPipe);
+		else
+			envelope.bodyBlob = toBlobBody(bodyPipe, size);
+	}
+
+	private static long base64Length(long bytes) {
+		return 4 * ((bytes + 2) / 3);
+	}
+
+	
+	/** Small by definition - see {@link JdbcMessageEnvelope#INLINE_BODY_CHARS_LIMIT} - so holding it in memory is fine. */
+	private String toInlineBody(StreamPipe bodyPipe) {
+		try (InputStream in = bodyPipe.openInputStream()) {
+			return Base64.getEncoder().encodeToString(IOTools.slurpBytes(in));
+
+		} catch (IOException e) {
+			throw new MessagingException("Error while reading the marshalled message body", e);
+		}
+	}
+
+	private Resource toBlobBody(StreamPipe bodyPipe, long size) {
+		Resource result = Resource.createTransient(bodyPipe::openInputStream);
+		result.setName("message-body");
+		// Anything but text/plain, as that would make the ResourceColumn consider storing the body as a String
+		result.setMimeType("application/octet-stream");
+		result.setFileSize(size);
+
+		return result;
 	}
 
 	@Override

@@ -2,6 +2,9 @@ package com.braintribe.messaging.jdbc;
 
 import static com.braintribe.utils.lcd.CollectionTools2.isEmpty;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
@@ -11,6 +14,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,11 +34,12 @@ import com.braintribe.messaging.jdbc.JdbcMsgGmDb.JdbcMsgListener.MessageNotifica
 import com.braintribe.model.messaging.Destination;
 import com.braintribe.model.messaging.Message;
 import com.braintribe.model.messaging.Queue;
+import com.braintribe.model.resource.Resource;
 import com.braintribe.model.messaging.Topic;
 import com.braintribe.transport.messaging.api.MessagingContext;
+import com.braintribe.transport.messaging.api.MessagingException;
 import com.braintribe.util.jdbc.JdbcTools;
 import com.braintribe.utils.lcd.StringTools;
-import com.braintribe.utils.stream.api.StreamPipes;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -78,7 +83,7 @@ public class JdbcMsgGmDb {
 		);
 
 		gmDb = GmDb.newDb(dataSource) //
-				.withStreamPipeFactory(StreamPipes.simpleFactory()) //
+				.withStreamPipeFactory(_msgConnection.pipeFactory) //
 				.withExecutor(executor).done();
 
 		identifier = _sqlPrefix; // typically hc
@@ -121,15 +126,15 @@ public class JdbcMsgGmDb {
 
 	private class MsgTable {
 
-		private static final int SHORT_BODY_LIMIT = 1000;
-
-		// we have two different columns for encoded message body, short and long
-		// short one - up to SHORT_BODY_LIMIT, is passed as part of the notification (which has a limit of 8K bytes)
+		// we have two different columns for encoded message body - inline and blob
+		// inline - is passed as part of the notification (which has a limit of 8K bytes)
 		// long one has to be queried extra
+		// See JdbcMessageEnvelope#INLINE_BODY_CHARS_LIMIT
+
 		public final GmColumn<Long> colIdLong = gmDb.autoIncrementPrimaryKeyCol("id");
 		public final GmColumn<Date> colCreated = gmDb.date("created").done();
-		public final GmColumn<String> colBodyShort = gmDb.string("bodyShort").done();
-		public final GmColumn<String> colBodyLong = gmDb.string("bodyLong").done();
+		public final GmColumn<String> colBodyInline = gmDb.string("bodyInline").done();
+		public final GmColumn<Resource> colBodyBlob = gmDb.resource("bodyBlob").done();
 		public final GmColumn<String> colDstName = gmDb.shortString255("dstName").done();
 		public final GmColumn<String> colAddresseeNodeId = gmDb.shortString255("nodeId").done();
 		public final GmColumn<String> colAddresseeAppId = gmDb.shortString255("appId").done();
@@ -143,24 +148,17 @@ public class JdbcMsgGmDb {
 			GmIndex idxExpir = gmDb.index(sqlPrefix + "idx_expir_" + topicOrQueue, colExpiration);
 
 			table = gmDb.newTable(sqlPrefix + topicOrQueue) //
-					.withColumns(colIdLong, colCreated, colBodyShort, colBodyLong, colDstName, colAddresseeNodeId, colAddresseeAppId, colExpiration) //
+					.withColumns(colIdLong, colCreated, colBodyInline, colBodyBlob, colDstName, colAddresseeNodeId, colAddresseeAppId, colExpiration) //
 					.withIndices(idxExpir) //
 					.done();
 		}
 
 		public void sendMessage(JdbcMessageEnvelope envelope, Destination destination) {
-			String bodyShort = null;
-			String bodyLong = null;
-
-			if (envelope.body.length() <= SHORT_BODY_LIMIT)
-				bodyShort = envelope.body;
-			else
-				bodyLong = envelope.body;
-
 			try {
 				table.insert( //
-						colCreated, new Date(), colBodyShort, bodyShort, //
-						colBodyLong, bodyLong, //
+						colCreated, new Date(), //
+						colBodyInline, envelope.bodyInline, //
+						colBodyBlob, envelope.bodyBlob, //
 						colDstName, destination.getName(), //
 						colAddresseeNodeId, envelope.addresseeNodeId, //
 						colAddresseeAppId, envelope.addresseeAppId, //
@@ -176,14 +174,15 @@ public class JdbcMsgGmDb {
 			return table.delete().whereColumn(colIdLong, id) > 0;
 		}
 
-		public String getBodyById(Long id) {
-			List<GmRow> rows = table.select(colBodyLong).whereColumn(colIdLong, id).rows();
+		/** Only ever called for a blob body, as an inline one arrives within the notification. */
+		public Resource getBodyById(Long id) {
+			List<GmRow> rows = table.select(colBodyBlob).whereColumn(colIdLong, id).rows();
 			if (rows.isEmpty())
 				// possible for a Queue
 				return null;
 
 			GmRow row = rows.get(0);
-			String value = row.getValue(colBodyLong);
+			Resource value = row.getValue(colBodyBlob);
 			if (value == null)
 				log.warn("Unexpected null message body for id " + id + ". Table: " + table.getName());
 
@@ -229,7 +228,7 @@ public class JdbcMsgGmDb {
 							PERFORM pg_notify('new_message', jsonb_build_object(
 								'table', TG_TABLE_NAME,
 								'id', NEW.id,
-								'body', NEW.bodyShort,
+								'body', NEW.bodyInline,
 								'dstName', NEW.dstName,
 								'nodeId', NEW.nodeId,
 								'appId', NEW.appId,
@@ -295,30 +294,74 @@ public class JdbcMsgGmDb {
 	// # . . . . Ensuring notification listeners . . . #
 	// #################################################
 
-	private Thread listenerThread;
+	private volatile Thread listenerThread;
 
 	/**
-	 * Starts a listener thread for topic and queue inserts.
+	 * How long we wait for the listener to subscribe. It has to acquire a DB connection first, which can take a while when the pool is busy, so this
+	 * is generous - it is only ever reached if the listener cannot start at all.
+	 */
+	private static final long LISTENING_TIMEOUT_MS = 30_000;
+
+	/**
+	 * Starts a listener thread for topic and queue inserts and waits until it is actually subscribed.
 	 * <p>
 	 * This listener also dispatches the message to all relevant consumers in the {@link MessageNotificationDispatcher#run()} method.
 	 * <p>
 	 * Queue messages are only dispatched if they are successfully deleted, thus guaranteeing only a single node will receive such a message.
+	 * <p>
+	 * IMPORTANT: The very first call only returns once the listener has issued its LISTEN statement, because PostgreSQL only delivers a notification
+	 * to sessions which were already listening when it was sent. Returning any earlier would mean the caller could produce a message while nobody is
+	 * subscribed yet, and as nothing ever re-reads the tables, such a message would never be delivered to this node.
+	 * <p>
+	 * NOTE that this only covers the start up. Later calls return immediately, even if the listener happens to be re-connecting at that very moment.
+	 * That is deliberate: waiting would not help, as the connection can drop right after we stopped waiting anyway, and registering a consumer means
+	 * "deliver messages to me from now on", not "the DB must be reachable right now". Failing here would turn a temporary DB outage into an error the
+	 * caller cannot do anything about.
+	 *
+	 * @throws MessagingException
+	 *             if the listener did not start listening within {@link #LISTENING_TIMEOUT_MS} at start up.
 	 **/
 	public void ensureMsgListenerThreadsRunning() {
 		if (listenerThread == null)
 			ensureMsgListenerThreadsRunningSync();
+
+		awaitInitialListening();
 	}
 
 	private synchronized void ensureMsgListenerThreadsRunningSync() {
 		if (listenerThread == null)
 			listenerThread = Thread.ofVirtual() //
-					.name("Jdbc Msg Listener (" + identifier + ")") //
+					.name(listenerName()) //
 					.start(newMsgListener);
+	}
+
+	private String listenerName() {
+		return "Jdbc Msg Listener (" + identifier + ")";
+	}
+
+	private void awaitInitialListening() {
+		boolean listening;
+		try {
+			listening = newMsgListener.listening.await(LISTENING_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new MessagingException("Interrupted while waiting for " + listenerName() + " to start listening.", e);
+		}
+
+		if (!listening)
+			throw new MessagingException(listenerName() + " did not start listening within " + LISTENING_TIMEOUT_MS + " ms.");
 	}
 
 	class JdbcMsgListener implements Runnable {
 
 		/* package */ volatile boolean running = true;
+
+		/**
+		 * Opened once this listener has issued its first LISTEN. It is deliberately a one-shot latch, see
+		 * {@link JdbcMsgGmDb#ensureMsgListenerThreadsRunning()}.
+		 */
+		/* package */ final CountDownLatch listening = new CountDownLatch(1);
 
 		private final ObjectMapper mapper = new ObjectMapper();
 
@@ -369,6 +412,7 @@ public class JdbcMsgGmDb {
 
 			log.info(Thread.currentThread().getName() + " is now listening to new messages.");
 			retrySeconds = MIN_RETRY_SECONDS;
+			listening.countDown();
 
 			while (running) {
 				// Check for notifications
@@ -513,29 +557,43 @@ public class JdbcMsgGmDb {
 			}
 
 			private Message resolveMessage() {
-				Destination dst = isTopic ? Topic.create(dstName) : Queue.create(dstName);
+				Message message = unmarshalMessage();
+				if (message == null)
+					return null;
 
-				String body = resolveMessageBody();
-				if (body == null) {
+				message.setDestination(isTopic ? Topic.create(dstName) : Queue.create(dstName));
+
+				return message;
+			}
+
+			private Message unmarshalMessage() {
+				// An inline body travels within the notification itself, so we need no query at all.
+				String inlineBody = (String) jsonMap.get("body");
+				if (inlineBody != null)
+					return unmarshal(new ByteArrayInputStream(Base64.getDecoder().decode(inlineBody)));
+
+				Resource blobBody = table.getBodyById(id);
+				if (blobBody == null) {
 					if (!isTopic)
 						log.warn("No body found for queue message with id " + id + ". Notification: " + parameterJson);
 					return null;
 				}
 
-				byte[] messageBody = Base64.getDecoder().decode(body);
-				Message message = msgContext.unmarshal(messageBody);
+				try (InputStream in = blobBody.openStream()) {
+					return unmarshal(in);
 
-				message.setDestination(dst);
-
-				return message;
+				} catch (IOException e) {
+					throw Exceptions.unchecked(e, "Error while reading body of message with id " + id);
+				}
 			}
 
-			private String resolveMessageBody() {
-				String body = (String) jsonMap.get("body");
-				if (body != null)
-					return body;
+			private Message unmarshal(InputStream in) {
+				Object result = msgConnection.marshaller.unmarshall(in);
+				if (result instanceof Message)
+					return (Message) result;
 
-				return table.getBodyById(id);
+				throw new IllegalStateException("Unmarshalling the body of message with id " + id + " resulted in "
+						+ (result == null ? "null" : "an instance of " + result.getClass().getName()) + ", but a Message was expected.");
 			}
 
 			private Long getLongValue(String key) {
