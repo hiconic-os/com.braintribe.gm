@@ -492,7 +492,7 @@ public class JdbcMsgGmDb {
 			}
 
 			private boolean isExpired() {
-				Long expiration = getLongValue("expiration");
+				Long expiration = getLongValue("exp");
 
 				return expiration != null && //
 						expiration > 0 && expiration < System.currentTimeMillis();
