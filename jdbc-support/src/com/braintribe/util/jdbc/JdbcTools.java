@@ -44,14 +44,23 @@ import com.braintribe.utils.StringTools;
  */
 public class JdbcTools {
 
-	/** Executes given task with a new {@link Connection} whose {@link Connection#getAutoCommit()} returns false. */
+	/**
+	 * Executes given task with a new {@link Connection} whose {@link Connection#getAutoCommit()} returns false, i.e. the entire task is a single
+	 * transaction.
+	 * <p>
+	 * The transaction is committed if the task returns normally, and rolled back if it throws. The connection is closed either way, and its original
+	 * auto-commit flag is restored before that, in case it is returned to a pool.
+	 */
 	public static void withManualCommitConnection(DataSource dataSource, Supplier<String> details, XConsumer<Connection> task) {
 		JdbcToolsImplementation.withManualCommitConnection(dataSource, details, task);
 	}
 
 	/**
 	 * Executes given task with a new {@link Connection} keeping the {@link Connection#getAutoCommit()} flag untouched. The connection is committed
-	 * afterwards if <tt>commit</tt> parameter is true.
+	 * afterwards if <tt>commit</tt> parameter is true, and rolled back if it is false or if the task throws.
+	 * <p>
+	 * NOTE that committing and rolling back are both no-ops if the connection happens to be in auto-commit mode, as then every statement was already
+	 * committed on its own. Use {@link #withManualCommitConnection} if you need the task to be a single transaction.
 	 */
 	public static void withConnection(DataSource dataSource, boolean commit, Supplier<String> details, XConsumer<Connection> task) {
 		JdbcToolsImplementation.withConnection(dataSource, commit, details, task);

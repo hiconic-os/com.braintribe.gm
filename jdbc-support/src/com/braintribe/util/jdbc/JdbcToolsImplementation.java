@@ -85,10 +85,14 @@ import com.braintribe.logging.Logger;
 			throw Exceptions.unchecked(e);
 
 		} finally {
+			// IMPORTANT: Transaction must be resolved (commit/rollback) before cleanup runs.
+			// cleanup restores the auto-commit flag which implicitly commits the current transaction, i.e. we'd commit even if we want rollback
+			completeTransaction(c, commit, details);
+
 			if (cleanup != null)
 				cleanup.run();
 
-			thoroughlyCloseJdbcConnection(c, commit, details);
+			closeConnection(c, details);
 		}
 	}
 
@@ -158,15 +162,19 @@ import com.braintribe.logging.Logger;
 	}
 
 	public static void thoroughlyCloseJdbcConnection(Connection connection, boolean commit, Supplier<String> details) {
-		if (connection == null)
-			return;
+		completeTransaction(connection, commit, details);
+		closeConnection(connection, details);
+	}
 
-		try {
-			if (connection.isClosed())
-				return;
-		} catch (Exception e) {
-			log.error("Failed to check if JDBC connection was closed. Attempt to close it will follow. Details: ." + details.get(), e);
-		}
+	/**
+	 * Commits or rolls back given connection. Does nothing if the connection is in auto-commit mode, as then there is no transaction to resolve.
+	 * <p>
+	 * NOTE for callers who also restore the auto-commit flag: do that only AFTER this method, as setting the flag to <tt>true</tt> implicitly commits
+	 * the current transaction, thus committing even one which was supposed to be rolled back.
+	 */
+	private static void completeTransaction(Connection connection, boolean commit, Supplier<String> details) {
+		if (connection == null || isClosed(connection, details))
+			return;
 
 		try {
 			if (!connection.getAutoCommit()) {
@@ -180,12 +188,27 @@ import com.braintribe.logging.Logger;
 			String action = commit ? "commmit" : "rollback";
 			log.error("Failed to " + action + " JDBC connection before closing it. Close attmpt will follow. Details: " + details.get(), e);
 		}
+	}
+
+	private static void closeConnection(Connection connection, Supplier<String> details) {
+		if (connection == null || isClosed(connection, details))
+			return;
 
 		try {
 			connection.close();
 
 		} catch (Exception e) {
 			log.error("Failed to close JDBC connection. Details: " + details.get(), e);
+		}
+	}
+
+	private static boolean isClosed(Connection connection, Supplier<String> details) {
+		try {
+			return connection.isClosed();
+
+		} catch (Exception e) {
+			log.error("Failed to check if JDBC connection was closed. Attempt to use it will follow. Details: ." + details.get(), e);
+			return false;
 		}
 	}
 
