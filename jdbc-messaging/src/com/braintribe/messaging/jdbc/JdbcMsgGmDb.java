@@ -18,6 +18,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 import javax.sql.DataSource;
 
@@ -27,7 +28,6 @@ import com.braintribe.execution.ExtendedThreadPoolExecutor;
 import com.braintribe.gm.jdbc.api.GmColumn;
 import com.braintribe.gm.jdbc.api.GmDb;
 import com.braintribe.gm.jdbc.api.GmIndex;
-import com.braintribe.gm.jdbc.api.GmRow;
 import com.braintribe.gm.jdbc.api.GmTable;
 import com.braintribe.logging.Logger;
 import com.braintribe.messaging.jdbc.JdbcMsgGmDb.JdbcMsgListener.MessageNotificationDispatcher;
@@ -174,19 +174,21 @@ public class JdbcMsgGmDb {
 			return table.delete().whereColumn(colIdLong, id) > 0;
 		}
 
-		/** Only ever called for a blob body, as an inline one arrives within the notification. */
-		public Resource getBodyById(Long id) {
-			List<GmRow> rows = table.select(colBodyBlob).whereColumn(colIdLong, id).rows();
-			if (rows.isEmpty())
-				// possible for a Queue
-				return null;
+		/** Reads the blob Resource for given message id applying given reader. */
+		public <T> T readBodyBlob(Long id, Function<Resource, T> reader) {
+			List<T> result = table.select(colBodyBlob) //
+					.whereColumn(colIdLong, id) //
+					.mapRows(row -> {
+						Resource body = row.getValue(colBodyBlob);
+						if (body == null) {
+							log.warn("Unexpected null message body for id " + id + ". Table: " + table.getName());
+							return null;
+						}
 
-			GmRow row = rows.get(0);
-			Resource value = row.getValue(colBodyBlob);
-			if (value == null)
-				log.warn("Unexpected null message body for id " + id + ". Table: " + table.getName());
+						return reader.apply(body);
+					});
 
-			return value;
+			return result.isEmpty() ? null : result.get(0);
 		}
 
 		public int deleteExpiredMessages() {
@@ -572,14 +574,15 @@ public class JdbcMsgGmDb {
 				if (inlineBody != null)
 					return unmarshal(new ByteArrayInputStream(Base64.getDecoder().decode(inlineBody)));
 
-				Resource blobBody = table.getBodyById(id);
-				if (blobBody == null) {
-					if (!isTopic)
-						log.warn("No body found for queue message with id " + id + ". Notification: " + parameterJson);
-					return null;
-				}
+				Message result = table.readBodyBlob(id, this::unmarshalBody);
+				if (result == null && !isTopic)
+					log.warn("No body found for queue message with id " + id + ". Notification: " + parameterJson);
 
-				try (InputStream in = blobBody.openStream()) {
+				return result;
+			}
+
+			private Message unmarshalBody(Resource body) {
+				try (InputStream in = body.openStream()) {
 					return unmarshal(in);
 
 				} catch (IOException e) {

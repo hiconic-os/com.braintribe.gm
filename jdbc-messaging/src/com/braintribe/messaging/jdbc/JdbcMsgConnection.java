@@ -47,7 +47,6 @@ public class JdbcMsgConnection implements MessagingConnection {
 
 	public final MessagingContext messagingContext;
 
-	/** Marshals and unmarshals the message bodies. @see JdbcConnectionProvider#setMarshaller(Marshaller) */
 	public final Marshaller marshaller;
 
 	/** Buffers a marshalled message body, so it never has to be held in memory as a whole. */
