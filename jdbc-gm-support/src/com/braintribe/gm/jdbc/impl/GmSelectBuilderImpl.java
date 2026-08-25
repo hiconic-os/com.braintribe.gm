@@ -31,6 +31,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.braintribe.exception.Exceptions;
@@ -78,6 +80,8 @@ public class GmSelectBuilderImpl implements GmSelectBuilder {
 		@Override public GmSelectBuilder lobLoading(GmColumn<?> column, GmLobLoadingMode mode) { return GmSelectBuilderImpl.this; }		
 
 		@Override public List<GmRow> rows() { return throwError(); }
+		@Override public void forEachRow(Consumer<GmRow> consumer) { throwError(); }
+		@Override public <T> List<T> mapRows(Function<GmRow, T> mapper) { return throwError(); }
 		@Override public Map<Object, GmRow> rowsInBatchesOf(int batchSize) { return throwError(); }
 		@Override public Map<Object, GmRow> rowsInBatchesOf(List<Object> ids, int batchSize) { return throwError(); }		
 
@@ -275,6 +279,59 @@ public class GmSelectBuilderImpl implements GmSelectBuilder {
 		return result;
 	}
 
+	/** {@inheritDoc} */
+	@Override
+	public void forEachRow(Consumer<GmRow> consumer) {
+		scopedQuery(consumer);
+	}
+
+	/** {@inheritDoc} */
+	@Override
+	public <T> List<T> mapRows(Function<GmRow, T> mapper) {
+		List<T> result = newList();
+
+		scopedQuery(row -> result.add(mapper.apply(row)));
+
+		return result;
+	}
+
+	/**
+	 * Unlike {@link #rows()} this cannot resolve all the rows first and hand them over afterwards. A value which streams straight from the DB is only
+	 * readable while the ResultSet is positioned on its row, so the handler has to run inside the iteration.
+	 */
+	private void scopedQuery(Consumer<GmRow> rowHandler) {
+		initPagination();
+
+		dbQuery.scopedRead = true;
+
+		SqlStatement st = sqlStatement();
+
+		JdbcTools.withManualCommitConnection(table.db.dataSource, () -> "Retrieving rows for table: " + table.getName(), c -> {
+			JdbcTools.withPreparedStatement(c, st, () -> "", ps -> {
+				int index = maybeBindLimitPramsAtStartOfQuery(ps);
+
+				index = GmDbTools.bindParameters(ps, st.parameters, index);
+
+				maybeBindLimitPramsAtEndOfQuery(ps, index);
+
+				executeScopedQuery(ps, rowHandler);
+			});
+		});
+	}
+
+	private void executeScopedQuery(PreparedStatement ps, Consumer<GmRow> rowHandler) throws SQLException {
+		try (ResultSet rs = ps.executeQuery()) {
+			while (rs.next()) {
+				GmRow row = newRow(rs);
+				try {
+					rowHandler.accept(row);
+				} finally {
+					dbQuery.endRowScope();
+				}
+			}
+		}
+	}
+
 	private RowSelection selection;
 	private LimitHandler limitHandler;
 
@@ -380,9 +437,29 @@ public class GmSelectBuilderImpl implements GmSelectBuilder {
 
 		public final Map<GmColumn<?>, GmLobLoadingMode> loadingModes = newMap();
 
+		public boolean scopedRead;
+		private final List<Runnable> rowScopeExitActions = newList();
+
 		@Override
 		public GmLobLoadingMode lobLoadingMode(GmColumn<?> column) {
 			return NullSafe.get(loadingModes.get(column), GmLobLoadingMode.ALL);
+		}
+
+		@Override
+		public boolean isScopedRead() {
+			return scopedRead;
+		}
+
+		@Override
+		public void onRowScopeExit(Runnable action) {
+			rowScopeExitActions.add(action);
+		}
+
+		public void endRowScope() {
+			for (Runnable action : rowScopeExitActions)
+				action.run();
+
+			rowScopeExitActions.clear();
 		}
 
 		public void loadFrom(GmDbQuery other) {

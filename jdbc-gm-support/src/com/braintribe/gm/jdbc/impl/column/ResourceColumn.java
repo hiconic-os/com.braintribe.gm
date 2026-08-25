@@ -121,6 +121,57 @@ public class ResourceColumn extends MultiGmColumn<Resource> {
 		if (blob == null || lobLoadingMode == NO_LOB)
 			return null;
 
+		// The caller only reads within the query's scope, so we can stream straight from the DB rather than making a copy first
+		if (context.isScopedRead())
+			return scopedResource(blob, context);
+		else
+			return pipeBackedResource(blob);
+	}
+
+	private Resource scopedResource(Blob blob, GmSelectionContext context) {
+		ScopedBlobInputStreamProvider provider = new ScopedBlobInputStreamProvider(blob, name);
+
+		context.onRowScopeExit(provider::markClosed);
+
+		return Resource.createTransient(provider);
+	}
+
+	/**
+	 * Streams directly from the BLOB, which is only possible while the ResultSet is still positioned on the row this value came from. Once it is not,
+	 * this provider is invalidated, so that a caller who kept the {@link Resource} around gets a clear error instead of reading from a connection
+	 * which was given back to the pool.
+	 */
+	private static class ScopedBlobInputStreamProvider implements InputStreamProvider {
+		private final Blob blob;
+		private final String columnName;
+		private volatile boolean closed;
+
+		public ScopedBlobInputStreamProvider(Blob blob, String columnName) {
+			this.blob = blob;
+			this.columnName = columnName;
+		}
+
+		public void markClosed() {
+			closed = true;
+		}
+
+		@Override
+		public InputStream openInputStream() throws IOException {
+			if (closed)
+				throw new IllegalStateException("Cannot stream the value of column '" + columnName
+						+ "' any more. It was resolved by a scoped read, thus it is only readable while processing its own row."
+						+ " See GmSelectBuilder.forEachRow/mapRows.");
+
+			try {
+				return blob.getBinaryStream();
+
+			} catch (SQLException e) {
+				throw new IOException("Error while opening the stream for column: " + columnName, e);
+			}
+		}
+	}
+
+	private Resource pipeBackedResource(Blob blob) throws IOException, SQLException {
 		StreamPipe pipe = streamPipeFactory.newPipe("Value of column: " + name);
 
 		try (InputStream is = blob.getBinaryStream(); //

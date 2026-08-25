@@ -15,8 +15,6 @@
 // ============================================================================
 package com.braintribe.gm.jdbc.api;
 
-import static java.util.Collections.emptyList;
-
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.List;

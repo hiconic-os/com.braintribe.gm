@@ -19,8 +19,12 @@ import static com.braintribe.utils.lcd.CollectionTools2.asList;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
+import com.braintribe.model.resource.Resource;
 import com.braintribe.util.jdbc.JdbcTools;
+import com.braintribe.utils.stream.api.StreamPipe;
 
 /**
  * @see GmDb
@@ -30,6 +34,23 @@ import com.braintribe.util.jdbc.JdbcTools;
 public interface GmSelectBuilder {
 
 	List<GmRow> rows();
+
+	/**
+	 * Runs given consumer for every row of the result, while the underlying {@link java.sql.ResultSet} is still open and positioned on that row.
+	 * <p>
+	 * This is an optimization when reading {@link Resource}s - if they are consumer right away, we don't need to stream them into a
+	 * {@link StreamPipe}, which is used to back Resources returned by {@link #rows()} or {@link #rowsInBatchesOf(int)}.
+	 * <p>
+	 * IMPORTANT: A {@link GmRow} given to the consumer, and any value obtained from it, is only valid within that single call. This is what makes it
+	 * possible to hand out a {@link Resource} which streams straight from the DB, with no copy in between. Keeping such a value beyond the call is an
+	 * error, and using it later throws rather than reading from a connection which was given back to the pool.
+	 *
+	 * @see #mapRows(Function)
+	 */
+	void forEachRow(Consumer<GmRow> consumer);
+
+	/** Like {@link #forEachRow(Consumer)}, but collects what the mapper returns for each row. */
+	<T> List<T> mapRows(Function<GmRow, T> mapper);
 
 	/**
 	 * Returns a linked map containing the results in correct order, after doing a two phase loading with multiple threads. In the returned map the
