@@ -81,6 +81,18 @@ public interface InitializedEntity extends GenericEntity {
 	Date getUninitializedDateValue();
 	void setUninitializedDateValue(Date value);
 
+	@Initializer("[]")
+	List<String> getEmptyListValue();
+	void setEmptyListValue(List<String> emptyListValue);
+
+	@Initializer("{}")
+	Set<String> getEmptySetValue();
+	void setEmptySetValue(Set<String> emptySetValue);
+
+	@Initializer("map[]")
+	Map<String, String> getEmptyMapValue();
+	void setEmptyMapValue(Map<String, String> emptyMapValue);
+
 	@Initializer("['one','two']")
 	List<String> getListValue();
 	void setListValue(List<String> listValue);

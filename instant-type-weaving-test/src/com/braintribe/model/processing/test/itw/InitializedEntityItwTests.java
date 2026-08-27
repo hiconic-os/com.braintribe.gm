@@ -77,6 +77,9 @@ public class InitializedEntityItwTests extends ImportantItwTestSuperType {
 		assertThat(e.getBooleanValue()).isTrue();
 		assertThat(e.getEnumValue()).isEqualTo(Color.green);
 		assertThat(e.getEnumShort()).isEqualTo(Color.green);
+		assertThat(e.getEmptyListValue()).isEmpty();
+		assertThat(e.getEmptySetValue()).isEmpty();
+		assertThat(e.getEmptyMapValue()).isEmpty();
 		assertThat(e.getListValue()).isEqualTo(asList("one", "two"));
 		assertThat(e.getSetValue()).isEqualTo(asSet("one", "two"));
 		assertThat(e.getEnumSetValue()).isEqualTo(asSet(Color.green));

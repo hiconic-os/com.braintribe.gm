@@ -449,6 +449,7 @@ public class GmValueCodec {
 		final String splitRegex = "(?<!,),(?!,)";
 
 		return Stream.of(s.split(splitRegex)) //
+				.filter(part -> !part.isEmpty()) //
 				.map(GmValueCodec::unescapeSeparator);
 	}
 
