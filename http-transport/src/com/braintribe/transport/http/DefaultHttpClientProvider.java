@@ -18,6 +18,8 @@ package com.braintribe.transport.http;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
+import javax.net.ssl.HostnameVerifier;
+
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpRequestInterceptor;
@@ -50,6 +52,11 @@ public class DefaultHttpClientProvider implements HttpClientProvider {
 	private static final Logger logger = Logger.getLogger(DefaultHttpClientProvider.class);
 
 	protected SslSocketFactoryProvider sslSocketFactoryProvider = new EasySslSocketFactoryProvider();
+	/**
+	 * Kept at {@link NoopHostnameVerifier} for backwards compatibility - clients which require the server certificate to actually match the
+	 * host they addressed have to opt in via {@link #setHostnameVerifier(HostnameVerifier)}.
+	 */
+	protected HostnameVerifier hostnameVerifier = NoopHostnameVerifier.INSTANCE;
 	protected int maxTotal = 8192;
 	protected int maxPerRoute = 8192;
 	protected int socketTimeout = -1;
@@ -88,7 +95,7 @@ public class DefaultHttpClientProvider implements HttpClientProvider {
 
 			if (this.sslSocketFactoryProvider != null) {
 				SSLConnectionSocketFactory sslConnectionFactory = new SocksProxyAwareSslConnectionFactory(
-						this.sslSocketFactoryProvider.provideSSLContext(), new NoopHostnameVerifier());
+						this.sslSocketFactoryProvider.provideSSLContext(), this.hostnameVerifier);
 				Registry<ConnectionSocketFactory> socketFactoryRegistry = RegistryBuilder.<ConnectionSocketFactory> create()
 						.register("https", sslConnectionFactory).register("http", new PlainConnectionSocketFactory()).build();
 
@@ -193,6 +200,18 @@ public class DefaultHttpClientProvider implements HttpClientProvider {
 	@Configurable
 	public void setSslSocketFactoryProvider(SslSocketFactoryProvider sslSocketFactoryProvider) {
 		this.sslSocketFactoryProvider = sslSocketFactoryProvider;
+	}
+	/**
+	 * Verifier deciding whether the server certificate was issued for the host that was actually addressed. This is an independent check from
+	 * the certificate chain validation done by the {@link #setSslSocketFactoryProvider(SslSocketFactoryProvider) SSL socket factory provider}:
+	 * without it, any certificate trusted by the trust store is accepted for any host.
+	 * <p>
+	 * Defaults to {@link NoopHostnameVerifier} - i.e. no verification - which is why callers who need it have to opt in, e.g. with
+	 * <code>new org.apache.http.conn.ssl.DefaultHostnameVerifier()</code>. Passing <tt>null</tt> resets to the default.
+	 */
+	@Configurable
+	public void setHostnameVerifier(HostnameVerifier hostnameVerifier) {
+		this.hostnameVerifier = hostnameVerifier != null ? hostnameVerifier : NoopHostnameVerifier.INSTANCE;
 	}
 	@Configurable
 	public void setMaxTotal(int maxTotal) {
