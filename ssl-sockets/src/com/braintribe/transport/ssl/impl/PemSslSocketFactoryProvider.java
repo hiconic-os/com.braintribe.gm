@@ -22,6 +22,7 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
+import java.security.Signature;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -37,8 +38,6 @@ import java.util.regex.Pattern;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 import com.braintribe.cfg.Configurable;
 import com.braintribe.logging.Logger;
@@ -71,12 +70,10 @@ public class PemSslSocketFactoryProvider implements SslSocketFactoryProvider {
 	protected String privateKeyPem = null;
 	protected String keyManagerFactoryAlgorithm = Constants.DEFAULT_KEY_MANAGER_FACTORY_ALGORITHM;
 
-	protected boolean trustAll = false;
-
 	protected String securityProtocol = Constants.DEFAULT_SECURITY_PROTOCOL;
 
 	/** One random password per instance, shared by the key store entry and the key manager factory. */
-	private char[] password;
+	private final char[] password = newThrowawayPassword();
 
 	@Override
 	public SSLSocketFactory provideSSLSocketFactory() throws Exception {
@@ -88,10 +85,12 @@ public class PemSslSocketFactoryProvider implements SslSocketFactoryProvider {
 		KeyStore keyStore = createKeyStore();
 
 		KeyManagerFactory kmf = KeyManagerFactory.getInstance(this.keyManagerFactoryAlgorithm);
-		kmf.init(keyStore, throwawayPassword());
+		kmf.init(keyStore, password);
 
 		SSLContext sc = SSLContext.getInstance(this.securityProtocol);
-		sc.init(kmf.getKeyManagers(), trustManagers(), null);
+		// null deliberately selects the JVM's regular trust managers. This provider contributes only the client identity;
+		// disabling validation of the remote peer is a separate concern and must not be smuggled in with an mTLS credential.
+		sc.init(kmf.getKeyManagers(), null, null);
 
 		return sc;
 	}
@@ -103,12 +102,13 @@ public class PemSslSocketFactoryProvider implements SslSocketFactoryProvider {
 	protected KeyStore createKeyStore() throws Exception {
 		List<Certificate> chain = parseCertificateChain();
 		PrivateKey privateKey = parsePrivateKey();
+		assertMatchingKey(privateKey, chain.get(0));
 
 		KeyStore keyStore = KeyStore.getInstance("PKCS12");
 		keyStore.load(null, null);
 
 		try {
-			keyStore.setKeyEntry(KEY_ENTRY_ALIAS, privateKey, throwawayPassword(), chain.toArray(new Certificate[0]));
+			keyStore.setKeyEntry(KEY_ENTRY_ALIAS, privateKey, password, chain.toArray(new Certificate[0]));
 		} catch (KeyStoreException e) {
 			throw new IllegalStateException("The configured client certificate was rejected. The private key has to belong to the first "
 					+ "certificate of the chain, and each further certificate has to be the issuer of the one before it, "
@@ -116,6 +116,32 @@ public class PemSslSocketFactoryProvider implements SslSocketFactoryProvider {
 		}
 
 		return keyStore;
+	}
+
+	/** Fails during configuration rather than much later in a TLS handshake if certificate and key do not belong together. */
+	private static void assertMatchingKey(PrivateKey privateKey, Certificate certificate) throws Exception {
+		String signatureAlgorithm;
+		switch (privateKey.getAlgorithm()) {
+			case "RSA":
+				signatureAlgorithm = "SHA256withRSA";
+				break;
+			case "EC":
+				signatureAlgorithm = "SHA256withECDSA";
+				break;
+			default:
+				throw new IllegalStateException("Unsupported client private key algorithm: " + privateKey.getAlgorithm());
+		}
+
+		byte[] challenge = "hiconic-mtls-key-match".getBytes(StandardCharsets.US_ASCII);
+		Signature signature = Signature.getInstance(signatureAlgorithm);
+		signature.initSign(privateKey);
+		signature.update(challenge);
+		byte[] signed = signature.sign();
+
+		signature.initVerify(certificate.getPublicKey());
+		signature.update(challenge);
+		if (!signature.verify(signed))
+			throw new IllegalStateException("The configured client private key does not belong to the first certificate of the chain.");
 	}
 
 	/** Parses the configured certificate PEM, which may hold a whole chain with the leaf certificate first. */
@@ -213,39 +239,10 @@ public class PemSslSocketFactoryProvider implements SslSocketFactoryProvider {
 				+ "Convert it with: openssl pkcs8 -topk8 -nocrypt -in client.key -out client-pkcs8.key");
 	}
 
-	/**
-	 * Trust managers for validating the <i>server</i> side. Returning <tt>null</tt> lets the SSLContext use the default trust store of the JVM,
-	 * which is what we want unless {@link #setTrustAll(boolean) trustAll} disables validation altogether.
-	 */
-	protected TrustManager[] trustManagers() {
-		if (!this.trustAll)
-			return null;
-
-		return new TrustManager[] { new X509TrustManager() {
-			@Override
-			public X509Certificate[] getAcceptedIssuers() {
-				return null;
-			}
-
-			@Override
-			public void checkClientTrusted(X509Certificate[] certs, String authType) {
-				// Intentionally left empty
-			}
-
-			@Override
-			public void checkServerTrusted(X509Certificate[] certs, String authType) {
-				// Intentionally left empty
-			}
-		} };
-	}
-
-	private char[] throwawayPassword() {
-		if (this.password == null) {
-			byte[] bytes = new byte[32];
-			new SecureRandom().nextBytes(bytes);
-			this.password = Base64.getEncoder().encodeToString(bytes).toCharArray();
-		}
-		return this.password;
+	private static char[] newThrowawayPassword() {
+		byte[] bytes = new byte[32];
+		new SecureRandom().nextBytes(bytes);
+		return Base64.getEncoder().encodeToString(bytes).toCharArray();
 	}
 
 	private static boolean isBlank(String s) {
@@ -267,11 +264,6 @@ public class PemSslSocketFactoryProvider implements SslSocketFactoryProvider {
 		this.keyManagerFactoryAlgorithm = keyManagerFactoryAlgorithm;
 	}
 
-	@Configurable
-	public void setTrustAll(boolean trustAll) {
-		this.trustAll = trustAll;
-	}
-
 	public String getSecurityProtocol() {
 		return securityProtocol;
 	}
@@ -283,6 +275,6 @@ public class PemSslSocketFactoryProvider implements SslSocketFactoryProvider {
 
 	@Override
 	public String toString() {
-		return "PemSslSocketFactoryProvider with an inline client certificate, trustAll: " + trustAll;
+		return "PemSslSocketFactoryProvider with an inline client certificate";
 	}
 }
