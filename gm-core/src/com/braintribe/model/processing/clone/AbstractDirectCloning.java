@@ -203,7 +203,7 @@ public abstract class AbstractDirectCloning implements CloningApi {
 			int i = 0;
 			for (T element: list) {
 
-				GenericModelType actualElementType = elementType.getActualType(element);
+				GenericModelType actualElementType = actualTypeForCloning(elementType, element);
 
 				if (cloningVisitor != null)
 					cloningVisitor.enterListElement(listType, list, i, actualElementType, element);
@@ -235,7 +235,7 @@ public abstract class AbstractDirectCloning implements CloningApi {
 		else {
 			for (T element: set) {
 
-				GenericModelType actualElementType = elementType.getActualType(element);
+				GenericModelType actualElementType = actualTypeForCloning(elementType, element);
 
 				if (cloningVisitor != null)
 					cloningVisitor.enterSetElement(setType, set, actualElementType, element);
@@ -268,8 +268,8 @@ public abstract class AbstractDirectCloning implements CloningApi {
 				K key = entry.getKey();
 				V value = entry.getValue();
 
-				GenericModelType actualKeyType = keyType.getActualType(key);
-				GenericModelType actualValueType = valueType.getActualType(value);
+				GenericModelType actualKeyType = actualTypeForCloning(keyType, key);
+				GenericModelType actualValueType = actualTypeForCloning(valueType, value);
 				
 				
 				if (cloningVisitor != null)
@@ -301,6 +301,16 @@ public abstract class AbstractDirectCloning implements CloningApi {
 			}
 		}
 		return clonedMap;
+	}
+
+	/**
+	 * Determines the type passed to {@link #doCloneValue(GenericModelType, Object)} for a value occurring in a
+	 * collection. The default implementation deliberately preserves the historic behavior. Specialized direct
+	 * cloners may override this hook when a raw transport value has to be projected before its actual model type can
+	 * be determined.
+	 */
+	protected GenericModelType actualTypeForCloning(GenericModelType declaredType, Object value) {
+		return declaredType.getActualType(value);
 	}
 	
 	protected abstract CloneTarget acquireCloneTarget(GenericEntity entity);

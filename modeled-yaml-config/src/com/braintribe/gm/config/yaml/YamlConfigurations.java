@@ -30,6 +30,7 @@ import com.braintribe.codec.marshaller.api.GmDeserializationOptions;
 import com.braintribe.codec.marshaller.api.PlaceholderSupport;
 import com.braintribe.codec.marshaller.api.options.GmDeserializationContextBuilder;
 import com.braintribe.codec.marshaller.yaml.YamlMarshaller;
+import com.braintribe.gm.config.ReasonedConfigPlaceholders;
 import com.braintribe.gm.config.yaml.api.ConfigurationReadBuilder;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
@@ -237,5 +238,13 @@ public abstract class YamlConfigurations {
 		}
 
 		return Maybe.complete(config);
+	}
+
+	/**
+	 * Reasoned counterpart to {@link #resolvePlaceholders(Object, Function)}. This is additive while the new evaluator
+	 * is being proven against the established configuration behavior.
+	 */
+	public static <E> Maybe<E> resolvePlaceholdersReasoned(E config, Function<Variable, Maybe<?>> resolver) {
+		return ReasonedConfigPlaceholders.resolve(config, resolver);
 	}
 }
