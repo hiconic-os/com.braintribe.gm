@@ -13,6 +13,7 @@ import java.util.List;
 import org.junit.Test;
 
 import com.braintribe.gm.config.yaml.model.LoadedEntity;
+import com.braintribe.gm.config.ReasonedConfigPlaceholders;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.config.PropertyNotFound;
 import com.braintribe.gm.model.reason.essential.NotFound;
@@ -129,6 +130,32 @@ public class ReasonedValueDescriptorMaterializerTest {
 		assertThat(result.whyUnsatisfied().getText()).contains("missing");
 	}
 
+	@Test
+	public void residualExpressionContainsResolvedSiblings() {
+		Concatenation concatenation = Concatenation.T.create();
+		concatenation.setOperands(Arrays.asList("prefix-", variable("KNOWN"), "-", variable("MISSING")));
+		ToString expression = ToString.T.create();
+		expression.setOperand(concatenation);
+
+		LoadedEntity source = LoadedEntity.T.createRaw();
+		LoadedEntity.T.getProperty("cpValue").setVdDirect(source, expression);
+
+		StandardValueDescriptorEvaluationContext context = new StandardValueDescriptorEvaluationContext(
+				ReasonedConfigPlaceholders.registry(variable -> "KNOWN".equals(variable.getName())
+						? Maybe.complete("resolved")
+						: PropertyNotFound.create(variable.getName()).asMaybe()));
+		LoadedEntity result = new ReasonedValueDescriptorMaterializer(context,
+				ResidualValuePolicy.preserving(reason -> NotFound.T.isInstance(reason))).materialize(source).get();
+
+		ToString residual = LoadedEntity.T.getProperty("cpValue").getVdDirect(result);
+		Concatenation residualConcatenation = (Concatenation) residual.getOperand();
+		assertThat(residualConcatenation.getOperands().get(1)).isEqualTo("resolved");
+		assertVariable(residualConcatenation.getOperands().get(3), "MISSING");
+
+		Concatenation originalConcatenation = (Concatenation) expression.getOperand();
+		assertVariable(originalConcatenation.getOperands().get(1), "KNOWN");
+	}
+
     private static ReasonedValueDescriptorMaterializer materializer(StandardValueDescriptorEvaluationContext context) {
         return new ReasonedValueDescriptorMaterializer(context);
     }
@@ -167,6 +194,12 @@ public class ReasonedValueDescriptorMaterializerTest {
 		if ("PORT".equals(name))
 			return "54320";
 		throw new IllegalArgumentException("Unexpected variable: " + name);
+	}
+
+	private static void assertVariable(Object value, String name) {
+		Object directValue = VdHolder.isVdHolder(value) ? ((VdHolder) value).vd : value;
+		assertThat(directValue).isInstanceOf(Variable.class);
+		assertThat(((Variable) directValue).getName()).isEqualTo(name);
 	}
 
     @FunctionalInterface

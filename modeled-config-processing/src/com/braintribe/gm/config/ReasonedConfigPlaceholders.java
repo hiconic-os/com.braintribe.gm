@@ -33,6 +33,7 @@ import com.braintribe.model.bvd.convert.ToLong;
 import com.braintribe.model.bvd.convert.ToString;
 import com.braintribe.model.bvd.string.Concatenation;
 import com.braintribe.model.generic.value.Variable;
+import com.braintribe.model.processing.vde.reasoned.api.ResidualValuePolicy;
 import com.braintribe.model.processing.vde.reasoned.impl.ReasonedValueDescriptorMaterializer;
 import com.braintribe.model.processing.vde.reasoned.impl.StandardValueDescriptorEvaluationContext;
 import com.braintribe.model.processing.vde.reasoned.impl.ValueDescriptorExpertRegistry;
@@ -45,9 +46,14 @@ public final class ReasonedConfigPlaceholders {
 	}
 
 	public static <E> Maybe<E> resolve(E config, Function<Variable, Maybe<?>> variableResolver) {
+		return resolve(config, variableResolver, ResidualValuePolicy.rejectAll());
+	}
+
+	public static <E> Maybe<E> resolve(E config, Function<Variable, Maybe<?>> variableResolver,
+			ResidualValuePolicy residualValuePolicy) {
 		ValueDescriptorExpertRegistry registry = registry(variableResolver);
 		StandardValueDescriptorEvaluationContext context = new StandardValueDescriptorEvaluationContext(registry);
-		return new ReasonedValueDescriptorMaterializer(context).materialize(config);
+		return new ReasonedValueDescriptorMaterializer(context, residualValuePolicy).materialize(config);
 	}
 
 	public static ValueDescriptorExpertRegistry registry(Function<Variable, Maybe<?>> variableResolver) {

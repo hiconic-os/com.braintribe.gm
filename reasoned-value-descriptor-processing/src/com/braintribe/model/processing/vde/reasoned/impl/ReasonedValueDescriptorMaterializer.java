@@ -71,17 +71,22 @@ public class ReasonedValueDescriptorMaterializer extends AbstractDirectCloning {
         if (!isDescriptorTransport(value))
             return super.doCloneValue(type, value);
 
-        if (preservingDescriptorDepth > 0)
-            return cloneDescriptorTransport(value);
-
         ValueDescriptor descriptor = descriptor(value);
         if (descriptor instanceof AbsenceInformation)
             return value;
 
+        if (preservingDescriptorDepth > 0) {
+            GenericEntity knownClone = descriptorClones.get(descriptor);
+            if (knownClone != null)
+                return VdHolder.isVdHolder(value) ? VdHolder.newInstance((ValueDescriptor) knownClone) : knownClone;
+        }
+
         Maybe<?> evaluated = evaluationContext.evaluate(descriptor);
         if (evaluated.isUnsatisfied()) {
-            if (residualPolicy.preserve(evaluated.whyUnsatisfied()))
+            if (residualPolicy.preserve(evaluated.whyUnsatisfied())) {
+                residualPolicy.preserved(descriptor, evaluated.whyUnsatisfied());
                 return cloneDescriptorTransport(value);
+            }
             throw new UnsatisfiedMaybeTunneling(evaluated);
         }
 

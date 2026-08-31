@@ -22,6 +22,8 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.net.URL;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -32,10 +34,12 @@ import com.braintribe.codec.marshaller.api.options.GmDeserializationContextBuild
 import com.braintribe.codec.marshaller.yaml.YamlMarshaller;
 import com.braintribe.gm.config.ReasonedConfigPlaceholders;
 import com.braintribe.gm.config.yaml.api.ConfigurationReadBuilder;
+import com.braintribe.gm.config.yaml.api.PartiallyResolvedConfiguration;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.config.ConfigurationError;
+import com.braintribe.gm.model.reason.config.PropertyNotFound;
 import com.braintribe.gm.model.reason.essential.InternalError;
 import com.braintribe.gm.model.reason.essential.NotFound;
 import com.braintribe.model.generic.GenericEntity;
@@ -44,6 +48,7 @@ import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.session.InputStreamProvider;
 import com.braintribe.model.generic.value.Variable;
+import com.braintribe.model.generic.value.ValueDescriptor;
 import com.braintribe.model.processing.vde.clone.async.AsyncCloningImpl;
 import com.braintribe.model.processing.vde.evaluator.VDE;
 import com.braintribe.model.processing.vde.evaluator.api.ValueDescriptorEvaluator;
@@ -54,6 +59,7 @@ import com.braintribe.model.processing.vde.evaluator.api.VdeRuntimeException;
 import com.braintribe.model.processing.vde.evaluator.api.aspects.VariableProviderAspect;
 import com.braintribe.model.processing.vde.evaluator.api.builder.VdeContextBuilder;
 import com.braintribe.model.processing.vde.evaluator.impl.VdeResultImpl;
+import com.braintribe.model.processing.vde.reasoned.api.ResidualValuePolicy;
 import com.braintribe.processing.async.api.AsyncCallback;
 import com.braintribe.provider.Holder;
 
@@ -246,5 +252,31 @@ public abstract class YamlConfigurations {
 	 */
 	public static <E> Maybe<E> resolvePlaceholdersReasoned(E config, Function<Variable, Maybe<?>> resolver) {
 		return ReasonedConfigPlaceholders.resolve(config, resolver);
+	}
+
+	/**
+	 * Additive reasoned counterpart to the established partial configuration resolver. Resolvable leaves are
+	 * materialized while expressions depending on missing properties remain as value descriptors.
+	 */
+	public static <E> Maybe<PartiallyResolvedConfiguration<E>> resolvePlaceholdersPartiallyReasoned(E config,
+			Function<Variable, Maybe<?>> resolver) {
+		UnresolvedVariablesPolicy residualPolicy = new UnresolvedVariablesPolicy();
+		return ReasonedConfigPlaceholders.resolve(config, resolver, residualPolicy)
+				.map(configuration -> new PartiallyResolvedConfiguration<>(configuration, residualPolicy.unresolvedVariables));
+	}
+
+	private static class UnresolvedVariablesPolicy implements ResidualValuePolicy {
+		private final Set<String> unresolvedVariables = new LinkedHashSet<>();
+
+		@Override
+		public boolean preserve(Reason reason) {
+			return NotFound.T.isInstance(reason);
+		}
+
+		@Override
+		public void preserved(ValueDescriptor descriptor, Reason reason) {
+			if (reason instanceof PropertyNotFound propertyNotFound)
+				unresolvedVariables.add(propertyNotFound.getPropertyName());
+		}
 	}
 }

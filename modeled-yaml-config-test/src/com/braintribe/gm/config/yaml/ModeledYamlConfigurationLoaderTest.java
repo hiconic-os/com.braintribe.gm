@@ -88,6 +88,29 @@ public class ModeledYamlConfigurationLoaderTest {
 	}
 
 	@Test
+	public void reasonedPartialReadMatchesEstablishedPartialRead() {
+		String source = """
+				cpValue: ${KNOWN}-${MISSING}
+				integerValue: ${PORT}
+				""";
+		ModeledYamlConfigurationLoader loader = loader().variableResolver(name -> switch (name) {
+		case "KNOWN" -> "resolved";
+		default -> null;
+		});
+
+		PartiallyResolvedConfiguration<LoadedEntity> established = loader.loadConfigPartially(LoadedEntity.T, yaml(source)).get();
+		LoadedEntity unresolved = YamlConfigurations.<LoadedEntity> read(LoadedEntity.T).placeholders().from(yaml(source)).get();
+		PartiallyResolvedConfiguration<LoadedEntity> reasoned = YamlConfigurations.resolvePlaceholdersPartiallyReasoned(unresolved,
+				variable -> "KNOWN".equals(variable.getName())
+						? Maybe.complete("resolved")
+						: PropertyNotFound.create(variable.getName()).asMaybe()).get();
+
+		assertThat(reasoned.unresolvedVariables()).containsExactlyInAnyOrderElementsOf(established.unresolvedVariables());
+		assertPartialValues(reasoned.configuration());
+		assertPartialValues(established.configuration());
+	}
+
+	@Test
 	public void partialBuildReadEvaluatesClosedTypedExpressions() {
 		ModeledYamlConfigurationLoader loader = loader().variableResolver(name -> name.equals("PORT") ? "4711" : null);
 
@@ -144,5 +167,19 @@ public class ModeledYamlConfigurationLoaderTest {
 	private static void assertVariable(Object value, String name) {
 		assertThat(value).isInstanceOf(Variable.class);
 		assertThat(((Variable) value).getName()).isEqualTo(name);
+	}
+
+	private static void assertPartialValues(LoadedEntity configuration) {
+		ValueDescriptor cpValue = LoadedEntity.T.getProperty("cpValue").getVdDirect(configuration);
+		assertThat(cpValue).isInstanceOf(ToString.class);
+		Concatenation concatenation = (Concatenation) ((ToString) cpValue).getOperand();
+		assertThat(concatenation.getOperands()).hasSize(3);
+		assertThat(concatenation.getOperands().get(0)).isEqualTo("resolved");
+		assertThat(concatenation.getOperands().get(1)).isEqualTo("-");
+		assertVariable(concatenation.getOperands().get(2), "MISSING");
+
+		ValueDescriptor integerValue = LoadedEntity.T.getProperty("integerValue").getVdDirect(configuration);
+		assertThat(integerValue).isInstanceOf(ToInteger.class);
+		assertVariable(((ToInteger) integerValue).getOperand(), "PORT");
 	}
 }
