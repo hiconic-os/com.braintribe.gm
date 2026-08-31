@@ -95,6 +95,8 @@ import com.braintribe.model.generic.reflection.TypeCode;
 import com.braintribe.model.generic.reflection.VdHolder;
 import com.braintribe.model.generic.session.GmSession;
 import com.braintribe.model.generic.value.ValueDescriptor;
+import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodec;
+import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodecOption;
 
 class StatefulYamlUnmarshaller {
 
@@ -137,6 +139,7 @@ class StatefulYamlUnmarshaller {
 	private final Map<String, Anchoring> referencableValues = new HashMap<>();
 	private int satisfiedAnchorCount = 0;
 	private ScalarEntityParsers scalarEntityParsers;
+	private final ValueDescriptorExpressionCodec expressionCodec;
 	
 	private interface EventResultConsumer extends BiConsumer<Event, Object> {
 		GenericModelType getInferredType();
@@ -149,6 +152,7 @@ class StatefulYamlUnmarshaller {
 		this.options = options;
 		this.scalarEntityParsers = options.findOrDefault(ScalarEntityParsers.class, EmptyScalarEntityParsers.INSTANCE);
 		this.placeholdersEnabled = options.findOrDefault(PlaceholderSupport.class, false);
+		this.expressionCodec = options.findOrNull(ValueDescriptorExpressionCodecOption.class);
 		
 		this.entityFactory = options.findOrNull(EntityFactory.class);
 		
@@ -748,7 +752,8 @@ class StatefulYamlUnmarshaller {
 			try {
 				value = parseScalar(event, inferredType, valueAsString);
 			} catch (Exception e) {
-				throw new ParserException("Can't parse value '" + valueAsString + "' to type " + inferredType.getTypeName(), event.getStartMark());
+				throw new ParserException("Can't parse value '" + valueAsString + "' to type " + inferredType.getTypeName()
+						+ ": " + e.getMessage(), event.getStartMark());
 			}
 		}
 
@@ -762,10 +767,10 @@ class StatefulYamlUnmarshaller {
 
 	private Object parseScalar(ScalarEvent event, GenericModelType inferredType, String valueAsString) {
 		if (placeholdersEnabled) {
-			Object parsedValue = TemplateStringParser.parse(valueAsString);
+			Object parsedValue = parseTemplate(valueAsString);
 			
 			if (parsedValue.getClass() != String.class) {
-				ValueDescriptor vd = buildConversion(event, inferredType, parsedValue);
+				ValueDescriptor vd = directOrConverted(event, inferredType, parsedValue);
 				return VdHolder.newInstance(vd);
 			}
 			else {
@@ -807,6 +812,29 @@ class StatefulYamlUnmarshaller {
 			default:
 				throw new ParserException("type " + inferredType + " cannot be decoded from a scalar value", event.getStartMark());
 		}
+	}
+
+	private Object parseTemplate(String value) {
+		if (expressionCodec == null)
+			return TemplateStringParser.parse(value);
+
+		Maybe<Object> parsed = expressionCodec.parse(value);
+		if (parsed.isUnsatisfied())
+			throw new IllegalArgumentException(parsed.whyUnsatisfied().stringify());
+		return parsed.get();
+	}
+
+	private ValueDescriptor directOrConverted(ScalarEvent event, GenericModelType inferredType, Object parsedValue) {
+		// Keep the established placeholder representation byte-for-byte compatible unless the
+		// caller explicitly opts into typed model functions.
+		if (expressionCodec != null && parsedValue instanceof ValueDescriptor) {
+			ValueDescriptor descriptor = (ValueDescriptor) parsedValue;
+			GenericModelType valueType = descriptor.valueType();
+			if (inferredType == BaseType.INSTANCE || inferredType.isAssignableFrom(valueType)
+					|| inferredType.getTypeSignature().equals(valueType.getTypeSignature()))
+				return descriptor;
+		}
+		return buildConversion(event, inferredType, parsedValue);
 	}
 
 	private ValueDescriptor buildConversion(ScalarEvent event, GenericModelType inferredType, Object parsedValue) {

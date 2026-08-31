@@ -68,5 +68,10 @@ limitations under the License.
             <artifactId>essential-reason-model</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>value-descriptor-expression-processing</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
     </dependencies>
 </project>

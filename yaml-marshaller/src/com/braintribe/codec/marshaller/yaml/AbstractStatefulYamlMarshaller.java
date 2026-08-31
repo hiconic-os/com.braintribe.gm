@@ -40,6 +40,7 @@ import com.braintribe.codec.marshaller.api.ScalarsFirst;
 import com.braintribe.codec.marshaller.api.TypeExplicitness;
 import com.braintribe.codec.marshaller.api.TypeExplicitnessOption;
 import com.braintribe.codec.marshaller.api.options.attributes.StabilizeOrderOption;
+import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.bvd.convert.Convert;
 import com.braintribe.model.bvd.string.Concatenation;
 import com.braintribe.model.generic.GenericEntity;
@@ -52,6 +53,8 @@ import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.SetType;
 import com.braintribe.model.generic.value.ValueDescriptor;
 import com.braintribe.model.generic.value.Variable;
+import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodec;
+import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodecOption;
 
 public abstract class AbstractStatefulYamlMarshaller {
 
@@ -74,6 +77,7 @@ public abstract class AbstractStatefulYamlMarshaller {
 	protected int anchorSequence;
 	protected final boolean placeholderSupport;
 	protected final boolean writeEmptyProperties;
+	protected final ValueDescriptorExpressionCodec expressionCodec;
 	protected final char[][] ESCAPES;
 
 	public AbstractStatefulYamlMarshaller(GmSerializationOptions options, Writer writer, Object rootValue) {
@@ -92,6 +96,7 @@ public abstract class AbstractStatefulYamlMarshaller {
 
 		this.placeholderSupport = options.findOrDefault(PlaceholderSupport.class, false);
 		this.writeEmptyProperties = options.writeEmptyProperties();
+		this.expressionCodec = options.findOrNull(ValueDescriptorExpressionCodecOption.class);
 		
 		this.ESCAPES = placeholderSupport? ESCAPES_WITH_PLACEHOLDERS: ESCAPES_NORMAL;
 	}
@@ -384,8 +389,21 @@ public abstract class AbstractStatefulYamlMarshaller {
 	}
 
 	protected void writePlaceholder(ValueDescriptor vd) throws IOException {
+		if (expressionCodec != null) {
+			Maybe<String> rendered = expressionCodec.render(vd);
+			if (rendered.isSatisfied()) {
+				writeExpressionString(rendered.get());
+				return;
+			}
+		}
 		writer.write('"');
 		writePlaceholderDirect(vd);
+		writer.write('"');
+	}
+
+	private void writeExpressionString(String value) throws IOException {
+		writer.write('"');
+		writeEscaped(writer, value, ESCAPES_NORMAL);
 		writer.write('"');
 	}
 	
@@ -464,6 +482,10 @@ public abstract class AbstractStatefulYamlMarshaller {
 	}
 
 	protected void writeEscaped(Writer writer, String string) throws IOException {
+		writeEscaped(writer, string, ESCAPES);
+	}
+
+	private static void writeEscaped(Writer writer, String string, char[][] escapes) throws IOException {
 		int len = string.length();
 		int s = 0;
 		int i = 0;
@@ -472,7 +494,7 @@ public abstract class AbstractStatefulYamlMarshaller {
 			char c = string.charAt(i);
 
 			if (c < 128) {
-				esc = ESCAPES[c];
+				esc = escapes[c];
 				if (esc != null) {
 					writer.write(string, s, i - s);
 					writer.write(esc);
