@@ -21,9 +21,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import com.braintribe.gm.config.ReasonedConfigPlaceholders;
 import com.braintribe.gm.config.yaml.api.PartiallyResolvedConfiguration;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.ReasonException;
@@ -33,6 +35,11 @@ import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.session.InputStreamProvider;
+import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodec;
+import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodecOption;
+import com.braintribe.model.processing.vde.reasoned.api.ResidualValuePolicy;
+import com.braintribe.model.processing.vde.reasoned.impl.StandardValueDescriptorEvaluationContext;
+import com.braintribe.model.processing.vde.reasoned.impl.ValueDescriptorExpertRegistry;
 import com.braintribe.ve.api.VirtualEnvironment;
 import com.braintribe.ve.impl.StandardEnvironment;
 
@@ -40,6 +47,9 @@ public class ModeledYamlConfigurationLoader {
 	private VirtualEnvironment virtualEnvironment = StandardEnvironment.INSTANCE;
 	private Function<String, Maybe<String>> variableResolver = null;
 	private boolean shouldAbsentify;
+	private ValueDescriptorExpressionCodec expressionCodec;
+	private Consumer<ValueDescriptorExpertRegistry> registryConfigurer = registry -> {};
+	private Consumer<StandardValueDescriptorEvaluationContext> contextConfigurer = context -> {};
 
 	public ModeledYamlConfigurationLoader virtualEnvironment(VirtualEnvironment virtualEnvironment) {
 		this.virtualEnvironment = virtualEnvironment;
@@ -61,12 +71,43 @@ public class ModeledYamlConfigurationLoader {
 		return this;
 	}
 
+	public ModeledYamlConfigurationLoader valueDescriptorExpressions(ValueDescriptorExpressionCodec expressionCodec) {
+		this.expressionCodec = expressionCodec;
+		return this;
+	}
+
+	public ModeledYamlConfigurationLoader valueDescriptorExperts(Consumer<ValueDescriptorExpertRegistry> configurer) {
+		this.registryConfigurer = this.registryConfigurer.andThen(configurer);
+		return this;
+	}
+
+	public ModeledYamlConfigurationLoader valueDescriptorContext(Consumer<StandardValueDescriptorEvaluationContext> configurer) {
+		this.contextConfigurer = this.contextConfigurer.andThen(configurer);
+		return this;
+	}
+
+	public <T> ModeledYamlConfigurationLoader valueDescriptorAspect(Class<T> aspectType, T value) {
+		this.contextConfigurer = this.contextConfigurer.andThen(context -> context.withAspect(aspectType, value));
+		return this;
+	}
+
 	public <C extends GenericEntity> Maybe<C> loadConfig(EntityType<C> configType, InputStreamProvider inputStreamProvider) {
 		ConfigVariableResolver configVariableResolver = new ConfigVariableResolver(virtualEnvironment, null);
 		if (variableResolver != null)
 			configVariableResolver.setVariableResolverReasoned(variableResolver);
 
 		try (InputStream in = inputStreamProvider.openInputStream()) {
+			if (expressionCodec != null) {
+				Maybe<C> parsed = YamlConfigurations.<C> read(configType)
+						.placeholders()
+						.options(options -> options.set(ValueDescriptorExpressionCodecOption.class, expressionCodec))
+						.absentifyMissingProperties(shouldAbsentify)
+						.from(in);
+				if (parsed.isUnsatisfied())
+					return parsed;
+				return ReasonedConfigPlaceholders.resolve(parsed.get(), configVariableResolver::resolveReasoned,
+						ResidualValuePolicy.rejectAll(), registryConfigurer, contextConfigurer);
+			}
 			Maybe<C> maybe = YamlConfigurations.<C> read(configType) //
 					.placeholders(configVariableResolver::resolve) //
 					.absentifyMissingProperties(shouldAbsentify) //
@@ -136,14 +177,19 @@ public class ModeledYamlConfigurationLoader {
 
 	private <C extends GenericEntity> Maybe<PartiallyResolvedConfiguration<C>> loadConfigPartially(EntityType<C> configType, InputStream in,
 			ConfigVariableResolver configVariableResolver) {
-		Maybe<C> configMaybe = YamlConfigurations.<C> read(configType) //
+		var readBuilder = YamlConfigurations.<C> read(configType) //
 				.placeholders() //
-				.absentifyMissingProperties(shouldAbsentify) //
-				.from(in);
+				.absentifyMissingProperties(shouldAbsentify);
+		if (expressionCodec != null)
+			readBuilder.options(options -> options.set(ValueDescriptorExpressionCodecOption.class, expressionCodec));
+		Maybe<C> configMaybe = readBuilder.from(in);
 
 		if (configMaybe.isUnsatisfied())
 			return configMaybe.whyUnsatisfied().asMaybe();
 
+		if (expressionCodec != null)
+			return YamlConfigurations.resolvePlaceholdersPartiallyReasoned(configMaybe.get(), configVariableResolver::resolveReasoned,
+					registryConfigurer, contextConfigurer);
 		return new PartialConfigPlaceholderResolver(configVariableResolver).resolve(configMaybe.get());
 	}
 

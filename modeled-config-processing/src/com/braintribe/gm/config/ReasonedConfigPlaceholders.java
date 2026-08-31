@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.util.Date;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import com.braintribe.gm.model.reason.Maybe;
@@ -51,8 +52,17 @@ public final class ReasonedConfigPlaceholders {
 
 	public static <E> Maybe<E> resolve(E config, Function<Variable, Maybe<?>> variableResolver,
 			ResidualValuePolicy residualValuePolicy) {
+		return resolve(config, variableResolver, residualValuePolicy, registry -> {}, context -> {});
+	}
+
+	/** Extensible setup for configuration domains contributing typed descriptors and evaluation aspects. */
+	public static <E> Maybe<E> resolve(E config, Function<Variable, Maybe<?>> variableResolver,
+			ResidualValuePolicy residualValuePolicy, Consumer<ValueDescriptorExpertRegistry> registryConfigurer,
+			Consumer<StandardValueDescriptorEvaluationContext> contextConfigurer) {
 		ValueDescriptorExpertRegistry registry = registry(variableResolver);
+		registryConfigurer.accept(registry);
 		StandardValueDescriptorEvaluationContext context = new StandardValueDescriptorEvaluationContext(registry);
+		contextConfigurer.accept(context);
 		return new ReasonedValueDescriptorMaterializer(context, residualValuePolicy).materialize(config);
 	}
 

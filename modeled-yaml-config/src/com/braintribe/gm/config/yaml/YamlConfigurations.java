@@ -60,6 +60,8 @@ import com.braintribe.model.processing.vde.evaluator.api.aspects.VariableProvide
 import com.braintribe.model.processing.vde.evaluator.api.builder.VdeContextBuilder;
 import com.braintribe.model.processing.vde.evaluator.impl.VdeResultImpl;
 import com.braintribe.model.processing.vde.reasoned.api.ResidualValuePolicy;
+import com.braintribe.model.processing.vde.reasoned.impl.StandardValueDescriptorEvaluationContext;
+import com.braintribe.model.processing.vde.reasoned.impl.ValueDescriptorExpertRegistry;
 import com.braintribe.processing.async.api.AsyncCallback;
 import com.braintribe.provider.Holder;
 
@@ -260,8 +262,14 @@ public abstract class YamlConfigurations {
 	 */
 	public static <E> Maybe<PartiallyResolvedConfiguration<E>> resolvePlaceholdersPartiallyReasoned(E config,
 			Function<Variable, Maybe<?>> resolver) {
+		return resolvePlaceholdersPartiallyReasoned(config, resolver, registry -> {}, context -> {});
+	}
+
+	public static <E> Maybe<PartiallyResolvedConfiguration<E>> resolvePlaceholdersPartiallyReasoned(E config,
+			Function<Variable, Maybe<?>> resolver, Consumer<ValueDescriptorExpertRegistry> registryConfigurer,
+			Consumer<StandardValueDescriptorEvaluationContext> contextConfigurer) {
 		UnresolvedVariablesPolicy residualPolicy = new UnresolvedVariablesPolicy();
-		return ReasonedConfigPlaceholders.resolve(config, resolver, residualPolicy)
+		return ReasonedConfigPlaceholders.resolve(config, resolver, residualPolicy, registryConfigurer, contextConfigurer)
 				.map(configuration -> new PartiallyResolvedConfiguration<>(configuration, residualPolicy.unresolvedVariables));
 	}
 

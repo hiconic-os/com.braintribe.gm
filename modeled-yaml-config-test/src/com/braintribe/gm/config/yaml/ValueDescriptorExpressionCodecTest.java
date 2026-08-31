@@ -81,4 +81,18 @@ public class ValueDescriptorExpressionCodecTest {
 		new YamlMarshaller().marshall(writer, parsed, options);
 		assertThat(writer.toString()).contains("string: \"${testImportText('./payload.txt')}\"");
 	}
+
+	@Test
+	public void modeledConfigurationLoaderContributesExpertsAndSourceAspects() {
+		MergedEntity loaded = new ModeledYamlConfigurationLoader()
+				.valueDescriptorExpressions(codec)
+				.valueDescriptorExperts(registry -> registry.register(TestImportText.T,
+						(context, descriptor) -> Maybe.complete(context.getAspect(String.class) + descriptor.getPath())))
+				.valueDescriptorAspect(String.class, "artifact-a:")
+				.loadConfig(MergedEntity.T,
+						() -> new java.io.ByteArrayInputStream("string: ${testImportText('./payload.txt')}\n".getBytes()))
+				.get();
+
+		assertThat(loaded.getString()).isEqualTo("artifact-a:./payload.txt");
+	}
 }

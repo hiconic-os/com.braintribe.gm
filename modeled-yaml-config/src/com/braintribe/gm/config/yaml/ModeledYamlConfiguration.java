@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -65,6 +66,10 @@ import com.braintribe.model.generic.reflection.EssentialTypes;
 import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.StandardTraversingContext;
+import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodec;
+import com.braintribe.model.processing.vde.reasoned.api.ValueDescriptorSourceContext;
+import com.braintribe.model.processing.vde.reasoned.impl.StandardValueDescriptorEvaluationContext;
+import com.braintribe.model.processing.vde.reasoned.impl.ValueDescriptorExpertRegistry;
 import com.braintribe.utils.StringTools;
 import com.braintribe.utils.lcd.Lazy;
 import com.braintribe.utils.lcd.NullSafe;
@@ -132,6 +137,9 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	private boolean writePooled;
 	private final Lazy<Map<String, String>> properties = new Lazy<>(this::loadProperties);
 	private Function<String, Maybe<String>> propertyLookup = reasonifyPropertyResolver(this::resolveStandardProperty);
+	private ValueDescriptorExpressionCodec valueDescriptorExpressionCodec;
+	private Consumer<ValueDescriptorExpertRegistry> valueDescriptorExpertConfigurer = registry -> {};
+	private Consumer<StandardValueDescriptorEvaluationContext> valueDescriptorContextConfigurer = context -> {};
 
 	private ClasspathIndex classpathIndex;
 	private String classpathConfPath = "";
@@ -186,6 +194,25 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	@Configurable
 	public void setWritePooled(boolean writePooled) {
 		this.writePooled = writePooled;
+	}
+
+	/**
+	 * Enables typed value-descriptor expressions for this configuration. If unset, parsing remains fully backward compatible.
+	 */
+	@Configurable
+	public void setValueDescriptorExpressionCodec(ValueDescriptorExpressionCodec valueDescriptorExpressionCodec) {
+		this.valueDescriptorExpressionCodec = valueDescriptorExpressionCodec;
+	}
+
+	@Configurable
+	public void setValueDescriptorExpertConfigurer(Consumer<ValueDescriptorExpertRegistry> valueDescriptorExpertConfigurer) {
+		this.valueDescriptorExpertConfigurer = valueDescriptorExpertConfigurer;
+	}
+
+	@Configurable
+	public void setValueDescriptorContextConfigurer(
+			Consumer<StandardValueDescriptorEvaluationContext> valueDescriptorContextConfigurer) {
+		this.valueDescriptorContextConfigurer = valueDescriptorContextConfigurer;
 	}
 
 	@Override
@@ -405,7 +432,8 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 
 		List<ClasspathEntry> sortedEpEntries = ConfigurationEntrySorter.sortClasspathEntries(cpEntries);
 
-		return listToEntities(configType, "classpath", sortedEpEntries, e -> e.url.openStream(), e -> e.url.toString());
+		return listToEntities(configType, "classpath", sortedEpEntries, e -> e.url.openStream(), e -> e.url.toString(),
+				e -> new ValueDescriptorSourceContext(e.origin, e.path));
 	}
 
 	private Maybe<PartialConfigEntries> readCpConfigPartially(EntityType<?> configType, String useCase) {
@@ -419,7 +447,8 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 			return Maybe.complete(new PartialConfigEntries(emptyList(), Set.of()));
 
 		List<ClasspathEntry> sortedCpEntries = ConfigurationEntrySorter.sortClasspathEntries(cpEntries);
-		return listToEntitiesPartially(configType, "classpath", sortedCpEntries, e -> e.url.openStream(), e -> e.url.toString());
+		return listToEntitiesPartially(configType, "classpath", sortedCpEntries, e -> e.url.openStream(), e -> e.url.toString(),
+				e -> new ValueDescriptorSourceContext(e.origin, e.path));
 	}
 
 	// FileSystem
@@ -437,7 +466,8 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 		List<File> sortedFiles = ConfigurationEntrySorter.sortFiles(files);
 
 		return listToEntities(configType, "conf directory [" + configFolder.getPath() + "]", //
-				sortedFiles, f -> new BufferedInputStream(new FileInputStream(f)), File::getAbsolutePath);
+				sortedFiles, f -> new BufferedInputStream(new FileInputStream(f)), File::getAbsolutePath,
+				f -> new ValueDescriptorSourceContext(null, f.getAbsolutePath()));
 	}
 
 	private Maybe<PartialConfigEntries> readFsConfigPartially(EntityType<?> configType, String useCase) {
@@ -452,7 +482,8 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 
 		List<File> sortedFiles = ConfigurationEntrySorter.sortFiles(files);
 		return listToEntitiesPartially(configType, "conf directory [" + configFolder.getPath() + "]", //
-				sortedFiles, f -> new BufferedInputStream(new FileInputStream(f)), File::getAbsolutePath);
+				sortedFiles, f -> new BufferedInputStream(new FileInputStream(f)), File::getAbsolutePath,
+				f -> new ValueDescriptorSourceContext(null, f.getAbsolutePath()));
 	}
 
 	private List<File> findConfigFiles(File configFolder, String prefix) {
@@ -473,16 +504,14 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 
 	private <C extends GenericEntity, E> Maybe<List<ConfigEntry>> listToEntities( //
 			EntityType<C> configType, String configSource, List<E> entries, //
-			CheckedFunction<E, InputStream, IOException> inputStreamProvider, Function<E, String> originProvider) {
+			CheckedFunction<E, InputStream, IOException> inputStreamProvider, Function<E, String> originProvider,
+			Function<E, ValueDescriptorSourceContext> sourceContextProvider) {
 
 		var reasonAggregator = Reasons.aggregatorForceWrap(() -> ConfigurationError.create("Error while loading config from " + configSource));
 
 		List<ConfigEntry> result = newList();
 		for (E entry : entries) {
-			Maybe<C> configMaybe = new ModeledYamlConfigurationLoader() //
-					.virtualEnvironment(virtualEnvironment) //
-					.variableResolverReasoned(propertyLookup) //
-					.absentifyMissingProperties(true) //
+			Maybe<C> configMaybe = configuredLoader(sourceContextProvider.apply(entry))
 					.loadConfig(configType, () -> inputStreamProvider.apply(entry));
 
 			if (configMaybe.isSatisfied())
@@ -499,17 +528,15 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 
 	private <C extends GenericEntity, E> Maybe<PartialConfigEntries> listToEntitiesPartially( //
 			EntityType<C> configType, String configSource, List<E> entries, //
-			CheckedFunction<E, InputStream, IOException> inputStreamProvider, Function<E, String> originProvider) {
+			CheckedFunction<E, InputStream, IOException> inputStreamProvider, Function<E, String> originProvider,
+			Function<E, ValueDescriptorSourceContext> sourceContextProvider) {
 
 		var reasonAggregator = Reasons.aggregatorForceWrap(() -> ConfigurationError.create("Error while partially loading config from " + configSource));
 
 		List<ConfigEntry> result = newList();
 		Set<String> unresolvedVariables = new LinkedHashSet<>();
 		for (E entry : entries) {
-			Maybe<PartiallyResolvedConfiguration<C>> configMaybe = new ModeledYamlConfigurationLoader() //
-					.virtualEnvironment(virtualEnvironment) //
-					.variableResolverReasoned(propertyLookup) //
-					.absentifyMissingProperties(true) //
+			Maybe<PartiallyResolvedConfiguration<C>> configMaybe = configuredLoader(sourceContextProvider.apply(entry))
 					.loadConfigPartially(configType, () -> inputStreamProvider.apply(entry));
 
 			if (configMaybe.isSatisfied()) {
@@ -526,6 +553,21 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 			return Maybe.incomplete(partialEntries, reasonAggregator.get());
 
 		return Maybe.complete(partialEntries);
+	}
+
+	private ModeledYamlConfigurationLoader configuredLoader(ValueDescriptorSourceContext sourceContext) {
+		ModeledYamlConfigurationLoader loader = new ModeledYamlConfigurationLoader() //
+				.virtualEnvironment(virtualEnvironment) //
+				.variableResolverReasoned(propertyLookup) //
+				.absentifyMissingProperties(true);
+
+		if (valueDescriptorExpressionCodec != null)
+			loader.valueDescriptorExpressions(valueDescriptorExpressionCodec)
+					.valueDescriptorExperts(valueDescriptorExpertConfigurer)
+					.valueDescriptorContext(valueDescriptorContextConfigurer)
+					.valueDescriptorAspect(ValueDescriptorSourceContext.class, sourceContext);
+
+		return loader;
 	}
 
 	//

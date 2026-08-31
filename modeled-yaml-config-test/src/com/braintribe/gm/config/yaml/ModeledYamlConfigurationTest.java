@@ -25,8 +25,10 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.braintribe.gm.config.yaml.api.PartiallyResolvedConfiguration;
+import com.braintribe.gm.config.yaml.expression.TestImportText;
 import com.braintribe.gm.config.yaml.index.ClasspathIndex;
 import com.braintribe.gm.config.yaml.model.LoadedEntity;
+import com.braintribe.gm.config.yaml.model.MergedEntity;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.bvd.convert.ToString;
 import com.braintribe.model.bvd.string.Concatenation;
@@ -36,6 +38,8 @@ import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.value.Variable;
 import com.braintribe.model.generic.value.ValueDescriptor;
+import com.braintribe.model.processing.vde.expression.ModelBasedValueDescriptorExpressionCodec;
+import com.braintribe.model.processing.vde.reasoned.api.ValueDescriptorSourceContext;
 
 /**
  * Tests for {@link ModeledYamlConfiguration}.
@@ -208,6 +212,24 @@ public class ModeledYamlConfigurationTest {
 		PartiallyResolvedConfiguration<LoadedEntity> partial = myc.staticConfigPartiallyReasoned(LoadedEntity.T).get();
 
 		assertThat(partial.configuration().getAfterAllValue()).isNull();
+	}
+
+	@Test
+	public void evaluatesEveryFilesystemEntryInItsOwnSourceContext() throws Exception {
+		File configFolder = temporaryFolder.newFolder("context-conf");
+		File configFile = new File(configFolder, "merged-entity.source.yaml");
+		Files.writeString(configFile.toPath(), "string: ${testImportText('./payload.txt')}\n", StandardCharsets.UTF_8);
+
+		myc.setConfigFolder(configFolder);
+		myc.setValueDescriptorExpressionCodec(new ModelBasedValueDescriptorExpressionCodec(TestImportText.T));
+		myc.setValueDescriptorExpertConfigurer(registry -> registry.register(TestImportText.T, (context, descriptor) -> {
+			ValueDescriptorSourceContext source = context.getAspect(ValueDescriptorSourceContext.class);
+			return Maybe.complete(source.path() + ":" + descriptor.getPath());
+		}));
+
+		MergedEntity entity = myc.config(MergedEntity.T);
+
+		assertThat(entity.getString()).isEqualTo(configFile.getAbsolutePath() + ":./payload.txt");
 	}
 
 	private void registerProgrammaticSources() {
