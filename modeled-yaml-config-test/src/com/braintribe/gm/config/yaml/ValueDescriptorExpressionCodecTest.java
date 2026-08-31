@@ -23,6 +23,7 @@ import com.braintribe.model.bvd.string.Concatenation;
 import com.braintribe.model.generic.reflection.VdHolder;
 import com.braintribe.model.processing.vde.expression.ModelBasedValueDescriptorExpressionCodec;
 import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodecOption;
+import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionProjectionOption;
 
 public class ValueDescriptorExpressionCodecTest {
 
@@ -94,5 +95,28 @@ public class ValueDescriptorExpressionCodecTest {
 				.get();
 
 		assertThat(loaded.getString()).isEqualTo("artifact-a:./payload.txt");
+	}
+
+	@Test
+	public void yamlCanProjectConcreteValuesBackToModeledExpressions() {
+		MergedEntity entity = MergedEntity.T.create();
+		entity.setString("project-me");
+
+		GmSerializationOptions options = GmSerializationOptions.deriveDefaults()
+				.inferredRootType(MergedEntity.T)
+				.set(PlaceholderSupport.class, true)
+				.set(ValueDescriptorExpressionCodecOption.class, codec)
+				.set(ValueDescriptorExpressionProjectionOption.class, (type, value) -> {
+					if (!"project-me".equals(value))
+						return null;
+					TestImportText descriptor = TestImportText.T.create();
+					descriptor.setPath("./payload.txt");
+					return descriptor;
+				})
+				.build();
+		StringWriter writer = new StringWriter();
+		new YamlMarshaller().marshall(writer, entity, options);
+
+		assertThat(writer.toString()).contains("string: \"${testImportText('./payload.txt')}\"");
 	}
 }

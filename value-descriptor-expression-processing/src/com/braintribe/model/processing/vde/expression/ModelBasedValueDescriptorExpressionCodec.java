@@ -129,7 +129,10 @@ public class ModelBasedValueDescriptorExpressionCodec implements ValueDescriptor
 			throw new IllegalArgumentException("No expression function model registered for " + descriptor.entityType().getTypeSignature());
 
 		StringBuilder result = new StringBuilder(function.name).append('(');
-		for (int i = 0; i < function.arguments.size(); i++) {
+		int argumentCount = function.arguments.size();
+		while (argumentCount > 0 && function.arguments.get(argumentCount - 1).getDirect(descriptor) == null)
+			argumentCount--;
+		for (int i = 0; i < argumentCount; i++) {
 			if (i > 0)
 				result.append(", ");
 			result.append(renderArgument(function.arguments.get(i).getDirect(descriptor)));
@@ -234,8 +237,8 @@ public class ModelBasedValueDescriptorExpressionCodec implements ValueDescriptor
 				} while (true);
 			}
 			expect(')');
-			if (values.size() != function.arguments.size())
-				fail("Function '" + name + "' expects " + function.arguments.size() + " argument(s), got " + values.size());
+			if (values.size() > function.arguments.size())
+				fail("Function '" + name + "' accepts at most " + function.arguments.size() + " argument(s), got " + values.size());
 
 			ValueDescriptor result = function.type.create();
 			for (int i = 0; i < values.size(); i++)

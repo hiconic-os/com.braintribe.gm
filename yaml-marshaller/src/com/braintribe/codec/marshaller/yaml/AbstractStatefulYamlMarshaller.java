@@ -55,6 +55,8 @@ import com.braintribe.model.generic.value.ValueDescriptor;
 import com.braintribe.model.generic.value.Variable;
 import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodec;
 import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodecOption;
+import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionProjection;
+import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionProjectionOption;
 
 public abstract class AbstractStatefulYamlMarshaller {
 
@@ -78,6 +80,7 @@ public abstract class AbstractStatefulYamlMarshaller {
 	protected final boolean placeholderSupport;
 	protected final boolean writeEmptyProperties;
 	protected final ValueDescriptorExpressionCodec expressionCodec;
+	protected final ValueDescriptorExpressionProjection expressionProjection;
 	protected final char[][] ESCAPES;
 
 	public AbstractStatefulYamlMarshaller(GmSerializationOptions options, Writer writer, Object rootValue) {
@@ -97,6 +100,7 @@ public abstract class AbstractStatefulYamlMarshaller {
 		this.placeholderSupport = options.findOrDefault(PlaceholderSupport.class, false);
 		this.writeEmptyProperties = options.writeEmptyProperties();
 		this.expressionCodec = options.findOrNull(ValueDescriptorExpressionCodecOption.class);
+		this.expressionProjection = options.findOrNull(ValueDescriptorExpressionProjectionOption.class);
 		
 		this.ESCAPES = placeholderSupport? ESCAPES_WITH_PLACEHOLDERS: ESCAPES_NORMAL;
 	}
@@ -155,6 +159,15 @@ public abstract class AbstractStatefulYamlMarshaller {
 	 *            have been necessary) has to be enforced via this flag.
 	 */
 	protected void write(GenericModelType inferredType, GenericModelType type, Object value, boolean isComplexPropertyValue) throws IOException {
+		if (placeholderSupport && expressionProjection != null && value != null) {
+			ValueDescriptor descriptor = expressionProjection.project(inferredType, value);
+			if (descriptor != null) {
+				writeSpaceIfRequired(isComplexPropertyValue);
+				writePlaceholder(descriptor);
+				return;
+			}
+		}
+
 		if (value == null) {
 			writeSpaceIfRequired(isComplexPropertyValue);
 			writer.write("null");
