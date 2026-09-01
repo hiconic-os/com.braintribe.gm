@@ -8,6 +8,7 @@ import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.annotation.ToStringInformation;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
+import com.braintribe.model.resource.Resource;
 
 /**
  * @author peter.gazdik
@@ -22,6 +23,9 @@ public interface MergedEntity extends GenericEntity {
 
 	String getString();
 	void setString(String string);
+
+	Resource getResource();
+	void setResource(Resource resource);
 
 	// List
 
