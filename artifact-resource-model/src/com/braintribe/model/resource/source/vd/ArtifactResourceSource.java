@@ -19,6 +19,7 @@ public interface ArtifactResourceSource extends ValueDescriptor {
 	String path = "path";
 	String artifact = "artifact";
 
+	/** {@code ./} and {@code ../} are source-document-relative; every other path is artifact-root-relative. */
 	String getPath();
 	void setPath(String path);
 

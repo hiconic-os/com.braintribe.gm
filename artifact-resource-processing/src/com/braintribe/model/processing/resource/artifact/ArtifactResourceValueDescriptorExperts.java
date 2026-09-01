@@ -151,13 +151,16 @@ public final class ArtifactResourceValueDescriptorExperts {
 
 		String artifact = explicitArtifact;
 		String candidate = configuredPath.replace('\\', '/');
+		boolean sourceRelative = candidate.startsWith("./") || candidate.startsWith("../") || candidate.equals(".") || candidate.equals("..");
 		if (artifact == null || artifact.trim().isEmpty()) {
 			if (source == null || source.artifact() == null || source.artifact().trim().isEmpty())
-				return InvalidArgument.create("A relative artifact resource has no owning artifact context: " + configuredPath).asMaybe();
+				return InvalidArgument.create("An artifact resource has no owning artifact context: " + configuredPath).asMaybe();
 			artifact = source.artifact();
-			String sourcePath = source.path() == null ? "" : source.path().replace('\\', '/');
-			int separator = sourcePath.lastIndexOf('/');
-			candidate = (separator < 0 ? "" : sourcePath.substring(0, separator + 1)) + candidate;
+			if (sourceRelative) {
+				String sourcePath = source.path() == null ? "" : source.path().replace('\\', '/');
+				int separator = sourcePath.lastIndexOf('/');
+				candidate = (separator < 0 ? "" : sourcePath.substring(0, separator + 1)) + candidate;
+			}
 		} else {
 			while (candidate.startsWith("./"))
 				candidate = candidate.substring(2);

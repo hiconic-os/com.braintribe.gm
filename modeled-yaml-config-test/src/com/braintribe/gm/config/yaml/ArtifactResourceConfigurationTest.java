@@ -49,6 +49,23 @@ public class ArtifactResourceConfigurationTest {
 	}
 
 	@Test
+	public void resolvesUnprefixedPathFromArtifactRoot() {
+		ArtifactResourceResolver resolver = new TestResolver();
+		String yaml = "resource: ${artifactResource('assets/logo.svg')}\n";
+
+		MergedEntity loaded = new ModeledYamlConfigurationLoader()
+				.valueDescriptorExpressions(ArtifactResourceValueDescriptorExperts.expressionCodec())
+				.valueDescriptorExperts(registry -> ArtifactResourceValueDescriptorExperts.register(registry, resolver))
+				.valueDescriptorAspect(ValueDescriptorSourceContext.class, CONFIG_SOURCE)
+				.loadConfig(MergedEntity.T, () -> new java.io.ByteArrayInputStream(yaml.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+				.get();
+
+		ArtifactResourceSource source = (ArtifactResourceSource) loaded.getResource().getResourceSource();
+		assertThat(source.getArtifact()).isEqualTo("configuration-artifact");
+		assertThat(source.getPath()).isEqualTo("assets/logo.svg");
+	}
+
+	@Test
 	public void projectsOnlySourceAndPreservesResourceMetadata() {
 		MergedEntity entity = MergedEntity.T.create();
 		Resource resource = Resource.T.create();
