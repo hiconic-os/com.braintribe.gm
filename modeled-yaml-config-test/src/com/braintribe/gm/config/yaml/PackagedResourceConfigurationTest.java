@@ -1,12 +1,14 @@
 // ============================================================================
-// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2026
 // Licensed under the Apache License, Version 2.0
 // ============================================================================
 package com.braintribe.gm.config.yaml;
 
 import static com.braintribe.testing.junit.assertions.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 
 import org.junit.Test;
 
@@ -15,52 +17,52 @@ import com.braintribe.codec.marshaller.api.PlaceholderSupport;
 import com.braintribe.codec.marshaller.yaml.YamlMarshaller;
 import com.braintribe.gm.config.yaml.model.MergedEntity;
 import com.braintribe.gm.model.reason.Maybe;
-import com.braintribe.model.processing.resource.artifact.ArtifactResourceValueDescriptorExperts;
-import com.braintribe.model.processing.resource.artifact.api.ArtifactResourceResolver;
+import com.braintribe.model.processing.resource.packaged.PackagedResourceValueDescriptorExperts;
+import com.braintribe.model.processing.resource.packaged.api.PackagedResourceResolver;
 import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodec;
 import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodecOption;
 import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionProjectionOption;
 import com.braintribe.model.processing.vde.reasoned.api.ValueDescriptorSourceContext;
 import com.braintribe.model.resource.Resource;
-import com.braintribe.model.resource.source.ArtifactResourceSource;
+import com.braintribe.model.resource.source.PackagedSource;
 
-public class ArtifactResourceConfigurationTest {
+public class PackagedResourceConfigurationTest {
 
 	private static final ValueDescriptorSourceContext CONFIG_SOURCE =
 			new ValueDescriptorSourceContext("configuration-artifact", "HICONIC-CONF/config.yaml");
 
 	@Test
-	public void resolvesRelativeArtifactResourceWithoutRxTypes() {
-		ArtifactResourceResolver resolver = new TestResolver();
-		ValueDescriptorExpressionCodec codec = ArtifactResourceValueDescriptorExperts.expressionCodec();
-		String yaml = "resource: ${artifactResource('../assets/logo.svg')}\n";
+	public void resolvesRelativePackagedResourceWithoutRxTypes() {
+		PackagedResourceResolver resolver = new TestResolver();
+		ValueDescriptorExpressionCodec codec = PackagedResourceValueDescriptorExperts.expressionCodec();
+		String yaml = "resource: ${packagedResource('../assets/logo.svg')}\n";
 
 		MergedEntity loaded = new ModeledYamlConfigurationLoader()
 				.valueDescriptorExpressions(codec)
-				.valueDescriptorExperts(registry -> ArtifactResourceValueDescriptorExperts.register(registry, resolver))
+				.valueDescriptorExperts(registry -> PackagedResourceValueDescriptorExperts.register(registry, resolver))
 				.valueDescriptorAspect(ValueDescriptorSourceContext.class, CONFIG_SOURCE)
 				.loadConfig(MergedEntity.T, () -> new java.io.ByteArrayInputStream(yaml.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
 				.get();
 
 		assertThat(loaded.getResource().getName()).isEqualTo("resolved-logo");
-		ArtifactResourceSource source = (ArtifactResourceSource) loaded.getResource().getResourceSource();
+		PackagedSource source = (PackagedSource) loaded.getResource().getResourceSource();
 		assertThat(source.getArtifact()).isEqualTo("configuration-artifact");
 		assertThat(source.getPath()).isEqualTo("assets/logo.svg");
 	}
 
 	@Test
 	public void resolvesUnprefixedPathFromArtifactRoot() {
-		ArtifactResourceResolver resolver = new TestResolver();
-		String yaml = "resource: ${artifactResource('assets/logo.svg')}\n";
+		PackagedResourceResolver resolver = new TestResolver();
+		String yaml = "resource: ${packagedResource('assets/logo.svg')}\n";
 
 		MergedEntity loaded = new ModeledYamlConfigurationLoader()
-				.valueDescriptorExpressions(ArtifactResourceValueDescriptorExperts.expressionCodec())
-				.valueDescriptorExperts(registry -> ArtifactResourceValueDescriptorExperts.register(registry, resolver))
+				.valueDescriptorExpressions(PackagedResourceValueDescriptorExperts.expressionCodec())
+				.valueDescriptorExperts(registry -> PackagedResourceValueDescriptorExperts.register(registry, resolver))
 				.valueDescriptorAspect(ValueDescriptorSourceContext.class, CONFIG_SOURCE)
 				.loadConfig(MergedEntity.T, () -> new java.io.ByteArrayInputStream(yaml.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
 				.get();
 
-		ArtifactResourceSource source = (ArtifactResourceSource) loaded.getResource().getResourceSource();
+		PackagedSource source = (PackagedSource) loaded.getResource().getResourceSource();
 		assertThat(source.getArtifact()).isEqualTo("configuration-artifact");
 		assertThat(source.getPath()).isEqualTo("assets/logo.svg");
 	}
@@ -71,7 +73,7 @@ public class ArtifactResourceConfigurationTest {
 		Resource resource = Resource.T.create();
 		resource.setName("Proventem logo");
 		resource.setMimeType("image/svg+xml");
-		ArtifactResourceSource source = ArtifactResourceSource.T.create();
+		PackagedSource source = PackagedSource.T.create();
 		source.setArtifact("configuration-artifact");
 		source.setPath("assets/logo.svg");
 		resource.setResourceSource(source);
@@ -81,7 +83,7 @@ public class ArtifactResourceConfigurationTest {
 
 		assertThat(yaml).contains("name: \"Proventem logo\"");
 		assertThat(yaml).contains("mimeType: \"image/svg+xml\"");
-		assertThat(yaml).contains("resourceSource: \"${artifactResourceSource('../assets/logo.svg')}\"");
+		assertThat(yaml).contains("resourceSource: \"${packagedSource('../assets/logo.svg')}\"");
 		assertThat(yaml).doesNotContain("artifact: configuration-artifact");
 	}
 
@@ -89,16 +91,16 @@ public class ArtifactResourceConfigurationTest {
 		GmSerializationOptions options = GmSerializationOptions.deriveDefaults()
 				.inferredRootType(MergedEntity.T)
 				.set(PlaceholderSupport.class, true)
-				.set(ValueDescriptorExpressionCodecOption.class, ArtifactResourceValueDescriptorExperts.expressionCodec())
+				.set(ValueDescriptorExpressionCodecOption.class, PackagedResourceValueDescriptorExperts.expressionCodec())
 				.set(ValueDescriptorExpressionProjectionOption.class,
-						ArtifactResourceValueDescriptorExperts.projection(CONFIG_SOURCE))
+						PackagedResourceValueDescriptorExperts.projection(CONFIG_SOURCE))
 				.build();
 		StringWriter writer = new StringWriter();
 		new YamlMarshaller().marshall(writer, entity, options);
 		return writer.toString();
 	}
 
-	private static class TestResolver implements ArtifactResourceResolver {
+	private static class TestResolver implements PackagedResourceResolver {
 		@Override
 		public Maybe<Resource> resolveResource(String artifact, String path) {
 			Resource resource = Resource.T.create();
@@ -108,11 +110,17 @@ public class ArtifactResourceConfigurationTest {
 		}
 
 		@Override
-		public Maybe<ArtifactResourceSource> resolveSource(String artifact, String path) {
-			ArtifactResourceSource source = ArtifactResourceSource.T.create();
+		public Maybe<PackagedSource> resolveSource(String artifact, String path) {
+			PackagedSource source = PackagedSource.T.create();
 			source.setArtifact(artifact);
 			source.setPath(path);
 			return Maybe.complete(source);
+		}
+
+		/** The tests here are about addressing, not about payload, so the stream is the address itself. */
+		@Override
+		public Maybe<InputStream> openStream(String artifact, String path) {
+			return Maybe.complete(new ByteArrayInputStream((artifact + ":" + path).getBytes(StandardCharsets.UTF_8)));
 		}
 	}
 }

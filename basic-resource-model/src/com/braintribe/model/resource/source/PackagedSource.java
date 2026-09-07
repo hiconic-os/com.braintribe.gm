@@ -7,10 +7,12 @@ import com.braintribe.model.generic.annotation.meta.Mandatory;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
-/** Stable address of an indexed resource within a contributing artifact. */
-public interface ArtifactResourceSource extends ResourceSource {
+/**
+ * Stable address of a file packaged in a classpath artifact, given by the artifact and the artifact relative path.
+ */
+public interface PackagedSource extends ResourceSource {
 
-	EntityType<ArtifactResourceSource> T = EntityTypes.T(ArtifactResourceSource.class);
+	EntityType<PackagedSource> T = EntityTypes.T(PackagedSource.class);
 
 	String artifact = "artifact";
 	String path = "path";
@@ -22,4 +24,5 @@ public interface ArtifactResourceSource extends ResourceSource {
 	@Mandatory
 	String getPath();
 	void setPath(String path);
+
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <projectDescription>
-	<name>artifact-resource-processing - com.braintribe.gm</name>
+	<name>packaged-resource-processing - com.braintribe.gm</name>
 	<buildSpec>
 		<buildCommand>
 			<name>com.braintribe.devrock.arb.builder.ArtifactReflectionBuilder</name>

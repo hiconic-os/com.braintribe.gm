@@ -46,6 +46,13 @@ limitations under the License.
             <version>${V.com.braintribe.gm}</version>
             <scope>compile</scope>
         </dependency>
+        <!-- Resource and ResourceSource, referenced by the packaged resource value descriptors -->
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>resource-model</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+            <?tag asset?>
+        </dependency>
         <dependency>
             <groupId>com.braintribe.gm</groupId>
             <artifactId>value-descriptor-model</artifactId>

@@ -1,5 +1,4 @@
 // ============================================================================
-// Copyright BRAINTRIBE TECHNOLOGY GMBH, Austria, 2002-2026
 // Licensed under the Apache License, Version 2.0
 // ============================================================================
 package com.braintribe.model.processing.vde.expression;
