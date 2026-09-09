@@ -1,0 +1,24 @@
+[
+    {
+        "_type": "com.braintribe.codec.marshaller.json.model.pets.Pet",
+        "id": "9",
+        "category": {
+            "_type": "com.braintribe.codec.marshaller.json.model.pets.Category",
+            "id": 240,
+            "name": "keVLAx1NrSiYCz9U"
+        },
+        "name": "Lion 3",
+        "status": "available"
+    },
+    {
+        "_type": "com.braintribe.codec.marshaller.json.model.pets.Pet",
+        "id": "8",
+        "category": {
+            "_type": "com.braintribe.codec.marshaller.json.model.pets.Category",
+            "id": 240,
+            "name": "keVLAx1NrSiYCz9U"
+        },
+        "name": "Lion 31",
+        "status": "available"
+    }
+]

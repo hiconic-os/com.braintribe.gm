@@ -703,6 +703,22 @@ public class StreamMarshallerTest {
 	}
 
 	@Test
+	public void testExplicitlyTypedEntityDuplication() throws Exception {
+		JsonStreamMarshaller marshaller = newJsonMarshaller();
+		try (BufferedReader inputBuffer = new BufferedReader(new InputStreamReader(new FileInputStream("res/pets_with_explicit_types.json")))) {
+			String input = inputBuffer.lines().collect(Collectors.joining("\n"));
+			GmDeserializationOptions options = GmDeserializationOptions.deriveDefaults() //
+					.set(IdentityManagementModeOption.class, IdentityManagementMode.id) //
+					.setInferredRootType(GMF.getTypeReflection().getListType(Pet.T)).build();
+			List<Pet> result = (List<Pet>) marshaller.decode(input, options);
+			Pet p0 = result.get(0);
+			Pet p1 = result.get(1);
+			assertTrue(p0 != p1);
+			assertTrue(p0.getCategory() == p1.getCategory());
+		}
+	}
+
+	@Test
 	public void testEntityDuplicationOff() throws Exception {
 		JsonStreamMarshaller marshaller = newJsonMarshaller();
 		try (BufferedReader inputBuffer = new BufferedReader(new InputStreamReader(new FileInputStream("res/pets.json")))) {

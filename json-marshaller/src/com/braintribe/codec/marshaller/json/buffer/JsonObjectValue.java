@@ -221,37 +221,37 @@ public class JsonObjectValue extends JsonComplexValue {
 		
 		if (globalIdField != null) {
 			String entityGlobalId = globalIdField.value.asString();
-			
-			GenericEntity entity = conversionContext.resolveEntityByGlobalId(entityGlobalId);
-			
-			if (entity != null)
-				return entity;
+
+			if (entityGlobalId != null) {
+				GenericEntity entity = conversionContext.resolveEntityByGlobalId(entityGlobalId);
+
+				if (entity != null)
+					return entity;
+			}
 		}
 		
 		return buildEntity(concreteType);
 	}
 
 	private GenericEntity asEntity(EntityType<?> inferredEntityType) throws ConversionError {
-		if (_typeField != null) {
+		switch (conversionContext.identityManagedMode()) {
+			case _id:
+				if (_refField != null)
+					return asRef(inferredEntityType);
+				break;
+
+			case id:
+				if (idField != null || globalIdField != null)
+					return asEntityOrRecurrence(inferredEntityType);
+				break;
+
+			case auto: break;
+			case off: break;
+		}
+
+		if (_typeField != null)
 			return (GenericEntity)typedAs(inferredEntityType);
-		}
-		else {
-			switch (conversionContext.identityManagedMode()) {
-				case _id:
-					if (_refField != null) 
-						return asRef(inferredEntityType);
-					break;
-					
-				case id:
-					if (idField != null || globalIdField != null)
-						return asEntityOrRecurrence(inferredEntityType);
-					break;
-					
-				case auto: break;
-				case off: break;
-			}
-		}
-			
+
 		return buildEntity(inferredEntityType);
 	}
 	
@@ -316,7 +316,8 @@ public class JsonObjectValue extends JsonComplexValue {
 		
 		if (globalIdField != null) {
 			String entityGlobalId = globalIdField.value.asString();
-			conversionContext.registerEntityByGlobalId(entity, entityGlobalId);
+			if (entityGlobalId != null)
+				conversionContext.registerEntityByGlobalId(entity, entityGlobalId);
 		}
 	}
 
