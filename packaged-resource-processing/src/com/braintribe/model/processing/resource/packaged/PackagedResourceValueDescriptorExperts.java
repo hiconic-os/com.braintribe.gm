@@ -48,9 +48,8 @@ public final class PackagedResourceValueDescriptorExperts {
 	}
 
 	public static void register(ValueDescriptorExpertRegistry registry, PackagedResourceResolver resolver) {
-		registry.register(PackagedSource.T, (context, descriptor) -> {
-			Maybe<ResolvedPath> resolved = resolve(context.getAspect(ValueDescriptorSourceContext.class), descriptor.getArtifact(),
-					descriptor.getPath());
+		registry.register(PackagedSource.T, (ctx, desc) -> {
+			Maybe<ResolvedPath> resolved = resolve(ctx.getAspect(ValueDescriptorSourceContext.class), desc.getArtifact(), desc.getPath());
 			if (resolved.isUnsatisfied())
 				return resolved.whyUnsatisfied().asMaybe();
 
@@ -58,9 +57,8 @@ public final class PackagedResourceValueDescriptorExperts {
 			return resolver.resolveSource(path.artifact, path.path);
 		});
 
-		registry.register(PackagedResource.T, (context, descriptor) -> {
-			Maybe<ResolvedPath> resolved = resolve(context.getAspect(ValueDescriptorSourceContext.class), descriptor.getArtifact(),
-					descriptor.getPath());
+		registry.register(PackagedResource.T, (ctx, desc) -> {
+			Maybe<ResolvedPath> resolved = resolve(ctx.getAspect(ValueDescriptorSourceContext.class), desc.getArtifact(), desc.getPath());
 			if (resolved.isUnsatisfied())
 				return resolved.whyUnsatisfied().asMaybe();
 
@@ -68,9 +66,8 @@ public final class PackagedResourceValueDescriptorExperts {
 			return resolver.resolveResource(path.artifact, path.path);
 		});
 
-		registry.register(PackagedResourceText.T, (context, descriptor) -> {
-			Maybe<ResolvedPath> resolved = resolve(context.getAspect(ValueDescriptorSourceContext.class), descriptor.getArtifact(),
-					descriptor.getPath());
+		registry.register(PackagedResourceText.T, (ctx, desc) -> {
+			Maybe<ResolvedPath> resolved = resolve(ctx.getAspect(ValueDescriptorSourceContext.class), desc.getArtifact(), desc.getPath());
 			if (resolved.isUnsatisfied())
 				return resolved.whyUnsatisfied().asMaybe();
 
@@ -79,11 +76,11 @@ public final class PackagedResourceValueDescriptorExperts {
 			if (in.isUnsatisfied())
 				return in.whyUnsatisfied().asMaybe();
 
-			return text(in.get(), descriptor.getEncoding(), path.toString());
+			return text(in.get(), desc.getEncoding(), path.toString());
 		});
 
-		registry.register(ResourceText.T, (context, descriptor) -> {
-			Resource resource = descriptor.getResource();
+		registry.register(ResourceText.T, (ctx, desc) -> {
+			Resource resource = desc.getResource();
 			if (resource == null)
 				return InvalidArgument.create("A resourceText expression requires a resource").asMaybe();
 
@@ -91,7 +88,7 @@ public final class PackagedResourceValueDescriptorExperts {
 			if (in.isUnsatisfied())
 				return in.whyUnsatisfied().asMaybe();
 
-			return text(in.get(), descriptor.getEncoding(), String.valueOf(resource.getName()));
+			return text(in.get(), desc.getEncoding(), String.valueOf(resource.getName()));
 		});
 	}
 

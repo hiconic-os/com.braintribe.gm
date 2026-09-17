@@ -81,11 +81,6 @@ public class ModeledYamlConfigurationLoader {
 		return this;
 	}
 
-	public ModeledYamlConfigurationLoader valueDescriptorContext(Consumer<StandardValueDescriptorEvaluationContext> configurer) {
-		this.contextConfigurer = this.contextConfigurer.andThen(configurer);
-		return this;
-	}
-
 	public <T> ModeledYamlConfigurationLoader valueDescriptorAspect(Class<T> aspectType, T value) {
 		this.contextConfigurer = this.contextConfigurer.andThen(context -> context.withAspect(aspectType, value));
 		return this;
@@ -98,15 +93,17 @@ public class ModeledYamlConfigurationLoader {
 
 		try (InputStream in = inputStreamProvider.openInputStream()) {
 			if (expressionCodec != null) {
-				Maybe<C> parsed = YamlConfigurations.<C> read(configType)
-						.placeholders()
-						.options(options -> options.set(ValueDescriptorExpressionCodecOption.class, expressionCodec))
-						.absentifyMissingProperties(shouldAbsentify)
+				Maybe<C> parsed = YamlConfigurations.<C> read(configType) //
+						.placeholders() //
+						.options(options -> options.set(ValueDescriptorExpressionCodecOption.class, expressionCodec)) //
+						.absentifyMissingProperties(shouldAbsentify) //
 						.from(in);
+
 				if (parsed.isUnsatisfied())
 					return parsed;
-				return ReasonedConfigPlaceholders.resolve(parsed.get(), configVariableResolver::resolveReasoned,
-						ResidualValuePolicy.rejectAll(), registryConfigurer, contextConfigurer);
+
+				return ReasonedConfigPlaceholders.resolve(parsed.get(), configVariableResolver::resolveReasoned, ResidualValuePolicy.rejectAll(),
+						registryConfigurer, contextConfigurer);
 			}
 			Maybe<C> maybe = YamlConfigurations.<C> read(configType) //
 					.placeholders(configVariableResolver::resolve) //
@@ -148,6 +145,7 @@ public class ModeledYamlConfigurationLoader {
 
 	public <C extends GenericEntity> Maybe<PartiallyResolvedConfiguration<C>> loadConfigPartially(EntityType<C> configType, File configFile,
 			boolean fileMustExist) {
+
 		if (!configFile.exists()) {
 			if (fileMustExist)
 				return Reasons.build(NotFound.T).text("Configuration file " + configFile.getAbsolutePath() + " does not exist").toMaybe();
@@ -182,15 +180,16 @@ public class ModeledYamlConfigurationLoader {
 				.absentifyMissingProperties(shouldAbsentify);
 		if (expressionCodec != null)
 			readBuilder.options(options -> options.set(ValueDescriptorExpressionCodecOption.class, expressionCodec));
-		Maybe<C> configMaybe = readBuilder.from(in);
 
+		Maybe<C> configMaybe = readBuilder.from(in);
 		if (configMaybe.isUnsatisfied())
 			return configMaybe.whyUnsatisfied().asMaybe();
 
 		if (expressionCodec != null)
 			return YamlConfigurations.resolvePlaceholdersPartiallyReasoned(configMaybe.get(), configVariableResolver::resolveReasoned,
 					registryConfigurer, contextConfigurer);
-		return new PartialConfigPlaceholderResolver(configVariableResolver).resolve(configMaybe.get());
+		else
+			return new PartialConfigPlaceholderResolver(configVariableResolver).resolve(configMaybe.get());
 	}
 
 	public <C extends GenericEntity> Maybe<C> loadConfig(EntityType<C> configType, File configFile, boolean fileMustExist) {
@@ -212,9 +211,8 @@ public class ModeledYamlConfigurationLoader {
 				.placeholders(variableResolver::resolve) //
 				.from(configFile);
 
-		if (variableResolver.getFailure() != null) {
+		if (variableResolver.getFailure() != null)
 			return variableResolver.getFailure().asMaybe();
-		}
 
 		return maybe;
 	}

@@ -127,10 +127,8 @@ public interface Resource extends StandardStringIdentifiable {
 	default InputStream openStream() {
 		ResourceSource resSrc = getResourceSource();
 
-		if (resSrc instanceof StreamableSource) {
-			StreamableSource transientSource = (StreamableSource) resSrc;
-			return transientSource.openStream();
-		}
+		if (ResourceUtils.canStream(resSrc))
+			return ((StreamableSource) resSrc).openStream();
 
 		GmSession session = session();
 		if (!(session instanceof HasResourceReadAccess))
@@ -147,9 +145,8 @@ public interface Resource extends StandardStringIdentifiable {
 
 	default void writeToStream(OutputStream outputStream) {
 		ResourceSource resSrc = getResourceSource();
-		if (resSrc instanceof StreamableSource) {
-			StreamableSource transientSource = (StreamableSource) getResourceSource();
-			transientSource.writeToStream(outputStream);
+		if (ResourceUtils.canStream(resSrc)) {
+			((StreamableSource) resSrc).writeToStream(outputStream);
 
 		} else {
 			GmSession session = session();
@@ -203,6 +200,24 @@ public interface Resource extends StandardStringIdentifiable {
 		transientSource.setInputStreamProvider(inputStreamProvider);
 		transientSource.setOwner(this);
 		setResourceSource(transientSource);
+	}
+
+}
+
+class ResourceUtils {
+
+	/**
+	 * Whether the source can be read here and now, i.e. without a session - i.e. it's a it's either a {@link TransientSource}, or a
+	 * {@link StreamableSource} with an {@link InputStreamProvider} attached.
+	 */
+	public static boolean canStream(ResourceSource source) {
+		if (!(source instanceof StreamableSource))
+			return false;
+
+		// We say yes for TransientSource so we get an exception when trying to stream, as that is really unexpected
+		// Other StreamableSources, such as PackagedSource, might not have an InputStreamProvider configured,
+		// in which case they could still work when streamed from a session.
+		return ((StreamableSource) source).inputStreamProvider() != null || source instanceof TransientSource;
 	}
 
 }

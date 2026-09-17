@@ -12,14 +12,12 @@ import com.braintribe.model.resource.source.PackagedSource;
 /** Resolves a file packaged in a classpath artifact, without prescribing how that artifact is physically packaged. */
 public interface PackagedResourceResolver {
 
+	/** A complete Resource for the file, backed by a resolved {@link PackagedSource}, thus persistable as an address and readable right away. */
 	Maybe<Resource> resolveResource(String artifact, String path);
 
+	/** Just the address of the file, resolved, so that a caller can keep its own Resource metadata around it. */
 	Maybe<PackagedSource> resolveSource(String artifact, String path);
 
-	/**
-	 * Opens the data of a packaged file.
-	 * <p>
-	 * A {@link PackagedSource} holds no payload, so a Resource backed by one cannot be streamed on its own. This is the way to read it.
-	 */
+	/** Opens the data of a packaged file directly, for a caller that wants the bytes and no Resource at all. */
 	Maybe<InputStream> openStream(String artifact, String path);
 }

@@ -139,7 +139,6 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	private Function<String, Maybe<String>> propertyLookup = reasonifyPropertyResolver(this::resolveStandardProperty);
 	private ValueDescriptorExpressionCodec valueDescriptorExpressionCodec;
 	private Consumer<ValueDescriptorExpertRegistry> valueDescriptorExpertConfigurer = registry -> {};
-	private Consumer<StandardValueDescriptorEvaluationContext> valueDescriptorContextConfigurer = context -> {};
 
 	private ClasspathIndex classpathIndex;
 	private String classpathConfPath = "";
@@ -207,12 +206,6 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	@Configurable
 	public void setValueDescriptorExpertConfigurer(Consumer<ValueDescriptorExpertRegistry> valueDescriptorExpertConfigurer) {
 		this.valueDescriptorExpertConfigurer = valueDescriptorExpertConfigurer;
-	}
-
-	@Configurable
-	public void setValueDescriptorContextConfigurer(
-			Consumer<StandardValueDescriptorEvaluationContext> valueDescriptorContextConfigurer) {
-		this.valueDescriptorContextConfigurer = valueDescriptorContextConfigurer;
 	}
 
 	@Override
@@ -564,7 +557,6 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 		if (valueDescriptorExpressionCodec != null)
 			loader.valueDescriptorExpressions(valueDescriptorExpressionCodec)
 					.valueDescriptorExperts(valueDescriptorExpertConfigurer)
-					.valueDescriptorContext(valueDescriptorContextConfigurer)
 					.valueDescriptorAspect(ValueDescriptorSourceContext.class, sourceContext);
 
 		return loader;

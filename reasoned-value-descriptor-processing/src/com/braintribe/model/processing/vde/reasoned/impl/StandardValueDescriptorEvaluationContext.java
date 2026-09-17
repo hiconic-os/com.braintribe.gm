@@ -50,13 +50,11 @@ public class StandardValueDescriptorEvaluationContext implements ValueDescriptor
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T getAspect(Class<T> aspectType) {
         return (T) aspects.get(aspectType);
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     public <T> Maybe<T> evaluate(ValueDescriptor descriptor) {
         Maybe<?> cached = cache.get(descriptor);
         if (cached != null)
@@ -65,6 +63,7 @@ public class StandardValueDescriptorEvaluationContext implements ValueDescriptor
         if (evaluating.put(descriptor, Boolean.TRUE) != null)
             return (Maybe<T>) InvalidArgument.create("Cyclic value descriptor evaluation: " + descriptor.entityType().getTypeSignature()).asMaybe();
 
+        @SuppressWarnings("rawtypes")
         ValueDescriptorExpert expert = registry.find(descriptor.entityType());
         if (expert == null) {
             evaluating.remove(descriptor);
@@ -109,7 +108,6 @@ public class StandardValueDescriptorEvaluationContext implements ValueDescriptor
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> Maybe<T> evaluateValue(Object value) {
         return (Maybe<T>) project(value);
     }
@@ -169,22 +167,24 @@ public class StandardValueDescriptorEvaluationContext implements ValueDescriptor
         return Maybe.complete(result);
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @SuppressWarnings("rawtypes")
     private static Collection<Object> newCollectionLike(Collection<?> source) {
         if (source instanceof ListBase<?>)
             return new PlainList(((ListBase) source).type());
         if (source instanceof SetBase<?>)
             return new PlainSet(((SetBase) source).type());
+
         if (source instanceof java.util.Set<?>)
             return new LinkedHashSet<>();
         return new ArrayList<>(source.size());
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @SuppressWarnings("rawtypes")
     private static Map<Object, Object> newMapLike(Map<?, ?> source) {
         if (source instanceof MapBase<?, ?>)
             return new PlainMap(((MapBase) source).type());
-        return new LinkedHashMap<>();
+        else
+        	return new LinkedHashMap<>();
     }
 
     private class ValidationContext implements ValueDescriptorValidationContext {
