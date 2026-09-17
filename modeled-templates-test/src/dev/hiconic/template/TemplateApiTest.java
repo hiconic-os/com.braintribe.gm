@@ -24,6 +24,7 @@ import com.braintribe.model.processing.meta.oracle.BasicModelOracle;
 import dev.hiconic.template.api.Template;
 import dev.hiconic.template.api.TemplateFactories;
 import dev.hiconic.template.api.TemplateFactory;
+import dev.hiconic.template.api.TemplateDefaults;
 import dev.hiconic.template.model.core.SequenceNode;
 import dev.hiconic.template.model.evaluation.NullPathElement;
 import dev.hiconic.template.model.evaluation.PathEvaluationError;
@@ -34,6 +35,17 @@ import dev.hiconic.template.test.model.TestPerson;
 import dev.hiconic.template.test.model.TemplateTestInput;
 
 public class TemplateApiTest {
+	@Test
+	public void typedFactoryExposesConfiguredDefaultsToCustomSinks() {
+		var defaults = TemplateDefaults.builder().locale(Locale.GERMANY)
+				.zone(ZoneId.of("Europe/Berlin")).datePattern("dd.MM.yyyy").build();
+		var factory = TemplateFactories.text().defaults(defaults).withRoot(String.class);
+
+		assertEquals(defaults, factory.defaults());
+		assertEquals("de-DE", factory.defaults().getLocale());
+		assertEquals("Europe/Berlin", factory.defaults().getZoneId());
+	}
+
 	@Test
 	public void variableDeclarationIsStaticallyVisibleAndExecutesAtRuntime() {
 		Maybe<Template<String>> maybe = TemplateFactories.html()
