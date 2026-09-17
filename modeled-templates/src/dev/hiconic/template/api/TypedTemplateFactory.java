@@ -26,6 +26,7 @@ import dev.hiconic.template.impl.ModeledTemplate;
 import dev.hiconic.template.impl.parser.StandardTemplateApiResolver;
 import dev.hiconic.template.impl.parser.StandardTemplateParser;
 import dev.hiconic.template.model.core.TemplateNode;
+import dev.hiconic.template.model.core.TemplateEvaluationDefaults;
 
 public final class TypedTemplateFactory<I> {
 	private final TemplateFactory factory;
@@ -43,6 +44,11 @@ public final class TypedTemplateFactory<I> {
 	/** The variable under which the input object is visible to parsed expressions. */
 	public String rootVariable() {
 		return factory.rootVariable();
+	}
+
+	/** The evaluation defaults captured by this factory for both text and custom document sinks. */
+	public TemplateEvaluationDefaults defaults() {
+		return factory.defaults();
 	}
 
 	/**
