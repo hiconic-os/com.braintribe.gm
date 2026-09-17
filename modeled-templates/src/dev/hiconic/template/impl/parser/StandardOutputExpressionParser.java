@@ -12,14 +12,21 @@ import com.braintribe.gm.model.reason.essential.ParseError;
 import com.braintribe.model.generic.enhance.EnhancedEntity;
 import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.value.ValueDescriptor;
+import com.braintribe.model.meta.data.prompt.Temporal;
+import com.braintribe.model.meta.data.prompt.TimeZoneless;
+import com.braintribe.model.meta.data.constraint.DateClipping;
+import com.braintribe.model.processing.meta.cmd.builders.PropertyMdResolver;
+import com.braintribe.model.time.DateOffsetUnit;
 
 import dev.hiconic.template.api.TemplateExpertRegistry;
 import dev.hiconic.template.api.ValueConversionBinding;
 import dev.hiconic.template.impl.EvaluationPai;
 import dev.hiconic.template.model.core.OutputNode;
 import dev.hiconic.template.model.core.output.SafeOutput;
+import dev.hiconic.template.model.core.output.FormatDate;
 import dev.hiconic.template.model.core.vd.UnaryOperation;
 import dev.hiconic.template.model.parse.TextRange;
+import dev.hiconic.template.model.meta.DefaultTransformer;
 
 /** Builds OutputNode through the same general expression parser used everywhere else. */
 public class StandardOutputExpressionParser {
@@ -41,7 +48,8 @@ public class StandardOutputExpressionParser {
 		}
 		// Complete a bare expression to the sink's admitted output ceiling (default SafeOutput; a
 		// document sink widens it to Output, so a bare Resource can complete to ImageOutput).
-		Maybe<ParsedValueExpression> completed = completeTo(parsed.get(), registry.supportedOutputType());
+		Maybe<ParsedValueExpression> completed = completeTo(parsed.get(), registry.supportedOutputType(),
+				resolver.outputPropertyMetadata(parsed.get()));
 		if (completed.isUnsatisfied()) return Maybe.empty(completed.whyUnsatisfied());
 		OutputNode output = OutputNode.T.create();
 		Object value = completed.get().value();
@@ -53,18 +61,48 @@ public class StandardOutputExpressionParser {
 		return Maybe.complete(output);
 	}
 
-	private Maybe<ParsedValueExpression> completeTo(ParsedValueExpression value, GenericModelType targetType) {
+	private Maybe<ParsedValueExpression> completeTo(ParsedValueExpression value, GenericModelType targetType,
+			PropertyMdResolver metadata) {
 		if (value.type() != null && targetType.isAssignableFrom(value.type())) return Maybe.complete(value);
+		if (metadata != null) {
+			DefaultTransformer selected = metadata.meta(DefaultTransformer.T).exclusive();
+			String name = selected == null ? null : selected.getTransformer();
+			if (name != null) {
+				GenericModelType sourceType = value.type();
+				ValueConversionBinding binding = registry.conversionTypes().stream()
+						.filter(type -> type.getTypeSignature().equals(name) || type.getShortName().equals(name))
+						.map(type -> registry.findConversion(type, sourceType))
+						.filter(java.util.Objects::nonNull).findFirst().orElse(null);
+				if (binding == null)
+					return Maybe.empty(ParseError.create("Unknown or inapplicable default transformer '" + name + "'"));
+				value = apply(value, binding, metadata);
+				if (targetType.isAssignableFrom(value.type())) return Maybe.complete(value);
+			}
+		}
 		List<ValueConversionBinding> chain = defaultChain(value.type(), targetType);
 		if (chain == null) return Maybe.empty(ParseError.create("Cannot find default value conversion from "
 				+ (value.type() == null ? "<unknown>" : value.type().getTypeSignature()) + " to " + targetType.getTypeSignature()));
 		ParsedValueExpression current = value;
-		for (ValueConversionBinding binding : chain) current = apply(current, binding);
+		for (ValueConversionBinding binding : chain) current = apply(current, binding, metadata);
 		return Maybe.complete(current);
 	}
 
-	private ParsedValueExpression apply(ParsedValueExpression input, ValueConversionBinding binding) {
+	private ParsedValueExpression apply(ParsedValueExpression input, ValueConversionBinding binding,
+			PropertyMdResolver metadata) {
 		ValueDescriptor descriptor = binding.descriptorType().create();
+		if (descriptor instanceof FormatDate date && metadata != null) {
+			Temporal temporal = metadata.meta(Temporal.T).exclusive();
+			if (temporal != null) date.setTemporal(temporal.getTemporalType().name());
+			else {
+				DateClipping clipping = metadata.meta(DateClipping.T).exclusive();
+				if (clipping != null) {
+					if (clipping.getLower() == DateOffsetUnit.day) date.setTemporal("DATE");
+					else if (clipping.getUpper() == DateOffsetUnit.hour) date.setTemporal("TIME");
+					else date.setTemporal("TIMESTAMP");
+				}
+			}
+			if (metadata.is(TimeZoneless.T)) date.setZone("UTC");
+		}
 		if (!(descriptor instanceof UnaryOperation unary))
 			throw new IllegalStateException("Default conversion VD has no unary operand: " + binding.descriptorType());
 		if (input.value() instanceof ValueDescriptor vd)

@@ -40,6 +40,11 @@ public final class TypedTemplateFactory<I> {
 		return rootType;
 	}
 
+	/** The variable under which the input object is visible to parsed expressions. */
+	public String rootVariable() {
+		return factory.rootVariable();
+	}
+
 	/**
 	 * A fresh, fully configured expert registry (a copy) matching this factory's parse configuration.
 	 * A custom sink (e.g. the document evaluation context) uses it to dispatch node/VD evaluators and

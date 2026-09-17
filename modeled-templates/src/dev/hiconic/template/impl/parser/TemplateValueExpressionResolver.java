@@ -3,11 +3,16 @@ package dev.hiconic.template.impl.parser;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.model.generic.reflection.SimpleTypes;
 import com.braintribe.model.generic.reflection.GenericModelType;
+import com.braintribe.model.processing.meta.cmd.builders.PropertyMdResolver;
 
 import dev.hiconic.template.model.parse.TextRange;
 
 public interface TemplateValueExpressionResolver {
 	Maybe<ParsedValueExpression> resolveValue(String expression, TextRange range);
+
+	default PropertyMdResolver outputPropertyMetadata(ParsedValueExpression value) {
+		return null;
+	}
 
 	default Maybe<ParsedValueExpression> resolveArgumentValue(String expression, TextRange range) {
 		Maybe<ParsedValueExpression> value = resolveValue(expression, range);

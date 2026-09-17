@@ -31,6 +31,7 @@ import com.braintribe.model.generic.reflection.VdHolder;
 import com.braintribe.model.generic.value.ValueDescriptor;
 import com.braintribe.model.generic.value.Variable;
 import com.braintribe.model.processing.meta.cmd.CmdResolver;
+import com.braintribe.model.processing.meta.cmd.builders.PropertyMdResolver;
 
 import dev.hiconic.template.api.TemplateExpertRegistry;
 import dev.hiconic.template.api.Template;
@@ -91,6 +92,7 @@ import dev.hiconic.template.model.parse.TextRange;
 
 public class StandardTemplateApiResolver implements TemplateParserResolver, TemplateValueExpressionResolver, ValidationContext {
 	private final TemplateExpertRegistry registry;
+	private final CmdResolver inputCmdResolver;
 	private final GenericModelType rootType;
 	private final String rootVariable;
 	private final Map<String, Template<?>> templates;
@@ -124,6 +126,18 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 		return registry.supportedOutputType();
 	}
 
+	@Override
+	public PropertyMdResolver outputPropertyMetadata(ParsedValueExpression value) {
+		if (inputCmdResolver == null || !(value.value() instanceof TemplatePropertyPath path)
+				|| path.getAccesses().isEmpty()) return null;
+		PathAccess last = path.getAccesses().getLast();
+		if (!(last instanceof PropertyAccess access)) return null;
+		Property property = access.getProperty().getResolvedProperty();
+		if (property == null || inputCmdResolver.getModelOracle().findEntityTypeOracle(property.getDeclaringType()) == null)
+			return null;
+		return inputCmdResolver.getMetaData().lenient(true).entityType(property.getDeclaringType()).property(property);
+	}
+
 	public StandardTemplateApiResolver(ConfigurableTemplateExpertRegistry registry, GenericModelType rootType,
 			String rootVariable, CmdResolver cmdResolver) {
 		this(registry, rootType, rootVariable, cmdResolver, cmdResolver);
@@ -138,6 +152,7 @@ public class StandardTemplateApiResolver implements TemplateParserResolver, Temp
 			String rootVariable, CmdResolver inputCmdResolver, CmdResolver expertCmdResolver,
 			Map<String, Template<?>> templates) {
 		this.registry = registry;
+		this.inputCmdResolver = inputCmdResolver;
 		this.rootType = rootType;
 		this.rootVariable = rootVariable;
 		this.templates = Map.copyOf(templates);

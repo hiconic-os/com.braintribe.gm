@@ -27,4 +27,8 @@ public interface FormatDate extends UnaryOperation {
 
 	String getZoneId();
 	void setZoneId(String zoneId);
+
+	/** Optional metadata-driven localized shape: DATE, TIME, or TIMESTAMP. */
+	String getTemporal();
+	void setTemporal(String temporal);
 }
