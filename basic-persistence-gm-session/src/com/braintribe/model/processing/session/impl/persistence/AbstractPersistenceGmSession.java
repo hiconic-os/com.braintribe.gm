@@ -115,9 +115,6 @@ import com.braintribe.model.query.Query;
 import com.braintribe.model.query.QueryResult;
 import com.braintribe.model.query.SelectQuery;
 import com.braintribe.model.query.SelectQueryResult;
-import com.braintribe.model.resource.CallStreamCapture;
-import com.braintribe.model.resource.source.PackagedSource;
-import com.braintribe.model.resource.source.TransientSource;
 import com.braintribe.model.service.api.AuthorizedRequest;
 import com.braintribe.model.service.api.GenericProcessingRequest;
 import com.braintribe.model.service.api.HasServiceRequest;
@@ -1371,37 +1368,17 @@ public abstract class AbstractPersistenceGmSession extends AbstractManagedGmSess
 			}
 			
 			if (mergeSession != null) {
-				return mergeSession.merge().adoptUnexposed(false).suspendHistory(true).envelopeFactory(this::createFrom);
+				return mergeSession.merge().adoptUnexposed(false).suspendHistory(true).transferTransientProperties(true)
+						.envelopeFactory(this::createFrom);
 			}
 			else {
 				return null;
 			}
 		}
 		
+		/** The envelope, created in the envelope session when there is one. Transient properties are transferred by the merge itself. */
 		private GenericEntity createFrom(GenericEntity entity) {
-			GenericEntity clonedEntity = envelopeSession != null? 
-					envelopeSession.create(entity.entityType()):
-						entity;
-
-			if (entity.hasTransientData()) {
-				if (entity instanceof TransientSource) {
-					TransientSource transientSource = (TransientSource) entity;
-					TransientSource clonedTransientSource = (TransientSource) clonedEntity;
-					clonedTransientSource.setInputStreamProvider(transientSource.getInputStreamProvider());
-				}
-				else if (entity instanceof CallStreamCapture) {
-					CallStreamCapture callStreamCapture = (CallStreamCapture)entity;
-					CallStreamCapture clonedCallStreamCapture = (CallStreamCapture)clonedEntity;
-					clonedCallStreamCapture.setOutputStreamProvider(callStreamCapture.getOutputStreamProvider());
-				}
-				else if (entity instanceof PackagedSource) {
-					PackagedSource packagedSource = (PackagedSource)entity;
-					PackagedSource clonedPackagedSource = (PackagedSource)clonedEntity;
-					clonedPackagedSource.setInputStreamProvider(packagedSource.getInputStreamProvider());
-				}
-			}
-			
-			return clonedEntity;
+			return envelopeSession != null ? envelopeSession.create(entity.entityType()) : entity;
 		}
 
 		private AccessRequest detach(AccessRequest accessAwareRequest) {
@@ -1441,30 +1418,6 @@ public abstract class AbstractPersistenceGmSession extends AbstractManagedGmSess
 					
 				}
 				
-				@Override
-				public GenericEntity supplyRawClone(EntityType<? extends GenericEntity> entityType, GenericEntity entity) {
-					GenericEntity clonedEntity = super.supplyRawClone(entityType, entity);
-					
-					if (entity.hasTransientData()) {
-						if (entity instanceof TransientSource) {
-							TransientSource transientSource = (TransientSource) entity;
-							TransientSource clonedTransientSource = (TransientSource) clonedEntity;
-							clonedTransientSource.setInputStreamProvider(transientSource.getInputStreamProvider());
-						}
-						else if (entity instanceof CallStreamCapture) {
-							CallStreamCapture callStreamCapture = (CallStreamCapture)entity;
-							CallStreamCapture clonedCallStreamCapture = (CallStreamCapture)clonedEntity;
-							clonedCallStreamCapture.setOutputStreamProvider(callStreamCapture.getOutputStreamProvider());
-						}
-						else if (entity instanceof PackagedSource) {
-							PackagedSource packagedSource = (PackagedSource)entity;
-							PackagedSource clonedPackagedSource = (PackagedSource)clonedEntity;
-							clonedPackagedSource.setInputStreamProvider(packagedSource.getInputStreamProvider());
-						}
-					}
-
-					return clonedEntity;
-				}
 			});
 			
 		}

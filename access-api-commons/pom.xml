@@ -47,10 +47,5 @@ limitations under the License.
             <artifactId>gm-core</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
-        <dependency>
-            <groupId>com.braintribe.gm</groupId>
-            <artifactId>basic-resource-model</artifactId>
-            <version>${V.com.braintribe.gm}</version>
-        </dependency>
     </dependencies>
 </project>
