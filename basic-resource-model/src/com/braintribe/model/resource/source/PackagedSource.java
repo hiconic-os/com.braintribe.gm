@@ -50,4 +50,13 @@ public interface PackagedSource extends ResourceSource, StreamableSource {
 		return getInputStreamProvider();
 	}
 
+	/**
+	 * Says that this source holds a transient value worth carrying onto a clone, which is the only thing this flag is used for. It does not mean the
+	 * payload lives in memory: what is stored is still the address.
+	 */
+	@Override
+	default boolean hasTransientData() {
+		return getInputStreamProvider() != null;
+	}
+
 }

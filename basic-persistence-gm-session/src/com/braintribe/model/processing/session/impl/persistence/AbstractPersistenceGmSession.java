@@ -116,6 +116,7 @@ import com.braintribe.model.query.QueryResult;
 import com.braintribe.model.query.SelectQuery;
 import com.braintribe.model.query.SelectQueryResult;
 import com.braintribe.model.resource.CallStreamCapture;
+import com.braintribe.model.resource.source.PackagedSource;
 import com.braintribe.model.resource.source.TransientSource;
 import com.braintribe.model.service.api.AuthorizedRequest;
 import com.braintribe.model.service.api.GenericProcessingRequest;
@@ -1393,6 +1394,11 @@ public abstract class AbstractPersistenceGmSession extends AbstractManagedGmSess
 					CallStreamCapture clonedCallStreamCapture = (CallStreamCapture)clonedEntity;
 					clonedCallStreamCapture.setOutputStreamProvider(callStreamCapture.getOutputStreamProvider());
 				}
+				else if (entity instanceof PackagedSource) {
+					PackagedSource packagedSource = (PackagedSource)entity;
+					PackagedSource clonedPackagedSource = (PackagedSource)clonedEntity;
+					clonedPackagedSource.setInputStreamProvider(packagedSource.getInputStreamProvider());
+				}
 			}
 			
 			return clonedEntity;
@@ -1449,6 +1455,11 @@ public abstract class AbstractPersistenceGmSession extends AbstractManagedGmSess
 							CallStreamCapture callStreamCapture = (CallStreamCapture)entity;
 							CallStreamCapture clonedCallStreamCapture = (CallStreamCapture)clonedEntity;
 							clonedCallStreamCapture.setOutputStreamProvider(callStreamCapture.getOutputStreamProvider());
+						}
+						else if (entity instanceof PackagedSource) {
+							PackagedSource packagedSource = (PackagedSource)entity;
+							PackagedSource clonedPackagedSource = (PackagedSource)clonedEntity;
+							clonedPackagedSource.setInputStreamProvider(packagedSource.getInputStreamProvider());
 						}
 					}
 

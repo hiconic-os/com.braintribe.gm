@@ -42,6 +42,7 @@ import com.braintribe.model.processing.session.api.persistence.CommitListener;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSession;
 import com.braintribe.model.processing.session.api.persistence.PersistenceGmSessionFactory;
 import com.braintribe.model.resource.CallStreamCapture;
+import com.braintribe.model.resource.source.PackagedSource;
 import com.braintribe.model.resource.source.TransientSource;
 import com.braintribe.model.service.api.ServiceRequest;
 
@@ -195,6 +196,11 @@ import com.braintribe.model.service.api.ServiceRequest;
 					CallStreamCapture clonedCallStreamCapture = (CallStreamCapture) callStreamCapture.entityType().create();
 					clonedCallStreamCapture.setOutputStreamProvider(callStreamCapture.getOutputStreamProvider());
 					return clonedCallStreamCapture;
+				} else if (t instanceof PackagedSource) {
+					PackagedSource packagedSource = (PackagedSource) t;
+					PackagedSource clonedPackagedSource = (PackagedSource) packagedSource.entityType().create();
+					clonedPackagedSource.setInputStreamProvider(packagedSource.getInputStreamProvider());
+					return clonedPackagedSource;
 				}
 			}
 
