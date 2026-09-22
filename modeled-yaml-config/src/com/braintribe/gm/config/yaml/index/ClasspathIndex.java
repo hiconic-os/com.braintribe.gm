@@ -30,6 +30,15 @@ import com.braintribe.utils.lcd.Lazy;
  */
 public class ClasspathIndex {
 
+	/**
+	 * File containing root dirs and files of an artifact meant to be treated as resources.
+	 * <p>
+	 * Only relevant when debugging while a given artifact with resources is not on the classpath as a jar, but with its compilation output folder.
+	 * 
+	 * @see #RESOURCES_INDEX_FILE_NAME
+	 */
+	private static final String RESOURCES_DECLARATION_FILE_NAME = "META-INF/classpath-resources.txt";
+
 	// URL EXAMPLE - Project in IDE on classpath:
 	// toString: file:/C:/git-dir/res-in-ws/classes/META-INF/classpath-index.txt
 	// getPath : /C:/git-dir/res-in-ws/classes/META-INF/classpath-index.txt
@@ -37,14 +46,39 @@ public class ClasspathIndex {
 	// URL EXAMPLE - JAR on classpath:
 	// toString: jar:file:/C:/maven-repo/res-on-cp/1.0/res-on-cp-1.0.jar!/META-INF/classpath-index.txt
 	// getPath : file:/C:/maven-repo/res-on-cp/1.0/res-on-cp-1.0.jar!/META-INF/classpath-index.txt
-	private static final String INDEX_FILE_NAME = "META-INF/classpath-index.txt";
+	/** File listing all the files within declared {@link #RESOURCES_DECLARATION_FILE_NAME}, generated when building an artifact. */
+	private static final String RESOURCES_INDEX_FILE_NAME = "META-INF/classpath-index.txt";
+
+	/**
+	 * Names the artifact a resource belongs to, as {@code artifactId=<id>}. Read from the slots of an assembled filesystem mirror, where it is the
+	 * authoritative origin. It is optional; without it the slot folder name is used.
+	 */
 	private static final String ORIGIN_FILE_NAME = "META-INF/classpath-origin.properties";
+
+	/**
+	 * Index for resources extracted from artifacts that contain resources and nothing else, consisting of all the entries from the corresponding
+	 * {@link #RESOURCES_INDEX_FILE_NAME} files.
+	 * <p>
+	 * It lies at the root of the mirror, next to one folder per artifact, and is a UTF-8 properties file:
+	 *
+	 * <pre>
+	 * formatVersion=1
+	 * artifact.count=2
+	 * artifact.0.folder=address-book-configuration-1.0
+	 * artifact.0.origin=address-book-configuration
+	 * artifact.0.sourceName=address-book-configuration-1.0.jar
+	 * artifact.0.resource.count=2
+	 * artifact.0.resource.0.path=ADDRESS-BOOK-CONF/address-book.yaml
+	 * artifact.0.resource.1.path=static/logo.svg
+	 * artifact.1.folder....
+	 * </pre>
+	 *
+	 * Every key but {@code sourceName} is mandatory. A folder or a path that leaves its parent, or that names something missing, is rejected. Values
+	 * escape backslash, newline and {@code =}.
+	 * <p>
+	 * Blocks are written in {@code folder} order, so the same input always gives the same file.
+	 */
 	private static final String FILESYSTEM_INDEX_FILE_NAME = "index.properties";
-	private static final Set<String> EXPLODED_CLASSPATH_INFRASTRUCTURE = Set.of(
-			INDEX_FILE_NAME,
-			ORIGIN_FILE_NAME,
-			"META-INF/classpath-resource-only",
-			"META-INF/artifact-descriptor.properties");
 
 	private static final Logger log = Logger.getLogger(ClasspathIndex.class);
 
@@ -70,9 +104,8 @@ public class ClasspathIndex {
 	 * Creates an index backed exclusively by one or more artifact-scoped filesystem mirrors.
 	 * <p>
 	 * A source's logical prefix is prepended to every indexed or directly discovered path. This permits a physically clearer projection such as
-	 * {@code effective-conf/<artifact>/foo.yaml} to retain its canonical classpath identity {@code HICONIC-CONF/foo.yaml}.
-	 * Later sources replace an entry with the same logical path and artifact origin, allowing effective projections to coexist with a complete
-	 * packaged-resource mirror.
+	 * {@code effective-conf/<artifact>/foo.yaml} to retain its canonical classpath identity {@code HICONIC-CONF/foo.yaml}. Later sources replace an
+	 * entry with the same logical path and artifact origin, allowing effective projections to coexist with a complete packaged-resource mirror.
 	 */
 	public ClasspathIndex(List<FilesystemSource> filesystemSources) {
 		this(null, requireFilesystemSources(filesystemSources));
@@ -83,9 +116,8 @@ public class ClasspathIndex {
 	}
 
 	/**
-	 * Creates an indexed filesystem source while excluding selected physical resource prefixes.
-	 * This is useful when a packaged resource mirror remains authoritative for general resources,
-	 * but a compiled configuration space replaces its raw {@code HICONIC-CONF/} contributions.
+	 * Creates an indexed filesystem source while excluding selected physical resource prefixes. This is useful when a packaged resource mirror
+	 * remains authoritative for general resources, but a compiled configuration space replaces its raw {@code HICONIC-CONF/} contributions.
 	 */
 	public static FilesystemSource filesystemSource(Path root, String logicalPrefix, Collection<String> excludedResourcePrefixes) {
 		return new FilesystemSource(requireFilesystemRoot(root), normalizeLogicalPrefix(logicalPrefix),
@@ -93,8 +125,8 @@ public class ClasspathIndex {
 	}
 
 	/**
-	 * Creates a direct slot source. Every direct child directory is a slot and every regular file
-	 * below it is exposed without requiring classpath-style {@code META-INF} indexes.
+	 * Creates a direct slot source. Every direct child directory is a slot and every regular file below it is exposed without requiring
+	 * classpath-style {@code META-INF} indexes.
 	 */
 	public static FilesystemSource filesystemSlots(Path root, String logicalPrefix) {
 		return new FilesystemSource(requireFilesystemRoot(root), normalizeLogicalPrefix(logicalPrefix), Set.of(), false);
@@ -165,7 +197,7 @@ public class ClasspathIndex {
 		if (!filesystemSources.isEmpty()) {
 			Map<String, ClasspathEntry> distinctEntries = new LinkedHashMap<>();
 			for (ClasspathEntry entry : entries)
-				distinctEntries.put(entry.path + "\u0000" + entry.origin, entry);
+				distinctEntries.put(key(entry.path, entry.origin), entry);
 			entries = new ArrayList<>(distinctEntries.values());
 		}
 		entries.sort((e1, e2) -> e1.path.compareTo(e2.path));
@@ -175,27 +207,24 @@ public class ClasspathIndex {
 
 	private void loadClasspathIndex(List<ClasspathEntry> entries) {
 		try {
-			Enumeration<URL> resources = classLoader.getResources(INDEX_FILE_NAME);
+			Enumeration<URL> resources = classLoader.getResources(RESOURCES_INDEX_FILE_NAME);
 			while (resources.hasMoreElements())
 				addEntriesFromIndexFile(resources.nextElement(), entries);
 
-			/*
-			 * A jar needs an explicit index because a ClassLoader cannot enumerate its
-			 * contents. An IDE, however, exposes project outputs as ordinary filesystem
-			 * directories. Treat those directories as exploded jars so a workspace does
-			 * not need an Eclipse-specific builder merely to materialize the index.
-			 */
-			loadExplodedClasspathEntries(entries);
+			/* A jar needs an explicit index because a ClassLoader cannot enumerate its contents. An IDE, however, exposes project outputs as ordinary
+			 * filesystem directories, and there the generated index is absent. Such a directory can be enumerated, so the authored declaration is
+			 * expanded instead. A workspace therefore needs no IDE specific builder to materialize the index. */
+			loadEntriesFromCpDirs(entries);
 
 		} catch (IOException e) {
-			throw new UncheckedIOException("Error while getting Resources: " + INDEX_FILE_NAME, e);
+			throw new UncheckedIOException("Error while getting Resources: " + RESOURCES_INDEX_FILE_NAME, e);
 		}
 	}
 
-	private void loadExplodedClasspathEntries(List<ClasspathEntry> entries) throws IOException {
+	private void loadEntriesFromCpDirs(List<ClasspathEntry> entries) throws IOException {
 		Set<String> knownEntries = new LinkedHashSet<>();
 		for (ClasspathEntry entry : entries)
-			knownEntries.add(entry.path + "\u0000" + entry.origin);
+			knownEntries.add(key(entry.path, entry.origin));
 
 		Enumeration<URL> roots = classLoader.getResources("");
 		Set<Path> visitedRoots = new LinkedHashSet<>();
@@ -208,31 +237,70 @@ public class ClasspathIndex {
 			try {
 				root = Path.of(rootUrl.toURI()).toAbsolutePath().normalize();
 			} catch (URISyntaxException e) {
-				throw new IllegalStateException("Invalid exploded classpath root URL: " + rootUrl, e);
+				throw new IllegalStateException("Invalid classpath root URL: " + rootUrl, e);
 			}
-			if (!visitedRoots.add(root) || !Files.isDirectory(root) || Files.isRegularFile(root.resolve(INDEX_FILE_NAME)))
+			if (!visitedRoots.add(root) || !Files.isDirectory(root))
 				continue;
 
-			String origin = artifactOrigin(root);
-			try (var paths = Files.walk(root)) {
-				for (Path resource : paths.filter(Files::isRegularFile).sorted().toList()) {
-					String path = root.relativize(resource).toString().replace('\\', '/');
-					if (!isExplodedClasspathResource(path))
-						continue;
+			// A built root carries the generated index, which the pass above has already read.
+			if (Files.isRegularFile(root.resolve(RESOURCES_INDEX_FILE_NAME)))
+				continue;
 
-					String key = path + "\u0000" + origin;
-					if (knownEntries.add(key))
-						entries.add(new ClasspathEntry(path, resource.toUri().toURL(), origin));
-				}
+			Path declaration = root.resolve(RESOURCES_DECLARATION_FILE_NAME);
+			if (Files.isRegularFile(declaration))
+				addEntriesFromDeclarationFile(root, declaration, knownEntries, entries);
+		}
+	}
+
+	/**
+	 * Expands the authored declaration of an artifact. Every listed entry is either a file, which contributes itself, or a folder, which contributes
+	 * every file below it.
+	 */
+	private void addEntriesFromDeclarationFile(Path root, Path declaration, Set<String> knownEntries, List<ClasspathEntry> entries)
+			throws IOException {
+		String origin = artifactOrigin(root);
+
+		int lineNum = 0;
+		for (String line : Files.readAllLines(declaration, StandardCharsets.UTF_8)) {
+			lineNum++;
+
+			line = line.trim();
+			if (line.isEmpty() || line.startsWith("#"))
+				continue;
+			line = canonicalResourcePath(line);
+
+			Path declared = root.resolve(line).normalize();
+			if (!declared.startsWith(root)) {
+				log.warn("Entry [" + line + "] on line # " + lineNum + " escapes the artifact. Declaration file: " + declaration);
+				continue;
+			}
+			if (!Files.exists(declared)) {
+				log.warn("Entry [" + line + "] on line # " + lineNum + " does not exist. Declaration file: " + declaration);
+				continue;
+			}
+
+			if (Files.isRegularFile(declared)) {
+				addDeclaredEntry(root, declared, origin, knownEntries, entries);
+				continue;
+			}
+
+			try (var paths = Files.walk(declared)) {
+				for (Path resource : paths.filter(Files::isRegularFile).sorted().toList())
+					addDeclaredEntry(root, resource, origin, knownEntries, entries);
 			}
 		}
 	}
 
-	private static boolean isExplodedClasspathResource(String path) {
-		return !path.endsWith(".class")
-				&& !path.endsWith("/.gitignore")
-				&& !path.equals(".gitignore")
-				&& !EXPLODED_CLASSPATH_INFRASTRUCTURE.contains(path);
+	private void addDeclaredEntry(Path root, Path resource, String origin, Set<String> knownEntries, List<ClasspathEntry> entries)
+			throws IOException {
+		String path = canonicalResourcePath(root.relativize(resource).toString());
+
+		if (knownEntries.add(key(path, origin)))
+			entries.add(new ClasspathEntry(path, resource.toUri().toURL(), origin));
+	}
+
+	private static String key(String path, String origin) {
+		return path + "\0" + origin;
 	}
 
 	private static String artifactOrigin(Path classpathRoot) {
@@ -251,7 +319,7 @@ public class ClasspathIndex {
 	private void addEntriesFromIndexFile(URL indexFileUrl, List<ClasspathEntry> entries) {
 		String jarUrlPath = artifactPrefix(indexFileUrl);
 		if (jarUrlPath == null) {
-			log.warn("URL for indexFile does not end with [" + INDEX_FILE_NAME + "]: " + indexFileUrl);
+			log.warn("URL for indexFile does not end with [" + RESOURCES_INDEX_FILE_NAME + "]: " + indexFileUrl);
 			return;
 		}
 
@@ -315,7 +383,7 @@ public class ClasspathIndex {
 		// Backward compatibility for mirrors produced before the central filesystem index.
 		try (var children = Files.list(source.root)) {
 			for (Path artifactRoot : children.filter(Files::isDirectory).sorted().toList()) {
-				Path index = artifactRoot.resolve(INDEX_FILE_NAME);
+				Path index = artifactRoot.resolve(RESOURCES_INDEX_FILE_NAME);
 				if (Files.isRegularFile(index))
 					addEntriesFromFilesystemIndex(source, artifactRoot, index, entries);
 			}
@@ -370,8 +438,7 @@ public class ClasspathIndex {
 						String relative = slot.relativize(resource).toString().replace('\\', '/');
 						if (source.excludes(relative))
 							continue;
-						entries.add(new ClasspathEntry(source.logicalPrefix + relative, resource.toUri().toURL(),
-								slot.getFileName().toString()));
+						entries.add(new ClasspathEntry(source.logicalPrefix + relative, resource.toUri().toURL(), slot.getFileName().toString()));
 					}
 				}
 			}
@@ -396,8 +463,7 @@ public class ClasspathIndex {
 
 				Path resource = artifactRoot.resolve(line).normalize();
 				if (!resource.startsWith(artifactRoot.normalize()) || !Files.isRegularFile(resource)) {
-					log.warn("File [" + line + "] referenced on line # " + lineNum
-							+ " not found in filesystem artifact mirror: " + index);
+					log.warn("File [" + line + "] referenced on line # " + lineNum + " not found in filesystem artifact mirror: " + index);
 					continue;
 				}
 				entries.add(new ClasspathEntry(source.logicalPrefix + line, resource.toUri().toURL(), origin));
@@ -437,13 +503,9 @@ public class ClasspathIndex {
 			return versionSeparator > 0 ? artifactWithVersion.substring(0, versionSeparator) : artifactWithVersion;
 		}
 
-		/*
-		 * Eclipse exposes project resources from the configured output directory,
-		 * e.g. <project>/classes/META-INF/classpath-index.txt. Unlike a jar URL this
-		 * URL carries no artifact coordinates, but the project directory is the
-		 * artifact id by DevRock convention. Maven-style target/classes and
-		 * build/classes layouts are handled as well for standalone classpaths.
-		 */
+		/* Eclipse exposes project resources from the configured output directory, e.g. <project>/classes/META-INF/classpath-index.txt. Unlike a jar
+		 * URL this URL carries no artifact coordinates, but the project directory is the artifact id by DevRock convention. Maven-style
+		 * target/classes and build/classes layouts are handled as well for standalone classpaths. */
 		if ("file".equals(indexFileUrl.getProtocol())) {
 			try {
 				Path index = Path.of(indexFileUrl.toURI());
@@ -464,9 +526,9 @@ public class ClasspathIndex {
 
 	private String artifactPrefix(URL indexFileUrl) {
 		String path = indexFileUrl.getPath();
-		if (!path.endsWith(INDEX_FILE_NAME))
+		if (!path.endsWith(RESOURCES_INDEX_FILE_NAME))
 			return null;
-		return path.substring(0, path.length() - INDEX_FILE_NAME.length());
+		return path.substring(0, path.length() - RESOURCES_INDEX_FILE_NAME.length());
 	}
 
 	private static Path requireFilesystemRoot(Path path) {

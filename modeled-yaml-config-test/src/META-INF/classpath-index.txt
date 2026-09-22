@@ -1,2 +1,0 @@
-non-existent-file.yaml
-simple-loaded-entity.test-artifact.yaml

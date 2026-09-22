@@ -114,19 +114,28 @@ public class ClasspathIndexTest {
 	}
 
 	@Test
-	public void scansExplodedClasspathWithoutGeneratedIndex() throws Exception {
-		Path project = temporaryFolder.newFolder("exploded-configuration").toPath();
+	public void expandsDeclaredClasspathResources() throws Exception {
+		Path project = temporaryFolder.newFolder("declared-configuration").toPath();
 		Path output = project.resolve("classes");
+		Path declaration = output.resolve("META-INF/classpath-resources.txt");
 		Path config = output.resolve("HICONIC-CONF/database-configuration.yaml");
-		Path imports = output.resolve("META-INF/configuration-imports.yaml");
+		Path nested = output.resolve("HICONIC-CONF/nested/extra.yaml");
+		Path declaredFile = output.resolve("notes.txt");
+		Path undeclared = output.resolve("HICONIC-RESOURCES/hidden.txt");
 		Path generatedDescriptor = output.resolve("META-INF/artifact-descriptor.properties");
+		Path ignoreFile = output.resolve(".gitignore");
 		Path bytecode = output.resolve("example/Generated.class");
-		Files.createDirectories(config.getParent());
-		Files.createDirectories(imports.getParent());
+		Files.createDirectories(nested.getParent());
+		Files.createDirectories(undeclared.getParent());
+		Files.createDirectories(declaration.getParent());
 		Files.createDirectories(bytecode.getParent());
+		Files.writeString(declaration, "# declared entries\n\nHICONIC-CONF\nnotes.txt\n", StandardCharsets.UTF_8);
 		Files.writeString(config, "name: auth\n", StandardCharsets.UTF_8);
-		Files.writeString(imports, "imports: []\n", StandardCharsets.UTF_8);
-		Files.writeString(generatedDescriptor, "artifactId=exploded-configuration\n", StandardCharsets.UTF_8);
+		Files.writeString(nested, "extra: true\n", StandardCharsets.UTF_8);
+		Files.writeString(declaredFile, "hello\n", StandardCharsets.UTF_8);
+		Files.writeString(undeclared, "hidden\n", StandardCharsets.UTF_8);
+		Files.writeString(generatedDescriptor, "artifactId=declared-configuration\n", StandardCharsets.UTF_8);
+		Files.writeString(ignoreFile, "/classes\n", StandardCharsets.UTF_8);
 		Files.write(bytecode, new byte[] { 0 });
 
 		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { output.toUri().toURL() }, null)) {
@@ -134,8 +143,40 @@ public class ClasspathIndexTest {
 
 			assertThat(pathsOf(entries)).containsExactlyInAnyOrder(
 					"HICONIC-CONF/database-configuration.yaml",
-					"META-INF/configuration-imports.yaml");
-			assertThat(entries).allMatch(entry -> entry.origin.equals("exploded-configuration"));
+					"HICONIC-CONF/nested/extra.yaml",
+					"notes.txt");
+			assertThat(entries).allMatch(entry -> entry.origin.equals("declared-configuration"));
+		}
+	}
+
+	@Test
+	public void skipsUndeclaredClasspathRoot() throws Exception {
+		Path project = temporaryFolder.newFolder("undeclared-library").toPath();
+		Path output = project.resolve("classes");
+		Path config = output.resolve("HICONIC-CONF/stray.yaml");
+		Path ignoreFile = output.resolve(".gitignore");
+		Files.createDirectories(config.getParent());
+		Files.writeString(config, "stray: true\n", StandardCharsets.UTF_8);
+		Files.writeString(ignoreFile, "/classes\n", StandardCharsets.UTF_8);
+
+		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { output.toUri().toURL() }, null)) {
+			assertThat(new ClasspathIndex(classLoader).all()).isEmpty();
+		}
+	}
+
+	@Test
+	public void ignoresMissingDeclaredEntry() throws Exception {
+		Path project = temporaryFolder.newFolder("partly-declared-configuration").toPath();
+		Path output = project.resolve("classes");
+		Path declaration = output.resolve("META-INF/classpath-resources.txt");
+		Path config = output.resolve("HICONIC-CONF/present.yaml");
+		Files.createDirectories(config.getParent());
+		Files.createDirectories(declaration.getParent());
+		Files.writeString(declaration, "HICONIC-CONF\nHICONIC-RESOURCES\n", StandardCharsets.UTF_8);
+		Files.writeString(config, "present: true\n", StandardCharsets.UTF_8);
+
+		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { output.toUri().toURL() }, null)) {
+			assertThat(pathsOf(new ClasspathIndex(classLoader).all())).containsExactly("HICONIC-CONF/present.yaml");
 		}
 	}
 
