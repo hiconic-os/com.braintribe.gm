@@ -75,7 +75,7 @@ public class ModelBasedValueDescriptorExpressionCodec implements ValueDescriptor
 		try {
 			Template template = Template.parse(expression);
 			if (template.isStaticOnly())
-				return Maybe.complete(expression);
+				return Maybe.complete(template.fragments().isEmpty() ? "" : template.fragments().get(0).getText());
 
 			List<Object> fragments = new ArrayList<>();
 			for (TemplateFragment fragment : template.fragments())

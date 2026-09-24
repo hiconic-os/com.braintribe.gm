@@ -52,6 +52,35 @@ public class ValueDescriptorExpressionCodecTest {
 	}
 
 	@Test
+	public void consumesPlaceholderEscapeInStaticText() {
+		Object parsed = codec.parse("prefix-$${token}-x=$${testImportText('./payload.txt')}").get();
+
+		assertThat(parsed).isEqualTo("prefix-${token}-x=${testImportText('./payload.txt')}");
+		assertThat(codec.render(parsed).get()).isEqualTo("prefix-$${token}-x=$${testImportText('./payload.txt')}");
+	}
+
+	@Test
+	public void preservesEscapedPlaceholderInYamlRoundtrip() {
+		String yaml = "string: prefix-$${token}-suffix\n";
+		MergedEntity parsed = YamlConfigurations.read(MergedEntity.T)
+				.placeholders()
+				.options(options -> options.set(ValueDescriptorExpressionCodecOption.class, codec))
+				.from(new StringReader(yaml))
+				.get();
+
+		assertThat(parsed.getString()).isEqualTo("prefix-${token}-suffix");
+
+		GmSerializationOptions options = GmSerializationOptions.deriveDefaults()
+				.inferredRootType(MergedEntity.T)
+				.set(PlaceholderSupport.class, true)
+				.set(ValueDescriptorExpressionCodecOption.class, codec)
+				.build();
+		StringWriter writer = new StringWriter();
+		new YamlMarshaller().marshall(writer, parsed, options);
+		assertThat(writer.toString()).contains("string: \"prefix-$${token}-suffix\"");
+	}
+
+	@Test
 	public void rejectsFunctionsOutsideSuppliedModelSpace() {
 		Maybe<Object> parsed = codec.parse("${unknown('./payload.txt')}");
 
