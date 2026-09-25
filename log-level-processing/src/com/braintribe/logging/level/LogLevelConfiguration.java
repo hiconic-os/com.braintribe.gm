@@ -17,6 +17,7 @@ public class LogLevelConfiguration {
 	public static final String LEVEL_WARN = "WARN";
 	public static final String LEVEL_ERROR = "ERROR";
 	public static final String LEVEL_FATAL = "FATAL";
+	public static final String LEVEL_OFF = "OFF";
 
 	public Map<String, String> resolveEffectiveLogLevels(Map<String, String> deployedLevels, Map<String, String> persistentLevels) {
 		Map<String, String> effectiveLevels = new LinkedHashMap<>();
@@ -105,6 +106,7 @@ public class LogLevelConfiguration {
 			case LEVEL_WARN:
 			case LEVEL_ERROR:
 			case LEVEL_FATAL:
+			case LEVEL_OFF:
 				return normalized;
 			default:
 				return null;

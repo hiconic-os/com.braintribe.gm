@@ -17,6 +17,7 @@ public class JulLogLevelFramework implements LogLevelFramework {
 	public static final String LEVEL_WARN = "WARN";
 	public static final String LEVEL_ERROR = "ERROR";
 	public static final String LEVEL_FATAL = "FATAL";
+	public static final String LEVEL_OFF = "OFF";
 
 	@Override
 	public Map<String, String> getConfiguredLogLevels() {
@@ -100,6 +101,8 @@ public class JulLogLevelFramework implements LogLevelFramework {
 			case LEVEL_ERROR:
 			case LEVEL_FATAL:
 				return Level.SEVERE;
+			case LEVEL_OFF:
+				return Level.OFF;
 			default:
 				throw new IllegalArgumentException("Unsupported log level: " + levelName);
 		}
@@ -111,6 +114,9 @@ public class JulLogLevelFramework implements LogLevelFramework {
 		}
 
 		int value = julLevel.intValue();
+		if (value == Level.OFF.intValue()) {
+			return LEVEL_OFF;
+		}
 
 		if (value <= Level.FINER.intValue()) {
 			return LEVEL_TRACE;
