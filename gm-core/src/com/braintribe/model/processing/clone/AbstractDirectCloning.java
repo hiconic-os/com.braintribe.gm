@@ -33,6 +33,7 @@ import com.braintribe.model.generic.reflection.ListType;
 import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.SetType;
+import com.braintribe.model.generic.reflection.TransientProperty;
 
 public abstract class AbstractDirectCloning implements CloningApi {
 	private CloningVisitor cloningVisitor;
@@ -41,19 +42,20 @@ public abstract class AbstractDirectCloning implements CloningApi {
 	public void setCloningVisitor(CloningVisitor cloningVisitor) {
 		this.cloningVisitor = cloningVisitor;
 	}
-	
+
 	@Override
 	public <T> T cloneValue(Object value, GenericModelType type) {
-		if (cloningVisitor != null) cloningVisitor.enterRootValue(type, value);
-		
+		if (cloningVisitor != null)
+			cloningVisitor.enterRootValue(type, value);
+
 		try {
-			return (T)doCloneValue(type, value);
-		}
-		finally {
-			if (cloningVisitor != null) cloningVisitor.leaveRootValue(type, value);
+			return (T) doCloneValue(type, value);
+		} finally {
+			if (cloningVisitor != null)
+				cloningVisitor.leaveRootValue(type, value);
 		}
 	}
-	
+
 	@Override
 	public <T> T cloneValue(Object value) {
 		return cloneValue(value, BaseType.INSTANCE);
@@ -79,7 +81,6 @@ public abstract class AbstractDirectCloning implements CloningApi {
 		return cloneSet(set, set.type());
 	}
 
-
 	@Override
 	public <T> SetBase<T> cloneSet(Set<T> set) {
 		return cloneSet(set, EssentialCollectionTypes.TYPE_SET);
@@ -89,7 +90,6 @@ public abstract class AbstractDirectCloning implements CloningApi {
 	public <T> SetBase<T> cloneSet(Set<T> set, SetType setType) {
 		return cloneValue(set, setType);
 	}
-
 
 	@Override
 	public <T> ListBase<T> cloneList(ListBase<T> list) {
@@ -125,178 +125,178 @@ public abstract class AbstractDirectCloning implements CloningApi {
 	public <T extends GenericEntity> T cloneEntity(T entity) {
 		return cloneValue(entity, entity.entityType());
 	}
-	
+
 	protected GenericEntity doCloneEntity(GenericEntity entity) {
 		CloneTarget cloneTarget = acquireCloneTarget(entity);
-		
+
 		GenericEntity clonedEntity = cloneTarget.getEntity();
-		
-		
+
 		if (cloningVisitor != null)
 			cloningVisitor.enterEntity(entity, clonedEntity);
-		
+
 		try {
 			if (!cloneTarget.shouldCloneTransitively()) {
 				return clonedEntity;
 			}
-			
-			for (Property property: entity.entityType().getProperties()) {
+
+			transferTransientData(entity, clonedEntity);
+
+			for (Property property : entity.entityType().getProperties()) {
 				GenericModelType propertyType = property.getType();
-	
+
 				Object propertyValue = property.getDirectUnsafe(entity);
-				
+
 				if (cloningVisitor != null)
 					cloningVisitor.enterPropertyValue(entity, clonedEntity, property, propertyType, propertyValue);
-				
+
 				try {
 					Object clonedPropertyValue = doCloneValue(propertyType, propertyValue);
 					transferProperty(clonedEntity, property, clonedPropertyValue);
-				}
-				finally {
+				} finally {
 					if (cloningVisitor != null)
 						cloningVisitor.leavePropertyValue(entity, clonedEntity, property, propertyType, propertyValue);
 				}
-				
+
 			}
-			
+
 			return clonedEntity;
-		}
-		finally {
+		} finally {
 			if (cloningVisitor != null)
 				cloningVisitor.leaveEntity(entity, clonedEntity);
 		}
 	}
-	
+
 	protected void transferProperty(GenericEntity entity, Property property, Object value) {
-		property.setDirectUnsafe(entity, value);	
+		property.setDirectUnsafe(entity, value);
 	}
-	
+
+	protected void transferTransientData(GenericEntity entity, GenericEntity clonedEntity) {
+		for (TransientProperty transientProperty : entity.entityType().getTransientProperties())
+			transientProperty.set(clonedEntity, transientProperty.get(entity));
+	}
+
 	protected Object doCloneValue(GenericModelType type, Object value) {
-		
-		if (value == null || type.isScalar()) 
+
+		if (value == null || type.isScalar())
 			return doCloneScalar(type, value);
 
 		switch (type.getTypeCode()) {
-		case objectType: return doCloneValue(type.getActualType(value), value);
-		case entityType: return doCloneEntity((GenericEntity)value);
-		case listType: return doCloneList((List<?>)value, (ListType)type);
-		case mapType: return doCloneMap((Map<?, ?>)value, (MapType)type);
-		case setType: return doCloneSet((Set<?>)value, (SetType)type);
-		default:
-			throw new IllegalStateException("unexpected typecode: " + type.getTypeCode());
+			case objectType:
+				return doCloneValue(type.getActualType(value), value);
+			case entityType:
+				return doCloneEntity((GenericEntity) value);
+			case listType:
+				return doCloneList((List<?>) value, (ListType) type);
+			case mapType:
+				return doCloneMap((Map<?, ?>) value, (MapType) type);
+			case setType:
+				return doCloneSet((Set<?>) value, (SetType) type);
+			default:
+				throw new IllegalStateException("unexpected typecode: " + type.getTypeCode());
 		}
 	}
-	
+
 	protected Object doCloneScalar(@SuppressWarnings("unused") GenericModelType type, Object value) {
 		return value;
 	}
 
 	protected <T> ListBase<T> doCloneList(List<T> list, ListType listType) {
 		ListBase<T> clonedList = (ListBase<T>) listType.createPlain();
-		
+
 		GenericModelType elementType = listType.getCollectionElementType();
-		
+
 		if (shortcutScalars && elementType.isScalar()) {
 			clonedList.addAll(list);
-		}
-		else {
+		} else {
 			int i = 0;
-			for (T element: list) {
+			for (T element : list) {
 
 				GenericModelType actualElementType = actualTypeForCloning(elementType, element);
 
 				if (cloningVisitor != null)
 					cloningVisitor.enterListElement(listType, list, i, actualElementType, element);
-				
+
 				try {
-					T clonedElement = (T)doCloneValue(actualElementType, element);
+					T clonedElement = (T) doCloneValue(actualElementType, element);
 					clonedList.add(clonedElement);
-				}
-				finally {
+				} finally {
 					if (cloningVisitor != null)
 						cloningVisitor.leaveListElement(listType, list, i, actualElementType, element);
 				}
 				i++;
 			}
 		}
-		
+
 		return clonedList;
 	}
-	
-	
+
 	protected <T> SetBase<T> doCloneSet(Set<T> set, SetType setType) {
 		SetBase<T> clonedSet = (SetBase<T>) setType.createPlain();
-		
+
 		GenericModelType elementType = setType.getCollectionElementType();
-		
+
 		if (shortcutScalars && elementType.isScalar()) {
 			clonedSet.addAll(set);
-		}
-		else {
-			for (T element: set) {
+		} else {
+			for (T element : set) {
 
 				GenericModelType actualElementType = actualTypeForCloning(elementType, element);
 
 				if (cloningVisitor != null)
 					cloningVisitor.enterSetElement(setType, set, actualElementType, element);
-				
+
 				try {
-					T clonedElement = (T)doCloneValue(actualElementType, element);
+					T clonedElement = (T) doCloneValue(actualElementType, element);
 					clonedSet.add(clonedElement);
-				}
-				finally {
+				} finally {
 					if (cloningVisitor != null)
 						cloningVisitor.leaveSetElement(setType, set, actualElementType, element);
 				}
 			}
 		}
-		
+
 		return clonedSet;
 	}
-	
+
 	protected <K, V> MapBase<K, V> doCloneMap(Map<K, V> map, MapType mapType) {
-		MapBase<K, V> clonedMap = (MapBase<K,V>)mapType.createPlain();
-		
+		MapBase<K, V> clonedMap = (MapBase<K, V>) mapType.createPlain();
+
 		if (shortcutScalars && mapType.hasSimpleOrEnumContent()) {
 			clonedMap.putAll(map);
-		}
-		else {
+		} else {
 			GenericModelType keyType = mapType.getKeyType();
 			GenericModelType valueType = mapType.getValueType();
-			
-			for (Map.Entry<K, V> entry: map.entrySet()) {
+
+			for (Map.Entry<K, V> entry : map.entrySet()) {
 				K key = entry.getKey();
 				V value = entry.getValue();
 
 				GenericModelType actualKeyType = actualTypeForCloning(keyType, key);
 				GenericModelType actualValueType = actualTypeForCloning(valueType, value);
-				
-				
+
 				if (cloningVisitor != null)
 					cloningVisitor.enterMapKey(mapType, map, actualKeyType, key);
-					
+
 				final K clonedKey;
-				
+
 				try {
-					clonedKey = (K)doCloneValue(actualKeyType, key);
-				}
-				finally {
+					clonedKey = (K) doCloneValue(actualKeyType, key);
+				} finally {
 					if (cloningVisitor != null)
 						cloningVisitor.leaveMapKey(mapType, map, actualKeyType, key);
 				}
 
 				if (cloningVisitor != null)
 					cloningVisitor.enterMapValue(mapType, map, actualKeyType, key, actualValueType, value);
-					
-				final V clonedValue; 
+
+				final V clonedValue;
 				try {
-					clonedValue = (V)doCloneValue(actualValueType, value);
-				}
-				finally {
+					clonedValue = (V) doCloneValue(actualValueType, value);
+				} finally {
 					if (cloningVisitor != null)
 						cloningVisitor.leaveMapValue(mapType, map, actualKeyType, key, actualValueType, value);
 				}
-				
+
 				clonedMap.put(clonedKey, clonedValue);
 			}
 		}
@@ -304,15 +304,14 @@ public abstract class AbstractDirectCloning implements CloningApi {
 	}
 
 	/**
-	 * Determines the type passed to {@link #doCloneValue(GenericModelType, Object)} for a value occurring in a
-	 * collection. The default implementation deliberately preserves the historic behavior. Specialized direct
-	 * cloners may override this hook when a raw transport value has to be projected before its actual model type can
-	 * be determined.
+	 * Determines the type passed to {@link #doCloneValue(GenericModelType, Object)} for a value occurring in a collection. The default implementation
+	 * deliberately preserves the historic behavior. Specialized direct cloners may override this hook when a raw transport value has to be projected
+	 * before its actual model type can be determined.
 	 */
 	protected GenericModelType actualTypeForCloning(GenericModelType declaredType, Object value) {
 		return declaredType.getActualType(value);
 	}
-	
+
 	protected abstract CloneTarget acquireCloneTarget(GenericEntity entity);
 
 }

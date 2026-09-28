@@ -5,6 +5,9 @@ package com.braintribe.gm.config.yaml;
 
 import static com.braintribe.testing.junit.assertions.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -22,6 +25,7 @@ import com.braintribe.model.bvd.convert.ToString;
 import com.braintribe.model.bvd.string.Concatenation;
 import com.braintribe.model.generic.value.Variable;
 import com.braintribe.model.processing.vde.reasoned.api.ResidualValuePolicy;
+import com.braintribe.model.resource.source.PackagedSource;
 import com.braintribe.model.processing.vde.reasoned.impl.ReasonedValueDescriptorMaterializer;
 import com.braintribe.model.processing.vde.reasoned.impl.StandardValueDescriptorEvaluationContext;
 import com.braintribe.model.processing.vde.reasoned.impl.ValueDescriptorExpertRegistry;
@@ -103,6 +107,40 @@ public class ReasonedValueDescriptorMaterializerTest {
         SimpleEntity value = result.getSimpleEntityList().get(0);
         assertThat(value).isNotSameAs(borrowed);
         assertThat(value.getStringProperty()).isEqualTo("borrowed");
+    }
+
+    /**
+     * A transient attribute is a plain Java field rather than a property, so a clone only keeps it because the cloning transfers it explicitly. Without
+     * that, a resolved {@link PackagedSource} keeps its address but loses the reader that makes it streamable.
+     */
+    @Test
+    public void carriesTransientDataOntoTheClone() throws Exception {
+        PackagedSource borrowed = PackagedSource.T.createRaw();
+        borrowed.setArtifact("my-artifact");
+        borrowed.setPath("HICONIC-CONF/logo.svg");
+        borrowed.setInputStreamProvider(() -> new ByteArrayInputStream("payload".getBytes(StandardCharsets.UTF_8)));
+
+        PackagedSource result = materializer(nameContext(name -> Maybe.complete(name))).materialize(borrowed).get();
+
+        assertThat(result).isNotSameAs(borrowed);
+        assertThat(result.getPath()).isEqualTo("HICONIC-CONF/logo.svg");
+        assertThat(result.getInputStreamProvider()).isSameAs(borrowed.getInputStreamProvider());
+        try (InputStream in = result.openStream()) {
+            assertThat(new String(in.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("payload");
+        }
+    }
+
+    /** An entity that reports no transient data is cloned as before, i.e. nothing is read from it that it does not offer. */
+    @Test
+    public void entityWithoutTransientDataIsUnaffected() {
+        PackagedSource borrowed = PackagedSource.T.createRaw();
+        borrowed.setArtifact("my-artifact");
+        borrowed.setPath("HICONIC-CONF/logo.svg");
+
+        PackagedSource result = materializer(nameContext(name -> Maybe.complete(name))).materialize(borrowed).get();
+
+        assertThat(result.hasTransientData()).isFalse();
+        assertThat(result.getInputStreamProvider()).isNull();
     }
 
     @Test

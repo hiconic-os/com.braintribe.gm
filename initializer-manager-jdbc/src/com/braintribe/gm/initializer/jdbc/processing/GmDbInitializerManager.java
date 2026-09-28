@@ -134,6 +134,8 @@ public class GmDbInitializerManager extends AbstractInitializerManager {
 		}
 
 		private void wl_runTask() {
+			log(LogLevel.INFO, "Running [" + taskName + "] with fingerprint: " + newFingerprint);
+
 			try {
 				taskResult = task.run();
 

@@ -68,7 +68,6 @@ import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.StandardTraversingContext;
 import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodec;
 import com.braintribe.model.processing.vde.reasoned.api.ValueDescriptorSourceContext;
-import com.braintribe.model.processing.vde.reasoned.impl.StandardValueDescriptorEvaluationContext;
 import com.braintribe.model.processing.vde.reasoned.impl.ValueDescriptorExpertRegistry;
 import com.braintribe.utils.StringTools;
 import com.braintribe.utils.lcd.Lazy;
@@ -138,7 +137,7 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	private final Lazy<Map<String, String>> properties = new Lazy<>(this::loadProperties);
 	private Function<String, Maybe<String>> propertyLookup = reasonifyPropertyResolver(this::resolveStandardProperty);
 	private ValueDescriptorExpressionCodec valueDescriptorExpressionCodec;
-	private Consumer<ValueDescriptorExpertRegistry> valueDescriptorExpertConfigurer = registry -> {};
+	private Consumer<ValueDescriptorExpertRegistry> valueDescriptorExpertConfigurer = registry -> { /*NO-OP*/ };
 
 	private ClasspathIndex classpathIndex;
 	private String classpathConfPath = "";
@@ -155,7 +154,7 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 		this.classpathIndex = classpathIndex;
 	}
 
-	// e.g. HICONIC-CONF/ for loading from classpath
+	// e.g. HICONIC-CONF/ for Reflex
 	@Configurable
 	public void setClasspathConfPath(String classpathConfPath) {
 		if (classpathConfPath == null || classpathConfPath.isBlank())
@@ -283,7 +282,6 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 		finalEntry = mergeEntities(reasonAggregator, finalEntry, cpMaybe.get().entries());
 		finalEntry = mergeEntities(reasonAggregator, finalEntry, fsMaybe.get().entries());
 
-		@SuppressWarnings("unchecked")
 		C result = finalEntry != null ? (C) finalEntry.entity() : configType.create();
 		deepDeabsentify(result);
 

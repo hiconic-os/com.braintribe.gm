@@ -46,6 +46,7 @@ public abstract class AbstractInitializerManager implements InitializerRegistry 
 
 	@Override
 	public void registerInitializer(String initializerName, InitializerFingerprintResolver fingerprintResolver, InitializerTask task) {
+		log(LogLevel.INFO, "Registering initializer [" + initializerName + "]");
 		tasks.put(initializerName, new TaskEntry(initializerName, task, fingerprintResolver));
 	}
 

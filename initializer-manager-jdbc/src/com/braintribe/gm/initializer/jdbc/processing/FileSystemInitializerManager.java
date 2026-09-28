@@ -76,6 +76,8 @@ public class FileSystemInitializerManager extends AbstractInitializerManager {
 		}
 
 		private void runTask() {
+			log(LogLevel.INFO, "Running [" + taskName + "] with fingerprint: " + newFingerprint);
+
 			try {
 				Maybe<String> taskResult = task.run();
 
