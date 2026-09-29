@@ -36,11 +36,11 @@ import com.braintribe.logging.Logger;
 	private static ComparableEntry<ClasspathEntry> cpEntryToComparable(ClasspathEntry cpEntry) {
 		// e.g. "jar:file:/C:/maven-repo/res-on-cp/1.0/res-on-cp-1.0.jar!/config/my-config~use-case.disambig-8.yaml"
 		String fullPath = cpEntry.url.toString();
-		String artifactId = cpEntry.origin;
+		String artifactId = cpEntry.artifactId;
 		int i;
 		if (artifactId.isEmpty()) {
 			if (!fullPath.startsWith("jar:file:"))
-				throw new IllegalStateException("Classpath entry has neither an artifact origin nor a jar URL: " + fullPath);
+				throw new IllegalStateException("Classpath entry has neither an artifactId nor a jar URL: " + fullPath);
 
 			i = fullPath.indexOf(".jar!/");
 			if (i < 0)

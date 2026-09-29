@@ -424,7 +424,7 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 		List<ClasspathEntry> sortedEpEntries = ConfigurationEntrySorter.sortClasspathEntries(cpEntries);
 
 		return listToEntities(configType, "classpath", sortedEpEntries, e -> e.url.openStream(), e -> e.url.toString(),
-				e -> new ValueDescriptorSourceContext(e.origin, e.path));
+				e -> new ValueDescriptorSourceContext(e.artifactId, e.path));
 	}
 
 	private Maybe<PartialConfigEntries> readCpConfigPartially(EntityType<?> configType, String useCase) {
@@ -439,7 +439,7 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 
 		List<ClasspathEntry> sortedCpEntries = ConfigurationEntrySorter.sortClasspathEntries(cpEntries);
 		return listToEntitiesPartially(configType, "classpath", sortedCpEntries, e -> e.url.openStream(), e -> e.url.toString(),
-				e -> new ValueDescriptorSourceContext(e.origin, e.path));
+				e -> new ValueDescriptorSourceContext(e.artifactId, e.path));
 	}
 
 	// FileSystem

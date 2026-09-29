@@ -51,7 +51,7 @@ public class ConfigurationEntrySorterTest {
 	}
 
 	@Test
-	public void sortFilesystemEntriesByExplicitArtifactOrigin() {
+	public void sortFilesystemEntriesByExplicitArtifactId() {
 		ClasspathEntry aArt = new ClasspathEntry("config/my-entity.yaml", asUrl("file:/mirror/a/config/my-entity.yaml"), "aaa-artifact");
 		ClasspathEntry zArt = new ClasspathEntry("config/my-entity.yaml", asUrl("file:/mirror/z/config/my-entity.yaml"), "zzz-artifact");
 

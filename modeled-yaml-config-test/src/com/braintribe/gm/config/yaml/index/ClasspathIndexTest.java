@@ -20,7 +20,7 @@ import org.junit.rules.TemporaryFolder;
 
 /**
  * Tests for {@link ClasspathIndex}
- * 
+ *
  * @author peter.gazdik
  */
 public class ClasspathIndexTest {
@@ -29,6 +29,9 @@ public class ClasspathIndexTest {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	/** The folder of the current test, created by {@link #newProject(String)}. Every {@link #writeFile(String, String)} is relative to it. */
+	private Path project;
 
 	@Test
 	public void findAll() throws Exception {
@@ -59,22 +62,16 @@ public class ClasspathIndexTest {
 
 	@Test
 	public void loadsArtifactScopedFilesystemMirror() throws Exception {
-		Path root = temporaryFolder.newFolder("classpath-resources").toPath();
-		Path artifact = root.resolve("example-configuration-1.0");
-		Path config = artifact.resolve("HICONIC-CONF/example.yaml");
-		Path index = artifact.resolve("META-INF/classpath-index.txt");
-		Path origin = artifact.resolve("META-INF/classpath-origin.properties");
-		Files.createDirectories(config.getParent());
-		Files.createDirectories(index.getParent());
-		Files.writeString(config, "example: true\n", StandardCharsets.UTF_8);
-		Files.writeString(index, "# preserved comment\nHICONIC-CONF/example.yaml\n", StandardCharsets.UTF_8);
-		Files.writeString(origin, "artifactId=example-configuration\n", StandardCharsets.UTF_8);
+		newProject("classpath-resources");
+		writeFile("example-configuration-1.0/HICONIC-CONF/example.yaml", "example: true\n");
+		writeFile("example-configuration-1.0/META-INF/classpath-index.txt", "# preserved comment\nHICONIC-CONF/example.yaml\n");
+		writeFile("example-configuration-1.0/META-INF/classpath-origin.properties", "artifactId=example-configuration\n");
 
-		List<ClasspathEntry> entries = new ClasspathIndex(root).all();
+		List<ClasspathEntry> entries = new ClasspathIndex(project).all();
 
 		assertThat(entries).hasSize(1);
 		assertThat(entries.get(0).path).isEqualTo("HICONIC-CONF/example.yaml");
-		assertThat(entries.get(0).origin).isEqualTo("example-configuration");
+		assertThat(entries.get(0).artifactId).isEqualTo("example-configuration");
 		assertThat(entries.get(0).url.getProtocol()).isEqualTo("file");
 	}
 
@@ -95,118 +92,159 @@ public class ClasspathIndexTest {
 	}
 
 	@Test
-	public void infersArtifactOriginFromEclipseProjectOutput() throws Exception {
-		Path project = temporaryFolder.newFolder("example-configuration").toPath();
-		Path output = project.resolve("classes");
-		Path config = output.resolve("HICONIC-CONF/example-configuration.yaml");
-		Path index = output.resolve("META-INF/classpath-index.txt");
-		Files.createDirectories(config.getParent());
-		Files.createDirectories(index.getParent());
-		Files.writeString(config, "example: true\n", StandardCharsets.UTF_8);
-		Files.writeString(index, "HICONIC-CONF/example-configuration.yaml\n", StandardCharsets.UTF_8);
+	public void infersArtifactIdFromEclipseProjectOutput() throws Exception {
+		newProject("example-configuration");
+		writeFile("classes/HICONIC-CONF/example-configuration.yaml", "example: true\n");
+		writeFile("classes/META-INF/classpath-index.txt", "HICONIC-CONF/example-configuration.yaml\n");
 
-		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { output.toUri().toURL() }, null)) {
+		try (URLClassLoader classLoader = classLoaderFor("classes")) {
 			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
 
 			assertThat(entries).hasSize(1);
-			assertThat(entries.get(0).origin).isEqualTo("example-configuration");
+			assertThat(entries.get(0).artifactId).isEqualTo("example-configuration");
+		}
+	}
+
+	@Test
+	public void infersArtifactIdFromGradleResourcesOutput() throws Exception {
+		newProject("gradle-configuration");
+		writeFile("build/resources/main/HICONIC-CONF/gradle-configuration.yaml", "example: true\n");
+		writeFile("build/resources/main/META-INF/classpath-index.txt", "HICONIC-CONF/gradle-configuration.yaml\n");
+
+		try (URLClassLoader classLoader = classLoaderFor("build/resources/main")) {
+			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
+
+			assertThat(entries).hasSize(1);
+			assertThat(entries.get(0).artifactId).isEqualTo("gradle-configuration");
+		}
+	}
+
+	@Test
+	public void infersArtifactIdOfDeclarationFromGradleResourcesOutput() throws Exception {
+		newProject("gradle-declared-configuration");
+		writeFile("build/resources/main/META-INF/classpath-resources.txt", "HICONIC-CONF\n");
+		writeFile("build/resources/main/HICONIC-CONF/gradle-declared-configuration.yaml", "example: true\n");
+
+		try (URLClassLoader classLoader = classLoaderFor("build/resources/main")) {
+			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
+
+			assertThat(entries).hasSize(1);
+			assertThat(entries.get(0).artifactId).isEqualTo("gradle-declared-configuration");
+		}
+	}
+
+	@Test
+	public void takesArtifactIdOfJarFromArtifactDescriptor() throws Exception {
+		newProject("described-jar");
+		Path archive = project.resolve("renamed-1.0-pc.jar");
+		try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(archive))) {
+			writeZipEntry(out, "META-INF/artifact-descriptor.properties", "groupId=example\nartifactId=described-configuration\nversion=1.0-pc\n");
+			writeZipEntry(out, "META-INF/classpath-index.txt", "HICONIC-CONF/example.yaml\n");
+			writeZipEntry(out, "HICONIC-CONF/example.yaml", "example: true\n");
+		}
+
+		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { archive.toUri().toURL() }, null)) {
+			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
+
+			assertThat(entries).hasSize(1);
+			assertThat(entries.get(0).artifactId).isEqualTo("described-configuration");
+		}
+	}
+
+	@Test
+	public void takesArtifactIdOfIndexedFolderFromArtifactDescriptor() throws Exception {
+		newProject("renamed-folder");
+		writeFile("classes/META-INF/artifact-descriptor.properties", "artifactId=described-configuration\n");
+		writeFile("classes/META-INF/classpath-index.txt", "HICONIC-CONF/example.yaml\n");
+		writeFile("classes/HICONIC-CONF/example.yaml", "example: true\n");
+
+		try (URLClassLoader classLoader = classLoaderFor("classes")) {
+			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
+
+			assertThat(entries).hasSize(1);
+			assertThat(entries.get(0).artifactId).isEqualTo("described-configuration");
+		}
+	}
+
+	@Test
+	public void takesArtifactIdOfDeclaredFolderFromArtifactDescriptor() throws Exception {
+		newProject("renamed-folder");
+		writeFile("classes/META-INF/artifact-descriptor.properties", "artifactId=described-configuration\n");
+		writeFile("classes/META-INF/classpath-resources.txt", "HICONIC-CONF\n");
+		writeFile("classes/HICONIC-CONF/example.yaml", "example: true\n");
+
+		try (URLClassLoader classLoader = classLoaderFor("classes")) {
+			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
+
+			assertThat(entries).hasSize(1);
+			assertThat(entries.get(0).artifactId).isEqualTo("described-configuration");
 		}
 	}
 
 	@Test
 	public void expandsDeclaredClasspathResources() throws Exception {
-		Path project = temporaryFolder.newFolder("declared-configuration").toPath();
-		Path output = project.resolve("classes");
-		Path declaration = output.resolve("META-INF/classpath-resources.txt");
-		Path config = output.resolve("HICONIC-CONF/database-configuration.yaml");
-		Path nested = output.resolve("HICONIC-CONF/nested/extra.yaml");
-		Path declaredFile = output.resolve("notes.txt");
-		Path undeclared = output.resolve("HICONIC-RESOURCES/hidden.txt");
-		Path generatedDescriptor = output.resolve("META-INF/artifact-descriptor.properties");
-		Path ignoreFile = output.resolve(".gitignore");
-		Path bytecode = output.resolve("example/Generated.class");
-		Files.createDirectories(nested.getParent());
-		Files.createDirectories(undeclared.getParent());
-		Files.createDirectories(declaration.getParent());
-		Files.createDirectories(bytecode.getParent());
-		Files.writeString(declaration, "# declared entries\n\nHICONIC-CONF\nnotes.txt\n", StandardCharsets.UTF_8);
-		Files.writeString(config, "name: auth\n", StandardCharsets.UTF_8);
-		Files.writeString(nested, "extra: true\n", StandardCharsets.UTF_8);
-		Files.writeString(declaredFile, "hello\n", StandardCharsets.UTF_8);
-		Files.writeString(undeclared, "hidden\n", StandardCharsets.UTF_8);
-		Files.writeString(generatedDescriptor, "artifactId=declared-configuration\n", StandardCharsets.UTF_8);
-		Files.writeString(ignoreFile, "/classes\n", StandardCharsets.UTF_8);
-		Files.write(bytecode, new byte[] { 0 });
+		newProject("declared-configuration");
+		writeFile("classes/META-INF/classpath-resources.txt", "# declared entries\n\nHICONIC-CONF\nnotes.txt\n");
+		writeFile("classes/HICONIC-CONF/database-configuration.yaml", "name: auth\n");
+		writeFile("classes/HICONIC-CONF/nested/extra.yaml", "extra: true\n");
+		writeFile("classes/notes.txt", "hello\n");
+		writeFile("classes/HICONIC-RESOURCES/hidden.txt", "hidden\n");
+		writeFile("classes/META-INF/artifact-descriptor.properties", "artifactId=declared-configuration\n");
+		writeFile("classes/.gitignore", "/classes\n");
+		writeFile("classes/example/Generated.class", "\0");
 
-		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { output.toUri().toURL() }, null)) {
+		try (URLClassLoader classLoader = classLoaderFor("classes")) {
 			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
 
 			assertThat(pathsOf(entries)).containsExactlyInAnyOrder(
 					"HICONIC-CONF/database-configuration.yaml",
 					"HICONIC-CONF/nested/extra.yaml",
 					"notes.txt");
-			assertThat(entries).allMatch(entry -> entry.origin.equals("declared-configuration"));
+			assertThat(entries).allMatch(entry -> entry.artifactId.equals("declared-configuration"));
 		}
 	}
 
 	@Test
 	public void skipsUndeclaredClasspathRoot() throws Exception {
-		Path project = temporaryFolder.newFolder("undeclared-library").toPath();
-		Path output = project.resolve("classes");
-		Path config = output.resolve("HICONIC-CONF/stray.yaml");
-		Path ignoreFile = output.resolve(".gitignore");
-		Files.createDirectories(config.getParent());
-		Files.writeString(config, "stray: true\n", StandardCharsets.UTF_8);
-		Files.writeString(ignoreFile, "/classes\n", StandardCharsets.UTF_8);
+		newProject("undeclared-library");
+		writeFile("classes/HICONIC-CONF/stray.yaml", "stray: true\n");
+		writeFile("classes/.gitignore", "/classes\n");
 
-		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { output.toUri().toURL() }, null)) {
+		try (URLClassLoader classLoader = classLoaderFor("classes")) {
 			assertThat(new ClasspathIndex(classLoader).all()).isEmpty();
 		}
 	}
 
 	@Test
 	public void ignoresMissingDeclaredEntry() throws Exception {
-		Path project = temporaryFolder.newFolder("partly-declared-configuration").toPath();
-		Path output = project.resolve("classes");
-		Path declaration = output.resolve("META-INF/classpath-resources.txt");
-		Path config = output.resolve("HICONIC-CONF/present.yaml");
-		Files.createDirectories(config.getParent());
-		Files.createDirectories(declaration.getParent());
-		Files.writeString(declaration, "HICONIC-CONF\nHICONIC-RESOURCES\n", StandardCharsets.UTF_8);
-		Files.writeString(config, "present: true\n", StandardCharsets.UTF_8);
+		newProject("partly-declared-configuration");
+		writeFile("classes/META-INF/classpath-resources.txt", "HICONIC-CONF\nHICONIC-RESOURCES\n");
+		writeFile("classes/HICONIC-CONF/present.yaml", "present: true\n");
 
-		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { output.toUri().toURL() }, null)) {
+		try (URLClassLoader classLoader = classLoaderFor("classes")) {
 			assertThat(pathsOf(new ClasspathIndex(classLoader).all())).containsExactly("HICONIC-CONF/present.yaml");
 		}
 	}
 
 	@Test
 	public void doesNotScanUnindexedFilesBesideExistingExplodedIndex() throws Exception {
-		Path project = temporaryFolder.newFolder("indexed-exploded-configuration").toPath();
-		Path output = project.resolve("classes");
-		Path config = output.resolve("HICONIC-CONF/indexed.yaml");
-		Path unindexed = output.resolve("HICONIC-CONF/unindexed.yaml");
-		Path index = output.resolve("META-INF/classpath-index.txt");
-		Files.createDirectories(config.getParent());
-		Files.createDirectories(index.getParent());
-		Files.writeString(config, "indexed: true\n", StandardCharsets.UTF_8);
-		Files.writeString(unindexed, "indexed: false\n", StandardCharsets.UTF_8);
-		Files.writeString(index, "HICONIC-CONF/indexed.yaml\n", StandardCharsets.UTF_8);
+		newProject("indexed-exploded-configuration");
+		writeFile("classes/HICONIC-CONF/indexed.yaml", "indexed: true\n");
+		writeFile("classes/HICONIC-CONF/unindexed.yaml", "indexed: false\n");
+		writeFile("classes/META-INF/classpath-index.txt", "HICONIC-CONF/indexed.yaml\n");
 
-		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { output.toUri().toURL() }, null)) {
+		try (URLClassLoader classLoader = classLoaderFor("classes")) {
 			assertThat(pathsOf(new ClasspathIndex(classLoader).all())).containsExactly("HICONIC-CONF/indexed.yaml");
 		}
 	}
 
 	@Test
 	public void loadsLegacyWindowsFilesystemIndex() throws Exception {
-		Path root = temporaryFolder.newFolder("windows-filesystem-index").toPath();
-		Path artifact = root.resolve("example-configuration-1.0");
-		Path config = artifact.resolve("HICONIC-CONF/example.yaml");
-		writeFilesystemArtifact(artifact, "example-configuration", "HICONIC-CONF\\example.yaml\n",
-				Map.of(config, "example: true\n"));
+		newProject("windows-filesystem-index");
+		writeFilesystemArtifact("example-configuration-1.0", "example-configuration", "HICONIC-CONF\\example.yaml\n",
+				Map.of("HICONIC-CONF/example.yaml", "example: true\n"));
 
-		List<ClasspathEntry> entries = new ClasspathIndex(root).all();
+		List<ClasspathEntry> entries = new ClasspathIndex(project).all();
 
 		assertThat(entries).hasSize(1);
 		assertThat(entries.get(0).path).isEqualTo("HICONIC-CONF/example.yaml");
@@ -214,120 +252,116 @@ public class ClasspathIndexTest {
 
 	@Test
 	public void loadsMappedFilesystemSourceAndReplacesCanonicalDuplicate() throws Exception {
-		Path root = temporaryFolder.newFolder("mapped-classpath-resources").toPath();
-		Path canonicalArtifact = root.resolve("classpath-resources/example-configuration-1.0");
-		Path canonicalConfig = canonicalArtifact.resolve("HICONIC-CONF/example.yaml");
-		Path canonicalResource = canonicalArtifact.resolve("HICONIC-RESOURCES/logo.svg");
-		writeFilesystemArtifact(canonicalArtifact, "example-configuration",
+		newProject("mapped-classpath-resources");
+		writeFilesystemArtifact("classpath-resources/example-configuration-1.0", "example-configuration",
 				"HICONIC-CONF/example.yaml\nHICONIC-RESOURCES/logo.svg\n",
-				Map.of(canonicalConfig, "source: canonical\n", canonicalResource, "<svg/>"));
+				Map.of("HICONIC-CONF/example.yaml", "source: canonical\n", "HICONIC-RESOURCES/logo.svg", "<svg/>"));
 
-		Path projectedArtifact = root.resolve("packaged-conf/example-configuration-1.0");
-		Path projectedConfig = projectedArtifact.resolve("example.yaml");
-		writeFilesystemArtifact(projectedArtifact, "example-configuration", "example.yaml\n", Map.of(projectedConfig, "source: projected\n"));
-		Path otherProjectedArtifact = root.resolve("packaged-conf/other-configuration-1.0");
-		Path otherProjectedConfig = otherProjectedArtifact.resolve("example.yaml");
-		writeFilesystemArtifact(otherProjectedArtifact, "other-configuration", "example.yaml\n",
-				Map.of(otherProjectedConfig, "source: other\n"));
+		writeFilesystemArtifact("packaged-conf/example-configuration-1.0", "example-configuration", "example.yaml\n",
+				Map.of("example.yaml", "source: projected\n"));
+		writeFilesystemArtifact("packaged-conf/other-configuration-1.0", "other-configuration", "example.yaml\n",
+				Map.of("example.yaml", "source: other\n"));
 
 		ClasspathIndex index = new ClasspathIndex(List.of(
-				ClasspathIndex.filesystemSource(root.resolve("classpath-resources"), ""),
-				ClasspathIndex.filesystemSource(root.resolve("packaged-conf"), "HICONIC-CONF")));
+				ClasspathIndex.filesystemSource(project.resolve("classpath-resources"), ""),
+				ClasspathIndex.filesystemSource(project.resolve("packaged-conf"), "HICONIC-CONF")));
 
 		List<ClasspathEntry> entries = index.all();
 
 		assertThat(entries).hasSize(3);
 		assertThat(pathsOf(entries)).containsExactlyInAnyOrder("HICONIC-CONF/example.yaml", "HICONIC-RESOURCES/logo.svg");
-		assertThat(entries.stream().filter(e -> e.path.equals("HICONIC-CONF/example.yaml")).map(e -> e.origin))
+		assertThat(entries.stream().filter(e -> e.path.equals("HICONIC-CONF/example.yaml")).map(e -> e.artifactId))
 				.containsExactlyInAnyOrder("example-configuration", "other-configuration");
 		ClasspathEntry configEntry = entries.stream()
-				.filter(e -> e.path.equals("HICONIC-CONF/example.yaml") && e.origin.equals("example-configuration"))
+				.filter(e -> e.path.equals("HICONIC-CONF/example.yaml") && e.artifactId.equals("example-configuration"))
 				.findFirst()
 				.orElseThrow();
 		assertThat(Path.of(configEntry.url.toURI())).hasContent("source: projected");
-		assertThat(configEntry.origin).isEqualTo("example-configuration");
+		assertThat(configEntry.artifactId).isEqualTo("example-configuration");
 	}
 
 	@Test
 	public void loadsCentralPackagedResourceIndexAndCanExcludeConfiguration() throws Exception {
-		Path root = temporaryFolder.newFolder("packaged-resources").toPath();
-		Path artifact = root.resolve("example-configuration-1.0");
-		Path config = artifact.resolve("HICONIC-CONF/example.yaml");
-		Path logo = artifact.resolve("icons/logo.svg");
-		Files.createDirectories(config.getParent());
-		Files.createDirectories(logo.getParent());
-		Files.writeString(config, "example: true\n", StandardCharsets.UTF_8);
-		Files.writeString(logo, "<svg/>", StandardCharsets.UTF_8);
-		Files.writeString(root.resolve("index.properties"), """
+		newProject("packaged-resources");
+		writeFile("example-configuration-1.0/HICONIC-CONF/example.yaml", "example: true\n");
+		writeFile("example-configuration-1.0/icons/logo.svg", "<svg/>");
+		writeFile("index.properties", """
+				formatVersion=1
+				artifact.count=1
+				artifact.0.folder=example-configuration-1.0
+				artifact.0.artifactId=example-configuration
+				artifact.0.resource.count=2
+				artifact.0.resource.0.path=HICONIC-CONF/example.yaml
+				artifact.0.resource.1.path=icons/logo.svg
+				""");
+
+		ClasspathIndex index = new ClasspathIndex(List.of(
+				ClasspathIndex.filesystemSource(project, "", List.of("HICONIC-CONF/"))));
+
+		assertThat(pathsOf(index.all())).containsExactly("icons/logo.svg");
+		assertThat(index.all().get(0).artifactId).isEqualTo("example-configuration");
+	}
+
+	@Test
+	public void readsArtifactIdOfCentralPackagedResourceIndexWrittenWithOriginKey() throws Exception {
+		newProject("legacy-packaged-resources");
+		writeFile("example-configuration-1.0/icons/logo.svg", "<svg/>");
+		writeFile("index.properties", """
 				formatVersion=1
 				artifact.count=1
 				artifact.0.folder=example-configuration-1.0
 				artifact.0.origin=example-configuration
-				artifact.0.resource.count=2
-				artifact.0.resource.0.path=HICONIC-CONF/example.yaml
-				artifact.0.resource.1.path=icons/logo.svg
-				""", StandardCharsets.UTF_8);
+				artifact.0.resource.count=1
+				artifact.0.resource.0.path=icons/logo.svg
+				""");
 
-		ClasspathIndex index = new ClasspathIndex(List.of(
-				ClasspathIndex.filesystemSource(root, "", List.of("HICONIC-CONF/"))));
+		ClasspathIndex index = new ClasspathIndex(project);
 
 		assertThat(pathsOf(index.all())).containsExactly("icons/logo.svg");
-		assertThat(index.all().get(0).origin).isEqualTo("example-configuration");
+		assertThat(index.all().get(0).artifactId).isEqualTo("example-configuration");
 	}
 
 	@Test
 	public void loadsDirectEffectiveConfigurationSlots() throws Exception {
-		Path root = temporaryFolder.newFolder("effective-conf").toPath();
-		Path compiled = root.resolve("compiled/database-configuration.yaml");
-		Path residual = root.resolve("example-configuration/custom.xml");
-		Files.createDirectories(compiled.getParent());
-		Files.createDirectories(residual.getParent());
-		Files.writeString(compiled, "databases: []\n", StandardCharsets.UTF_8);
-		Files.writeString(residual, "<custom/>", StandardCharsets.UTF_8);
+		newProject("effective-conf");
+		writeFile("compiled/database-configuration.yaml", "databases: []\n");
+		writeFile("example-configuration/custom.xml", "<custom/>");
 
-		ClasspathIndex index = new ClasspathIndex(List.of(ClasspathIndex.filesystemSlots(root, "HICONIC-CONF")));
+		ClasspathIndex index = new ClasspathIndex(List.of(ClasspathIndex.filesystemSlots(project, "HICONIC-CONF")));
 
 		assertThat(pathsOf(index.all())).containsExactlyInAnyOrder(
 				"HICONIC-CONF/database-configuration.yaml",
 				"HICONIC-CONF/custom.xml");
-		assertThat(index.all().stream().map(e -> e.origin)).containsExactlyInAnyOrder("compiled", "example-configuration");
+		assertThat(index.all().stream().map(e -> e.artifactId)).containsExactlyInAnyOrder("compiled", "example-configuration");
 	}
 
 	@Test
 	public void combinesGeneralPackagedResourcesWithEffectiveConfiguration() throws Exception {
-		Path root = temporaryFolder.newFolder("assembled-application").toPath();
-		Path packagedResources = root.resolve("packaged-resources");
-		Path artifact = packagedResources.resolve("example-configuration-1.0");
-		Path rawConfig = artifact.resolve("HICONIC-CONF/example.yaml");
-		Path logo = artifact.resolve("icons/logo.svg");
-		Files.createDirectories(rawConfig.getParent());
-		Files.createDirectories(logo.getParent());
-		Files.writeString(rawConfig, "source: raw\n", StandardCharsets.UTF_8);
-		Files.writeString(logo, "<svg/>", StandardCharsets.UTF_8);
-		Files.writeString(packagedResources.resolve("index.properties"), """
+		newProject("assembled-application");
+		writeFile("packaged-resources/example-configuration-1.0/HICONIC-CONF/example.yaml", "source: raw\n");
+		writeFile("packaged-resources/example-configuration-1.0/icons/logo.svg", "<svg/>");
+		writeFile("packaged-resources/index.properties", """
 				formatVersion=1
 				artifact.count=1
 				artifact.0.folder=example-configuration-1.0
-				artifact.0.origin=example-configuration
+				artifact.0.artifactId=example-configuration
 				artifact.0.resource.count=2
 				artifact.0.resource.0.path=HICONIC-CONF/example.yaml
 				artifact.0.resource.1.path=icons/logo.svg
-				""", StandardCharsets.UTF_8);
+				""");
 
-		Path effectiveConfig = root.resolve("effective-conf/compiled/example.yaml");
-		Files.createDirectories(effectiveConfig.getParent());
-		Files.writeString(effectiveConfig, "source: compiled\n", StandardCharsets.UTF_8);
+		writeFile("effective-conf/compiled/example.yaml", "source: compiled\n");
 
 		ClasspathIndex index = new ClasspathIndex(List.of(
-				ClasspathIndex.filesystemSource(packagedResources, "", List.of("HICONIC-CONF/")),
-				ClasspathIndex.filesystemSlots(root.resolve("effective-conf"), "HICONIC-CONF")));
+				ClasspathIndex.filesystemSource(project.resolve("packaged-resources"), "", List.of("HICONIC-CONF/")),
+				ClasspathIndex.filesystemSlots(project.resolve("effective-conf"), "HICONIC-CONF")));
 
 		assertThat(pathsOf(index.all())).containsExactlyInAnyOrder("HICONIC-CONF/example.yaml", "icons/logo.svg");
 		ClasspathEntry configEntry = index.all().stream()
 				.filter(e -> e.path.equals("HICONIC-CONF/example.yaml"))
 				.findFirst()
 				.orElseThrow();
-		assertThat(configEntry.origin).isEqualTo("compiled");
+		assertThat(configEntry.artifactId).isEqualTo("compiled");
 		assertThat(Path.of(configEntry.url.toURI())).hasContent("source: compiled");
 	}
 
@@ -385,16 +419,29 @@ public class ClasspathIndexTest {
 		return entries.stream().map(e -> e.path).collect(Collectors.toSet());
 	}
 
-	private void writeFilesystemArtifact(Path artifact, String artifactId, String indexContent, Map<Path, String> resources) throws Exception {
-		Path index = artifact.resolve("META-INF/classpath-index.txt");
-		Path origin = artifact.resolve("META-INF/classpath-origin.properties");
-		Files.createDirectories(index.getParent());
-		Files.writeString(index, indexContent, StandardCharsets.UTF_8);
-		Files.writeString(origin, "artifactId=" + artifactId + "\n", StandardCharsets.UTF_8);
-		for (var resource : resources.entrySet()) {
-			Files.createDirectories(resource.getKey().getParent());
-			Files.writeString(resource.getKey(), resource.getValue(), StandardCharsets.UTF_8);
-		}
+	private void newProject(String name) throws Exception {
+		project = temporaryFolder.newFolder(name).toPath();
+	}
+
+	/** Writes the file relative to the {@link #project}, creating its parent folders. */
+	private void writeFile(String fileName, String content) throws Exception {
+		Path file = project.resolve(fileName);
+		Files.createDirectories(file.getParent());
+		Files.writeString(file, content, StandardCharsets.UTF_8);
+	}
+
+	/** A class loader with the given folder of the {@link #project} as its only classpath root, and no parent. */
+	private URLClassLoader classLoaderFor(String outputFolder) throws Exception {
+		return new URLClassLoader(new URL[] { project.resolve(outputFolder).toUri().toURL() }, null);
+	}
+
+	/** Writes an artifact folder of an assembled filesystem mirror, with its index, its artifactId and the given resources relative to it. */
+	private void writeFilesystemArtifact(String artifactFolder, String artifactId, String indexContent, Map<String, String> resources)
+			throws Exception {
+		writeFile(artifactFolder + "/META-INF/classpath-index.txt", indexContent);
+		writeFile(artifactFolder + "/META-INF/classpath-origin.properties", "artifactId=" + artifactId + "\n");
+		for (var resource : resources.entrySet())
+			writeFile(artifactFolder + "/" + resource.getKey(), resource.getValue());
 	}
 
 	private void writeZipEntry(ZipOutputStream out, String name, String content) throws Exception {
