@@ -13,23 +13,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // ============================================================================
-package com.braintribe.model.processing.service.common.eval;
+package com.braintribe.model.processing.securityservice.commons.eval;
 
 import java.util.function.Supplier;
 
 import com.braintribe.cfg.Required;
+import com.braintribe.common.attribute.common.UserInfo;
+import com.braintribe.common.attribute.common.UserInfoAttribute;
 import com.braintribe.model.generic.eval.EvalContext;
 import com.braintribe.model.generic.eval.Evaluator;
+import com.braintribe.model.processing.securityservice.api.attributes.LenientAuthenticationFailure;
+import com.braintribe.model.processing.securityservice.commons.service.ContextualizedAuthorization;
+import com.braintribe.model.processing.service.api.aspect.IsAuthorizedAspect;
+import com.braintribe.model.processing.service.api.aspect.RequestorSessionIdAspect;
+import com.braintribe.model.processing.service.api.aspect.RequestorUserNameAspect;
 import com.braintribe.model.processing.service.common.context.UserSessionAspect;
 import com.braintribe.model.service.api.ServiceRequest;
 import com.braintribe.model.usersession.UserSession;
 
 /**
- * @deprecated Only propagates {@link UserSessionAspect}, leaving other authorization attributes unchanged.
- * Use {@code com.braintribe.model.processing.securityservice.commons.eval.AuthorizingServiceRequestEvaluator}
- * from {@code com.braintribe.gm:security-service-api-commons} for complete user-session contextualization.
+ * Evaluates requests with a supplied, trusted user session and its complete authorization attributes.
+ * Keeps the context consistent with {@link ContextualizedAuthorization}, including replacement of inherited
+ * identity information and clearing a previous lenient authentication failure. Does not validate the supplied session.
  */
-@Deprecated
 public class AuthorizingServiceRequestEvaluator implements Evaluator<ServiceRequest> {
 
 	private Evaluator<ServiceRequest> delegate;
@@ -48,7 +54,14 @@ public class AuthorizingServiceRequestEvaluator implements Evaluator<ServiceRequ
 	@Override
 	public <T> EvalContext<T> eval(ServiceRequest evaluable) {
 		EvalContext<T> evalContext = delegate.<T>eval(evaluable);
-		evalContext.setAttribute(UserSessionAspect.class, userSessionProvider.get());
+		UserSession userSession = userSessionProvider.get();
+		evalContext.setAttribute(UserSessionAspect.class, userSession);
+		evalContext.setAttribute(IsAuthorizedAspect.class, true);
+		evalContext.setAttribute(RequestorSessionIdAspect.class, userSession.getSessionId());
+		String userName = userSession.getUser().getName();
+		evalContext.setAttribute(RequestorUserNameAspect.class, userName);
+		evalContext.setAttribute(UserInfoAttribute.class, UserInfo.of(userName, userSession.getEffectiveRoles()));
+		evalContext.setAttribute(LenientAuthenticationFailure.class, null);
 		return evalContext;
 	}
 }
