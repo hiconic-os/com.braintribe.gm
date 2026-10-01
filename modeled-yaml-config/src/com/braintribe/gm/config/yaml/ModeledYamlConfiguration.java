@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -66,8 +67,10 @@ import com.braintribe.model.generic.reflection.EssentialTypes;
 import com.braintribe.model.generic.reflection.MapType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.StandardTraversingContext;
+import com.braintribe.model.generic.reflection.VdHolder;
 import com.braintribe.model.processing.vde.expression.api.ValueDescriptorExpressionCodec;
 import com.braintribe.model.processing.vde.reasoned.api.ValueDescriptorSourceContext;
+import com.braintribe.model.processing.vde.reasoned.impl.StandardValueDescriptorEvaluationContext;
 import com.braintribe.model.processing.vde.reasoned.impl.ValueDescriptorExpertRegistry;
 import com.braintribe.utils.StringTools;
 import com.braintribe.utils.lcd.Lazy;
@@ -132,12 +135,15 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 
 	private final Map<ConfigKey, Lazy<Maybe<? extends GenericEntity>>> configs = new ConcurrentHashMap<>();
 	private File configFolder;
+	private String configFolderArtifact;
 	private VirtualEnvironment virtualEnvironment = StandardEnvironment.INSTANCE;
 	private boolean writePooled;
 	private final Lazy<Map<String, String>> properties = new Lazy<>(this::loadProperties);
 	private Function<String, Maybe<String>> propertyLookup = reasonifyPropertyResolver(this::resolveStandardProperty);
 	private ValueDescriptorExpressionCodec valueDescriptorExpressionCodec;
 	private Consumer<ValueDescriptorExpertRegistry> valueDescriptorExpertConfigurer = registry -> { /*NO-OP*/ };
+	private Consumer<StandardValueDescriptorEvaluationContext> valueDescriptorContextConfigurer = context -> { /*NO-OP*/ };
+	private BiConsumer<GenericEntity, ValueDescriptorSourceContext> partiallyLoadedConfigurationProcessor = (entity, source) -> { /*NO-OP*/ };
 
 	private ClasspathIndex classpathIndex;
 	private String classpathConfPath = "";
@@ -147,6 +153,12 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	@Configurable
 	public void setConfigFolder(File configFolder) {
 		this.configFolder = configFolder;
+	}
+
+	/** Optional logical owner used when a configuration folder contains a compiled application configuration space. */
+	@Configurable
+	public void setConfigFolderArtifact(String configFolderArtifact) {
+		this.configFolderArtifact = configFolderArtifact;
 	}
 
 	@Configurable
@@ -205,6 +217,22 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	@Configurable
 	public void setValueDescriptorExpertConfigurer(Consumer<ValueDescriptorExpertRegistry> valueDescriptorExpertConfigurer) {
 		this.valueDescriptorExpertConfigurer = valueDescriptorExpertConfigurer;
+	}
+
+	@Configurable
+	public void setValueDescriptorContextConfigurer(
+			Consumer<StandardValueDescriptorEvaluationContext> valueDescriptorContextConfigurer) {
+		this.valueDescriptorContextConfigurer = valueDescriptorContextConfigurer;
+	}
+
+	/**
+	 * Processes every partially loaded contribution before it is merged with contributions from other sources.
+	 * This is intentionally source-aware, so build tooling can preserve provenance which would otherwise be lost by the merge.
+	 */
+	@Configurable
+	public void setPartiallyLoadedConfigurationProcessor(
+			BiConsumer<GenericEntity, ValueDescriptorSourceContext> partiallyLoadedConfigurationProcessor) {
+		this.partiallyLoadedConfigurationProcessor = partiallyLoadedConfigurationProcessor;
 	}
 
 	@Override
@@ -362,7 +390,9 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	}
 
 	private void deepDeabsentify(GenericEntity entity) {
-		entity.entityType().traverse(new AbsenceInfoBustingTc(), entity);
+		AbsenceInfoBustingTc context = new AbsenceInfoBustingTc();
+		context.setMatcher(tc -> VdHolder.isVdHolder(tc.getObjectStack().peek()));
+		entity.entityType().traverse(context, entity);
 	}
 
 	class AbsenceInfoBustingTc extends StandardTraversingContext {
@@ -458,7 +488,7 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 
 		return listToEntities(configType, "conf directory [" + configFolder.getPath() + "]", //
 				sortedFiles, f -> new BufferedInputStream(new FileInputStream(f)), File::getAbsolutePath,
-				f -> new ValueDescriptorSourceContext(null, f.getAbsolutePath()));
+				f -> new ValueDescriptorSourceContext(configFolderArtifact, f.getAbsolutePath()));
 	}
 
 	private Maybe<PartialConfigEntries> readFsConfigPartially(EntityType<?> configType, String useCase) {
@@ -474,7 +504,7 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 		List<File> sortedFiles = ConfigurationEntrySorter.sortFiles(files);
 		return listToEntitiesPartially(configType, "conf directory [" + configFolder.getPath() + "]", //
 				sortedFiles, f -> new BufferedInputStream(new FileInputStream(f)), File::getAbsolutePath,
-				f -> new ValueDescriptorSourceContext(null, f.getAbsolutePath()));
+				f -> new ValueDescriptorSourceContext(configFolderArtifact, f.getAbsolutePath()));
 	}
 
 	private List<File> findConfigFiles(File configFolder, String prefix) {
@@ -527,11 +557,13 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 		List<ConfigEntry> result = newList();
 		Set<String> unresolvedVariables = new LinkedHashSet<>();
 		for (E entry : entries) {
-			Maybe<PartiallyResolvedConfiguration<C>> configMaybe = configuredLoader(sourceContextProvider.apply(entry))
+			ValueDescriptorSourceContext sourceContext = sourceContextProvider.apply(entry);
+			Maybe<PartiallyResolvedConfiguration<C>> configMaybe = configuredLoader(sourceContext)
 					.loadConfigPartially(configType, () -> inputStreamProvider.apply(entry));
 
 			if (configMaybe.isSatisfied()) {
 				PartiallyResolvedConfiguration<C> partial = configMaybe.get();
+				partiallyLoadedConfigurationProcessor.accept(partial.configuration(), sourceContext);
 				result.add(new ConfigEntry(partial.configuration(), originProvider.apply(entry)));
 				unresolvedVariables.addAll(partial.unresolvedVariables());
 			} else {
@@ -555,6 +587,7 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 		if (valueDescriptorExpressionCodec != null)
 			loader.valueDescriptorExpressions(valueDescriptorExpressionCodec)
 					.valueDescriptorExperts(valueDescriptorExpertConfigurer)
+					.valueDescriptorContext(valueDescriptorContextConfigurer)
 					.valueDescriptorAspect(ValueDescriptorSourceContext.class, sourceContext);
 
 		return loader;

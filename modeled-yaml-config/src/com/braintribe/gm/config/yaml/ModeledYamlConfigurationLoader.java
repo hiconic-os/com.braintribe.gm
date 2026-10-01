@@ -86,6 +86,12 @@ public class ModeledYamlConfigurationLoader {
 		return this;
 	}
 
+	public ModeledYamlConfigurationLoader valueDescriptorContext(
+			Consumer<StandardValueDescriptorEvaluationContext> configurer) {
+		this.contextConfigurer = this.contextConfigurer.andThen(configurer);
+		return this;
+	}
+
 	public <C extends GenericEntity> Maybe<C> loadConfig(EntityType<C> configType, InputStreamProvider inputStreamProvider) {
 		ConfigVariableResolver configVariableResolver = new ConfigVariableResolver(virtualEnvironment, null);
 		if (variableResolver != null)

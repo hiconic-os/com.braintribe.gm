@@ -150,7 +150,7 @@ public abstract class AbstractDirectCloning implements CloningApi {
 					cloningVisitor.enterPropertyValue(entity, clonedEntity, property, propertyType, propertyValue);
 
 				try {
-					Object clonedPropertyValue = doCloneValue(propertyType, propertyValue);
+					Object clonedPropertyValue = clonePropertyValue(entity, property, propertyType, propertyValue);
 					transferProperty(clonedEntity, property, clonedPropertyValue);
 				} finally {
 					if (cloningVisitor != null)
@@ -164,6 +164,14 @@ public abstract class AbstractDirectCloning implements CloningApi {
 			if (cloningVisitor != null)
 				cloningVisitor.leaveEntity(entity, clonedEntity);
 		}
+	}
+
+	/**
+	 * Clones a property value. Specialized cloners may override this boundary when a value requires a property-specific transport representation.
+	 */
+	protected Object clonePropertyValue(@SuppressWarnings("unused") GenericEntity entity, @SuppressWarnings("unused") Property property,
+			GenericModelType type, Object value) {
+		return cloneNestedValue(type, value);
 	}
 
 	protected void transferProperty(GenericEntity entity, Property property, Object value) {
@@ -217,7 +225,7 @@ public abstract class AbstractDirectCloning implements CloningApi {
 					cloningVisitor.enterListElement(listType, list, i, actualElementType, element);
 
 				try {
-					T clonedElement = (T) doCloneValue(actualElementType, element);
+					T clonedElement = (T) cloneNestedValue(actualElementType, element);
 					clonedList.add(clonedElement);
 				} finally {
 					if (cloningVisitor != null)
@@ -246,7 +254,7 @@ public abstract class AbstractDirectCloning implements CloningApi {
 					cloningVisitor.enterSetElement(setType, set, actualElementType, element);
 
 				try {
-					T clonedElement = (T) doCloneValue(actualElementType, element);
+					T clonedElement = (T) cloneNestedValue(actualElementType, element);
 					clonedSet.add(clonedElement);
 				} finally {
 					if (cloningVisitor != null)
@@ -280,7 +288,7 @@ public abstract class AbstractDirectCloning implements CloningApi {
 				final K clonedKey;
 
 				try {
-					clonedKey = (K) doCloneValue(actualKeyType, key);
+					clonedKey = (K) cloneNestedValue(actualKeyType, key);
 				} finally {
 					if (cloningVisitor != null)
 						cloningVisitor.leaveMapKey(mapType, map, actualKeyType, key);
@@ -291,7 +299,7 @@ public abstract class AbstractDirectCloning implements CloningApi {
 
 				final V clonedValue;
 				try {
-					clonedValue = (V) doCloneValue(actualValueType, value);
+					clonedValue = (V) cloneNestedValue(actualValueType, value);
 				} finally {
 					if (cloningVisitor != null)
 						cloningVisitor.leaveMapValue(mapType, map, actualKeyType, key, actualValueType, value);
@@ -310,6 +318,14 @@ public abstract class AbstractDirectCloning implements CloningApi {
 	 */
 	protected GenericModelType actualTypeForCloning(GenericModelType declaredType, Object value) {
 		return declaredType.getActualType(value);
+	}
+
+	/**
+	 * Clones a value nested in an entity or collection. Specialized cloners may override this boundary to collect a failure and continue with
+	 * independent siblings instead of aborting the complete traversal.
+	 */
+	protected Object cloneNestedValue(GenericModelType type, Object value) {
+		return doCloneValue(type, value);
 	}
 
 	protected abstract CloneTarget acquireCloneTarget(GenericEntity entity);

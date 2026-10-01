@@ -11,9 +11,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Test;
 
+import com.braintribe.gm.config.yaml.expression.TestDecrypt;
+import com.braintribe.gm.config.yaml.expression.TestImportText;
 import com.braintribe.gm.config.yaml.model.LoadedEntity;
 import com.braintribe.gm.config.ReasonedConfigPlaceholders;
 import com.braintribe.gm.model.reason.Maybe;
@@ -25,6 +28,7 @@ import com.braintribe.model.bvd.convert.ToString;
 import com.braintribe.model.bvd.string.Concatenation;
 import com.braintribe.model.generic.value.Variable;
 import com.braintribe.model.processing.vde.reasoned.api.ResidualValuePolicy;
+import com.braintribe.model.processing.vde.reasoned.api.ValueDescriptorEvaluationPolicy;
 import com.braintribe.model.resource.source.PackagedSource;
 import com.braintribe.model.processing.vde.reasoned.impl.ReasonedValueDescriptorMaterializer;
 import com.braintribe.model.processing.vde.reasoned.impl.StandardValueDescriptorEvaluationContext;
@@ -88,6 +92,22 @@ public class ReasonedValueDescriptorMaterializerTest {
         CollectionEntity result = materializer(nameContext(name -> Maybe.complete("resolved-" + name))).materialize(source).get();
 
         assertThat(result.getStringList()).containsExactly("static", "resolved-dynamic");
+    }
+
+    @Test
+    public void preservesResidualDescriptorAsDirectTypedCollectionElement() {
+        CollectionEntity source = CollectionEntity.T.createRaw();
+        List<Object> rawValues = new ArrayList<>();
+        rawValues.add(VdHolder.newInstance(variable("missing")));
+        CollectionEntity.T.getProperty("stringList").setDirectUnsafe(source, rawValues);
+
+        StandardValueDescriptorEvaluationContext context = nameContext(name -> PropertyNotFound.create(name).asMaybe());
+        CollectionEntity result = new ReasonedValueDescriptorMaterializer(context,
+                ResidualValuePolicy.preserving(reason -> NotFound.T.isInstance(reason))).materialize(source).get();
+
+        Object residual = result.getStringList().get(0);
+        assertThat(VdHolder.isVdHolder(residual)).isFalse();
+        assertVariable(residual, "missing");
     }
 
     @Test
@@ -191,6 +211,98 @@ public class ReasonedValueDescriptorMaterializerTest {
 
 		Concatenation originalConcatenation = (Concatenation) expression.getOperand();
 		assertVariable(originalConcatenation.getOperands().get(1), "KNOWN");
+	}
+
+	@Test
+	public void deliberatelyDeferredDescriptorPreservesItsCompleteArgumentTree() {
+		Variable inner = variable("RUNTIME_VALUE");
+		ToString deferred = ToString.T.create();
+		deferred.setOperand(inner);
+		LoadedEntity source = LoadedEntity.T.createRaw();
+		LoadedEntity.T.getProperty("cpValue").setVdDirect(source, deferred);
+
+		AtomicBoolean innerEvaluated = new AtomicBoolean();
+		StandardValueDescriptorEvaluationContext context = new StandardValueDescriptorEvaluationContext(
+				ReasonedConfigPlaceholders.registry(variable -> {
+					innerEvaluated.set(true);
+					return Maybe.complete("must-not-be-materialized");
+				}));
+		context.withAspect(ValueDescriptorEvaluationPolicy.class,
+				(_context, descriptor) -> descriptor instanceof ToString ? PropertyNotFound.create("RUNTIME_PREREQUISITE") : null);
+
+		LoadedEntity result = new ReasonedValueDescriptorMaterializer(context,
+				ResidualValuePolicy.preserving(reason -> NotFound.T.isInstance(reason))).materialize(source).get();
+
+		ToString residual = LoadedEntity.T.getProperty("cpValue").getVdDirect(result);
+		assertThat(residual).isNotSameAs(deferred);
+		assertVariable(residual.getOperand(), "RUNTIME_VALUE");
+		assertThat(innerEvaluated).isFalse();
+	}
+
+	@Test
+	public void deliberatelyDeferredDescriptorPreservesNestedDescriptorInScalarProperty() {
+		TestImportText inner = TestImportText.T.create();
+		inner.setPath("./secret.encrypted");
+		TestDecrypt deferred = TestDecrypt.T.create();
+		TestDecrypt.T.getProperty("cipherText").setVdDirect(deferred, inner);
+		LoadedEntity source = LoadedEntity.T.createRaw();
+		LoadedEntity.T.getProperty("cpValue").setVdDirect(source, deferred);
+
+		StandardValueDescriptorEvaluationContext context = new StandardValueDescriptorEvaluationContext(new ValueDescriptorExpertRegistry());
+		context.withAspect(ValueDescriptorEvaluationPolicy.class,
+				(_context, descriptor) -> descriptor instanceof TestDecrypt ? PropertyNotFound.create("RUNTIME_SECRET") : null);
+
+		LoadedEntity result = new ReasonedValueDescriptorMaterializer(context,
+				ResidualValuePolicy.preserving(reason -> NotFound.T.isInstance(reason))).materialize(source).get();
+
+		TestDecrypt residual = LoadedEntity.T.getProperty("cpValue").getVdDirect(result);
+		TestImportText residualInner = TestDecrypt.T.getProperty("cipherText").getVdDirect(residual);
+		assertThat(residualInner).isNotNull().isNotSameAs(inner);
+		assertThat(residualInner.getPath()).isEqualTo("./secret.encrypted");
+	}
+
+	@Test
+	public void evaluatesAllIndependentCollectionElementsBeforeReportingErrors() {
+		ToInteger firstInvalid = ToInteger.T.create();
+		firstInvalid.setOperand("not-an-integer-one");
+		ToInteger secondInvalid = ToInteger.T.create();
+		secondInvalid.setOperand("not-an-integer-two");
+
+		Concatenation concatenation = Concatenation.T.create();
+		concatenation.setOperands(Arrays.asList(firstInvalid, secondInvalid));
+		LoadedEntity source = LoadedEntity.T.createRaw();
+		LoadedEntity.T.getProperty("cpValue").setVdDirect(source, concatenation);
+
+		StandardValueDescriptorEvaluationContext context = new StandardValueDescriptorEvaluationContext(
+				ReasonedConfigPlaceholders.registry(variable -> PropertyNotFound.create(variable.getName()).asMaybe()));
+		Maybe<LoadedEntity> result = new ReasonedValueDescriptorMaterializer(context,
+				ResidualValuePolicy.preserving(reason -> NotFound.T.isInstance(reason))).materialize(source);
+
+		assertThat(result.isUnsatisfied()).isTrue();
+		assertThat(result.whyUnsatisfied().stringify())
+				.contains("not-an-integer-one")
+				.contains("not-an-integer-two");
+	}
+
+	@Test
+	public void evaluatesAllIndependentPropertiesBeforeReportingErrors() {
+		LoadedEntity source = LoadedEntity.T.createRaw();
+		ToInteger firstInvalid = ToInteger.T.create();
+		firstInvalid.setOperand("invalid-property-one");
+		LoadedEntity.T.getProperty("cpValue").setVdDirect(source, firstInvalid);
+		ToInteger secondInvalid = ToInteger.T.create();
+		secondInvalid.setOperand("invalid-property-two");
+		LoadedEntity.T.getProperty("fs1Value").setVdDirect(source, secondInvalid);
+
+		StandardValueDescriptorEvaluationContext context = new StandardValueDescriptorEvaluationContext(
+				ReasonedConfigPlaceholders.registry(variable -> PropertyNotFound.create(variable.getName()).asMaybe()));
+		Maybe<LoadedEntity> result = new ReasonedValueDescriptorMaterializer(context,
+				ResidualValuePolicy.preserving(reason -> NotFound.T.isInstance(reason))).materialize(source);
+
+		assertThat(result.isUnsatisfied()).isTrue();
+		assertThat(result.whyUnsatisfied().stringify())
+				.contains("invalid-property-one")
+				.contains("invalid-property-two");
 	}
 
     private static ReasonedValueDescriptorMaterializer materializer(StandardValueDescriptorEvaluationContext context) {

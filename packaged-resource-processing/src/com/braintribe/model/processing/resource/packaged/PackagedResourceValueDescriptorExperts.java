@@ -229,15 +229,14 @@ public final class PackagedResourceValueDescriptorExperts {
 				return InvalidArgument.create("A packaged resource has no owning artifact context: " + configuredPath).asMaybe();
 
 			artifact = source.artifact();
-			if (sourceRelative) {
-				String sourcePath = source.path() == null ? "" : source.path().replace('\\', '/');
-				int separator = sourcePath.lastIndexOf('/');
-				candidate = (separator < 0 ? "" : sourcePath.substring(0, separator + 1)) + candidate;
-			}
+		}
 
-		} else {
-			while (candidate.startsWith("./"))
-				candidate = candidate.substring(2);
+		// An explicit artifact selects the namespace; it does not change the meaning of a sibling path.
+		// Therefore ./ and ../ always remain relative to the configuration document.
+		if (sourceRelative) {
+			String sourcePath = source == null || source.path() == null ? "" : source.path().replace('\\', '/');
+			int separator = sourcePath.lastIndexOf('/');
+			candidate = (separator < 0 ? "" : sourcePath.substring(0, separator + 1)) + candidate;
 		}
 
 		while (candidate.startsWith("/"))

@@ -131,7 +131,7 @@ public class ClasspathIndex {
 	 */
 	public static FilesystemSource filesystemSource(Path root, String logicalPrefix, Collection<String> excludedResourcePrefixes) {
 		return new FilesystemSource(requireFilesystemRoot(root), normalizeLogicalPrefix(logicalPrefix),
-				normalizeResourcePrefixes(excludedResourcePrefixes), true);
+				normalizeResourcePrefixes(excludedResourcePrefixes), Set.of(), true, false, null, List.of());
 	}
 
 	/**
@@ -139,7 +139,40 @@ public class ClasspathIndex {
 	 * classpath-style {@code META-INF} indexes.
 	 */
 	public static FilesystemSource filesystemSlots(Path root, String logicalPrefix) {
-		return new FilesystemSource(requireFilesystemRoot(root), normalizeLogicalPrefix(logicalPrefix), Set.of(), false);
+		return new FilesystemSource(requireFilesystemRoot(root), normalizeLogicalPrefix(logicalPrefix), Set.of(), Set.of(), false, false, null,
+				List.of());
+	}
+
+	/** Exposes one ordinary directory tree as one logical artifact, without generated indexes or slot folders. */
+	public static FilesystemSource filesystemTree(Path root, String logicalPrefix, String artifactId) {
+		return filesystemTree(root, logicalPrefix, artifactId, List.of());
+	}
+
+	/** Exposes one ordinary directory tree while omitting physical files which are exposed through explicit mappings. */
+	public static FilesystemSource filesystemTree(Path root, String logicalPrefix, String artifactId,
+			Collection<String> excludedRelativePaths) {
+		if (artifactId == null || artifactId.isBlank())
+			throw new IllegalArgumentException("artifactId must not be empty");
+		return new FilesystemSource(requireFilesystemRoot(root), normalizeLogicalPrefix(logicalPrefix), Set.of(),
+				normalizeResourcePaths(excludedRelativePaths), false, true, artifactId, List.of());
+	}
+
+	/**
+	 * Exposes materialized files under their original logical paths and artifact identities. The physical path may differ after collision handling.
+	 */
+	public static FilesystemSource filesystemMappings(Path root, Collection<FilesystemMapping> mappings) {
+		if (mappings == null)
+			throw new NullPointerException("mappings must not be null");
+		return new FilesystemSource(requireFilesystemRoot(root), "", Set.of(), Set.of(), false, false, null, List.copyOf(mappings));
+	}
+
+	public record FilesystemMapping(String logicalPath, String materializedPath, String artifactId) {
+		public FilesystemMapping {
+			logicalPath = canonicalResourcePath(requireMappingValue(logicalPath, "logicalPath"));
+			materializedPath = canonicalResourcePath(requireMappingValue(materializedPath, "materializedPath"));
+			if (artifactId == null || artifactId.isBlank())
+				throw new IllegalArgumentException("artifactId must not be empty");
+		}
 	}
 
 	private ClasspathIndex(ClassLoader classLoader, List<FilesystemSource> filesystemSources) {
@@ -418,6 +451,16 @@ public class ClasspathIndex {
 		if (!Files.isDirectory(source.root))
 			throw new IllegalStateException("Classpath resource mirror does not exist: " + source.root);
 
+		if (!source.mappings.isEmpty()) {
+			loadFilesystemMappings(source, entries);
+			return;
+		}
+
+		if (source.directTree) {
+			loadFilesystemTree(source, entries);
+			return;
+		}
+
 		if (!source.indexed) {
 			loadFilesystemSlots(source, entries);
 			return;
@@ -438,6 +481,31 @@ public class ClasspathIndex {
 			}
 		} catch (IOException e) {
 			throw new UncheckedIOException("Error while inspecting classpath resource mirror: " + source.root, e);
+		}
+	}
+
+	private void loadFilesystemTree(FilesystemSource source, List<ClasspathEntry> entries) {
+		try (var paths = Files.walk(source.root)) {
+			for (Path resource : paths.filter(Files::isRegularFile).sorted().toList()) {
+				String relative = source.root.relativize(resource).toString().replace('\\', '/');
+				if (!source.excludes(relative) && !source.excludesExact(relative))
+					entries.add(new ClasspathEntry(source.logicalPrefix + relative, resource.toUri().toURL(), source.artifactId));
+			}
+		} catch (IOException e) {
+			throw new UncheckedIOException("Error while inspecting filesystem resource tree: " + source.root, e);
+		}
+	}
+
+	private void loadFilesystemMappings(FilesystemSource source, List<ClasspathEntry> entries) {
+		for (FilesystemMapping mapping : source.mappings) {
+			Path resource = source.root.resolve(mapping.materializedPath()).normalize();
+			if (!resource.startsWith(source.root.normalize()) || !Files.isRegularFile(resource))
+				throw new IllegalStateException("Mapped filesystem resource does not exist: " + resource);
+			try {
+				entries.add(new ClasspathEntry(mapping.logicalPath(), resource.toUri().toURL(), mapping.artifactId()));
+			} catch (IOException e) {
+				throw new UncheckedIOException("Cannot address mapped filesystem resource " + resource, e);
+			}
 		}
 	}
 
@@ -640,6 +708,32 @@ public class ClasspathIndex {
 		return Set.copyOf(result);
 	}
 
+	private static Set<String> normalizeResourcePaths(Collection<String> paths) {
+		if (paths == null)
+			throw new NullPointerException("excludedRelativePaths must not be null");
+		Set<String> result = new LinkedHashSet<>();
+		for (String path : paths) {
+			String normalized = canonicalResourcePath(requireMappingValue(path, "excludedRelativePath"));
+			Path parsed = Path.of(normalized).normalize();
+			String canonical = canonicalResourcePath(parsed.toString());
+			if (parsed.isAbsolute() || canonical.equals("..") || canonical.startsWith("../"))
+				throw new IllegalArgumentException("Invalid excluded relative path: " + path);
+			result.add(canonical);
+		}
+		return Set.copyOf(result);
+	}
+
+	private static String requireMappingValue(String value, String name) {
+		if (value == null || value.isBlank())
+			throw new IllegalArgumentException(name + " must not be empty");
+		String normalized = canonicalResourcePath(value);
+		Path parsed = Path.of(normalized).normalize();
+		String canonical = canonicalResourcePath(parsed.toString());
+		if (parsed.isAbsolute() || canonical.equals("..") || canonical.startsWith("../"))
+			throw new IllegalArgumentException("Invalid " + name + ": " + value);
+		return canonical;
+	}
+
 	private static String required(Properties properties, String name, Path source) {
 		String value = properties.getProperty(name);
 		if (value == null || value.isBlank())
@@ -679,13 +773,23 @@ public class ClasspathIndex {
 		private final Path root;
 		private final String logicalPrefix;
 		private final Set<String> excludedResourcePrefixes;
+		private final Set<String> excludedResourcePaths;
 		private final boolean indexed;
+		private final boolean directTree;
+		private final String artifactId;
+		private final List<FilesystemMapping> mappings;
 
-		private FilesystemSource(Path root, String logicalPrefix, Set<String> excludedResourcePrefixes, boolean indexed) {
+		private FilesystemSource(Path root, String logicalPrefix, Set<String> excludedResourcePrefixes,
+				Set<String> excludedResourcePaths, boolean indexed, boolean directTree, String artifactId,
+				List<FilesystemMapping> mappings) {
 			this.root = root;
 			this.logicalPrefix = logicalPrefix;
 			this.excludedResourcePrefixes = excludedResourcePrefixes;
+			this.excludedResourcePaths = excludedResourcePaths;
 			this.indexed = indexed;
+			this.directTree = directTree;
+			this.artifactId = artifactId;
+			this.mappings = mappings;
 		}
 
 		public Path root() {
@@ -699,6 +803,10 @@ public class ClasspathIndex {
 		private boolean excludes(String path) {
 			String normalized = path.replace('\\', '/');
 			return excludedResourcePrefixes.stream().anyMatch(normalized::startsWith);
+		}
+
+		private boolean excludesExact(String path) {
+			return excludedResourcePaths.contains(path.replace('\\', '/'));
 		}
 	}
 }

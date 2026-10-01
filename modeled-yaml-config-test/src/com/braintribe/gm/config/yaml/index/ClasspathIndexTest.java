@@ -336,6 +336,44 @@ public class ClasspathIndexTest {
 	}
 
 	@Test
+	public void loadsIntegralConfigurationTreeAsOneSyntheticArtifact() throws Exception {
+		newProject("integral-application");
+		writeFile("conf/database-configuration.yaml", "databases: []\n");
+		writeFile("conf/certificates/client.pem", "certificate");
+
+		ClasspathIndex index = new ClasspathIndex(List.of(
+				ClasspathIndex.filesystemTree(project.resolve("conf"), "HICONIC-CONF", "compiled")));
+
+		assertThat(pathsOf(index.all())).containsExactlyInAnyOrder(
+				"HICONIC-CONF/database-configuration.yaml",
+				"HICONIC-CONF/certificates/client.pem");
+		assertThat(index.all()).allSatisfy(entry -> assertThat(entry.artifactId).isEqualTo("compiled"));
+	}
+
+	@Test
+	public void mapsMaterializedResourcesBackToTheirLogicalArtifactPaths() throws Exception {
+		newProject("mapped-integral-application");
+		writeFile("conf/sample-configuration.yaml", "label: compiled\n");
+		writeFile("conf/log-levels.properties", "a=INFO\n");
+		writeFile("conf/log-levels--artifact-b.properties", "b=DEBUG\n");
+
+		var mappings = List.of(
+				new ClasspathIndex.FilesystemMapping("HICONIC-CONF/log-levels.properties", "log-levels.properties", "group:artifact-a"),
+				new ClasspathIndex.FilesystemMapping("HICONIC-CONF/log-levels.properties", "log-levels--artifact-b.properties", "group:artifact-b"));
+		ClasspathIndex index = new ClasspathIndex(List.of(
+				ClasspathIndex.filesystemTree(project.resolve("conf"), "HICONIC-CONF", "compiled",
+						mappings.stream().map(ClasspathIndex.FilesystemMapping::materializedPath).toList()),
+				ClasspathIndex.filesystemMappings(project.resolve("conf"), mappings)));
+
+		assertThat(index.forPrefix("HICONIC-CONF/log-levels.properties"))
+				.extracting(entry -> entry.artifactId)
+				.containsExactlyInAnyOrder("group:artifact-a", "group:artifact-b");
+		assertThat(index.forPrefix("HICONIC-CONF/sample-configuration.yaml"))
+				.extracting(entry -> entry.artifactId)
+				.containsExactly("compiled");
+	}
+
+	@Test
 	public void combinesGeneralPackagedResourcesWithEffectiveConfiguration() throws Exception {
 		newProject("assembled-application");
 		writeFile("packaged-resources/example-configuration-1.0/HICONIC-CONF/example.yaml", "source: raw\n");
