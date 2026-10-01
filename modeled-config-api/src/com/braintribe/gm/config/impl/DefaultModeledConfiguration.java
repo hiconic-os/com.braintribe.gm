@@ -17,11 +17,14 @@ package com.braintribe.gm.config.impl;
 
 import com.braintribe.gm.config.api.ModeledConfiguration;
 import com.braintribe.gm.model.reason.Maybe;
+import com.braintribe.gm.model.reason.config.ExplicitConfigurationNotFound;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 
 /**
- * This default implementation of {@link ModeledConfiguration} always resolves configuration entity by returning a default initialized instance of the given config type.
+ * This default implementation of {@link ModeledConfiguration} always resolves configuration entity by returning a default initialized instance of the
+ * given config type.
+ * 
  * @author dirk.scheffler
  */
 public class DefaultModeledConfiguration implements ModeledConfiguration {
@@ -34,6 +37,11 @@ public class DefaultModeledConfiguration implements ModeledConfiguration {
 	@Override
 	public <C extends GenericEntity> Maybe<C> configReasoned(EntityType<C> configType, String useCase) {
 		return Maybe.complete(config(configType));
+	}
+
+	@Override
+	public <C extends GenericEntity> Maybe<C> explicitConfigReasoned(EntityType<C> configType, String useCase) {
+		return ExplicitConfigurationNotFound.create(configType.getTypeSignature()).asMaybe();
 	}
 
 }

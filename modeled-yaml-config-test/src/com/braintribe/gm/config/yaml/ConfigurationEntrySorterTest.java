@@ -61,6 +61,28 @@ public class ConfigurationEntrySorterTest {
 	}
 
 	@Test
+	public void sortByGroupId_sameArtifactId() {
+		ClasspathEntry aGroup = new ClasspathEntry("config/my-entity.yaml", asUrl("file:/mirror/a/config/my-entity.yaml"), "aaa.group", "artifact");
+		ClasspathEntry zGroup = new ClasspathEntry("config/my-entity.yaml", asUrl("file:/mirror/z/config/my-entity.yaml"), "zzz.group", "artifact");
+
+		List<ClasspathEntry> sorted = sortEntries(zGroup, aGroup);
+
+		assertThat(sorted).containsExactly(aGroup, zGroup);
+	}
+
+	/** The groupId is not known for every artifact, so it must not decide between different artifactIds. */
+	@Test
+	public void sortByArtifactIdBeforeGroupId() {
+		ClasspathEntry aArtWithoutGroup = new ClasspathEntry("config/my-entity.yaml", asUrl("file:/mirror/a/config/my-entity.yaml"), "aaa-artifact");
+		ClasspathEntry zArtWithGroup = new ClasspathEntry("config/my-entity.yaml", asUrl("file:/mirror/z/config/my-entity.yaml"), "aaa.group",
+				"zzz-artifact");
+
+		List<ClasspathEntry> sorted = sortEntries(zArtWithGroup, aArtWithoutGroup);
+
+		assertThat(sorted).containsExactly(aArtWithoutGroup, zArtWithGroup);
+	}
+
+	@Test
 	public void noPriority_noDisambiguator_defaultsToMinusOneAndEmpty() {
 		ClasspathEntry noPriority = cpEntry("artifact", "1.0", "my-entity~uc.yaml");
 		ClasspathEntry yesPriority = cpEntry("artifact", "1.0", "my-entity~uc.1.yaml");

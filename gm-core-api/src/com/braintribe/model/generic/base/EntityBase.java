@@ -28,6 +28,7 @@ import com.braintribe.model.generic.reflection.GenericModelType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.PropertyAccessInterceptor;
 import com.braintribe.model.generic.reflection.PropertyValueReceiver;
+import com.braintribe.model.generic.reflection.TransientProperty;
 import com.braintribe.model.generic.reflection.TraversingContext;
 import com.braintribe.model.generic.session.GmSession;
 import com.braintribe.model.generic.value.EntityReference;
@@ -190,4 +191,22 @@ public interface EntityBase extends GenericBase {
 	/** Traverse the entity according to given {@link TraversingContext} (typically a StandardTraversingContext). */
 	@JsMethod(name="Traverse")
 	void traverse(TraversingContext traversingContext);
+
+	/** @return shallow copy of this entity with both regular and transient properties copied. */
+	@JsMethod(name = "ShallowCopy")
+	default <T extends GenericEntity> T shallowCopy() {
+		T self = (T) this;
+		EntityType<T> et = self.entityType();
+
+		T result = et.create();
+
+		for (Property p : et.getProperties())
+			p.set(result, p.get(self));
+
+		for (TransientProperty p : et.getTransientProperties())
+			p.set(result, p.get(self));
+
+		return result;
+	}
+
 }

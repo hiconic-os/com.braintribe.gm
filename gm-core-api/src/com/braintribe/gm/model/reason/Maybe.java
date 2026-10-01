@@ -17,6 +17,7 @@ package com.braintribe.gm.model.reason;
 
 import static java.util.Objects.requireNonNull;
 
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -231,20 +232,66 @@ public class Maybe<T> implements Supplier<T> {
 		return this;
 	}
 
+	/**
+	 * Returns a Maybe with the value converted by the given mapper, keeping the {@link #whyUnsatisfied() reason} of this Maybe.
+	 * <ul>
+	 * <li>If this Maybe is <b>empty</b>, the mapper is not called and a Maybe with the same reason is returned.
+	 * <li>If this Maybe is <b>complete</b>, a complete Maybe with the mapped value is returned.
+	 * <li>If this Maybe is <b>incomplete</b>, the mapper is called with the incomplete value and an incomplete Maybe with the mapped value and the
+	 * same reason is returned.
+	 * </ul>
+	 *
+	 * @see #flatMap(Function)
+	 */
 	public <R> Maybe<R> map(Function<? super T, ? extends R> mapper) {
 		requireNonNull(mapper);
 		return flatMap(value -> Maybe.complete(mapper.apply(value)));
 	}
 
+	/**
+	 * Returns the Maybe returned by the given mapper for the value of this Maybe, combined with the {@link #whyUnsatisfied() reason} of this Maybe.
+	 * <ul>
+	 * <li>If this Maybe is <b>empty</b>, the mapper is not called and a Maybe with the same reason is returned.
+	 * <li>If this Maybe is <b>complete</b>, the Maybe returned by the mapper is returned.
+	 * <li>If this Maybe is <b>incomplete</b>, the mapper is called with the incomplete value, and:
+	 * <ul>
+	 * <li>if the mapped Maybe is complete, an incomplete Maybe with the mapped value and the reason of this Maybe is returned.
+	 * <li>if the mapped Maybe is unsatisfied, the result has the mapped value (if any) and a shallow copy of the mapped reason, with the reason of
+	 * this Maybe added to its {@link Reason#getReasons() reasons}. The original reasons are not modified.
+	 * </ul>
+	 * </ul>
+	 *
+	 * @throws NullPointerException
+	 *             if the mapper returns <tt>null</tt>
+	 */
 	public <R> Maybe<R> flatMap(Function<? super T, ? extends Maybe<? extends R>> mapper) {
 		requireNonNull(mapper);
 
 		if (isEmpty())
 			return cast();
 
-		if (isUnsatisfied())
-			return Maybe.empty(whyUnsatisfied);
+		Maybe<R> mappedValue = mapValue(mapper);
 
+		if (isSatisfied())
+			return mappedValue;
+
+		if (mappedValue.isSatisfied())
+			return Maybe.incomplete(mappedValue.get(), whyUnsatisfied);
+
+		// both this and mappedValue have a reason
+
+		// we copy mappingProblem as we are going to modify it
+		Reason mappingProblem = mappedValue.whyUnsatisfied().shallowCopy();
+		mappingProblem.setReasons(new ArrayList<>(mappingProblem.getReasons()));
+		mappingProblem.getReasons().add(whyUnsatisfied);
+
+		if (mappedValue.hasValue())
+			return Maybe.incomplete(mappedValue.value(), mappingProblem);
+		else
+			return Maybe.empty(mappingProblem);
+	}
+
+	private <R> Maybe<R> mapValue(Function<? super T, ? extends Maybe<? extends R>> mapper) {
 		try {
 			Maybe<? extends R> mapped = mapper.apply(value);
 			if (mapped == null)

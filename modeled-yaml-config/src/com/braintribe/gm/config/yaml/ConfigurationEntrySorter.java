@@ -73,7 +73,7 @@ import com.braintribe.logging.Logger;
 		// e.g. my-config~use-case.disambig-8.yaml
 		String fileName = i >= 0 ? path.substring(i + 1) : path;
 
-		ComparableEntry<ClasspathEntry> result = new ComparableEntry<ClasspathEntry>(cpEntry, artifactId);
+		ComparableEntry<ClasspathEntry> result = new ComparableEntry<ClasspathEntry>(cpEntry, cpEntry.groupId, artifactId);
 		fillDisambiguationAndPriority(result, fileName, "classpath entry file name [" + fullPath + "]");
 
 		return result;
@@ -93,7 +93,7 @@ import com.braintribe.logging.Logger;
 	}
 
 	private static ComparableEntry<File> fileToComparable(File file) {
-		ComparableEntry<File> result = new ComparableEntry<File>(file, "");
+		ComparableEntry<File> result = new ComparableEntry<File>(file, "", "");
 		fillDisambiguationAndPriority(result, file.getName(), "file [" + file.getPath() + "]");
 
 		return result;
@@ -140,10 +140,12 @@ import com.braintribe.logging.Logger;
 		private final E entry;
 		private int priority = -1;
 		private String disambiguator = "";
+		private final String groupId;
 		private final String artifactId;
 
-		public ComparableEntry(E entry, String artifactId) {
+		public ComparableEntry(E entry, String groupId, String artifactId) {
 			this.entry = entry;
+			this.groupId = groupId;
 			this.artifactId = artifactId;
 		}
 
@@ -157,7 +159,12 @@ import com.braintribe.logging.Logger;
 			if (result != 0)
 				return result;
 
-			return artifactId.compareTo(o.artifactId);
+			result = artifactId.compareTo(o.artifactId);
+			if (result != 0)
+				return result;
+
+			// Only after the artifactId, so that knowing the groupId of one artifact but not of another cannot change their order.
+			return groupId.compareTo(o.groupId);
 		}
 	}
 

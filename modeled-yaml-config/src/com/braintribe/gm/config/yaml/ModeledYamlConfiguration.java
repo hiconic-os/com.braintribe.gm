@@ -58,6 +58,7 @@ import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.ReasonAggregator;
 import com.braintribe.gm.model.reason.Reasons;
 import com.braintribe.gm.model.reason.config.ConfigurationError;
+import com.braintribe.gm.model.reason.config.ExplicitConfigurationNotFound;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
@@ -133,7 +134,7 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 
 	private static final Logger logger = Logger.getLogger(ModeledYamlConfiguration.class);
 
-	private final Map<ConfigKey, Lazy<Maybe<? extends GenericEntity>>> configs = new ConcurrentHashMap<>();
+	private final Map<ConfigKey, Lazy<Maybe<ResolvedConfig>>> configs = new ConcurrentHashMap<>();
 	private File configFolder;
 	private String configFolderArtifact;
 	private VirtualEnvironment virtualEnvironment = StandardEnvironment.INSTANCE;
@@ -275,11 +276,35 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	private record PartialConfigEntries(List<ConfigEntry> entries, Set<String> unresolvedVariables) {
 	}
 
+	private record ResolvedConfig(GenericEntity entity, boolean explicit) {
+	}
+
 	@Override
 	public <C extends GenericEntity> Maybe<C> configReasoned(EntityType<C> configType, String useCase) {
-		// using the lazy initialized here is to avoid to block the map access and to do the actual loading afterwards
+		return resolveConfig(configType, useCase).map(ResolvedConfig::entity).cast();
+	}
+
+	@Override
+	public <C extends GenericEntity> Maybe<C> explicitConfigReasoned(EntityType<C> configType, String useCase) {
+		Maybe<ResolvedConfig> maybe = resolveConfig(configType, useCase);
+
+		if (!maybe.hasValue())
+			return maybe.propagateReason();
+
+		ResolvedConfig value = maybe.value();
+		if (!value.explicit())
+			return ExplicitConfigurationNotFound.create(configType.getTypeSignature()).asMaybe();
+
+		C configEntity = (C) value.entity();
+		return maybe.isSatisfied() ? Maybe.complete(configEntity) : Maybe.incomplete(configEntity, maybe.whyUnsatisfied());
+	}
+
+	private Maybe<ResolvedConfig> resolveConfig(EntityType<?> configType, String useCase) {
 		var configKey = new ConfigKey(configType, useCase);
-		return (Maybe<C>) configs.computeIfAbsent(configKey, k -> new Lazy<>(() -> this.loadConfig(configType, useCase))).get();
+		// using the lazy initialized here is to avoid to block the map access and to do the actual loading afterwards
+		return configs //
+				.computeIfAbsent(configKey, k -> new Lazy<>(() -> this.loadConfig(configType, useCase))) //
+				.get();
 	}
 
 	/**
@@ -328,7 +353,7 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 	}
 
 	// load from all possible sources and merge
-	private <C extends GenericEntity> Maybe<C> loadConfig(EntityType<C> configType, String useCase) {
+	private Maybe<ResolvedConfig> loadConfig(EntityType<?> configType, String useCase) {
 		Maybe<List<ConfigEntry>> cpMaybe = readCpConfig(configType, useCase);
 		Maybe<List<ConfigEntry>> fsMaybe = readFsConfig(configType, useCase);
 
@@ -359,14 +384,18 @@ public class ModeledYamlConfiguration implements ModeledConfiguration {
 		finalEntry = mergeEntities(reasonAggregator, finalEntry, fs);
 		finalEntry = mergeEntities(reasonAggregator, finalEntry, afterAll);
 
-		C result = finalEntry != null ? (C) finalEntry.entity() : configType.create();
+		if (finalEntry == null)
+			return Maybe.complete(new ResolvedConfig(configType.create(), false));
+		
+		GenericEntity finalEntity = finalEntry.entity();
+		
+		deepDeabsentify(finalEntity);
 
-		deepDeabsentify(result);
-
+		ResolvedConfig resolvedConfig = new ResolvedConfig(finalEntity, true);
 		if (!reasonAggregator.hasReason())
-			return Maybe.complete(result);
+			return Maybe.complete(resolvedConfig);
 		else
-			return Maybe.incomplete(result, reasonAggregator.get());
+			return Maybe.incomplete(resolvedConfig, reasonAggregator.get());
 	}
 
 	private ConfigEntry mergeEntities( //

@@ -17,6 +17,7 @@ package com.braintribe.gm.config.api;
 
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.ReasonException;
+import com.braintribe.gm.model.reason.config.ExplicitConfigurationNotFound;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.reflection.EntityType;
 
@@ -47,4 +48,13 @@ public interface ModeledConfiguration {
 		return configReasoned(configType, "");
 	}
 
+	/**
+	 * Returns a configuration for the given type or a reason why the configuration could not be retrieved. If an explicit configuration cannot be
+	 * found, an {@link ExplicitConfigurationNotFound} reason is returned.
+	 */
+	<C extends GenericEntity> Maybe<C> explicitConfigReasoned(EntityType<C> configType, String useCase);
+
+	default <C extends GenericEntity> Maybe<C> explicitConfigReasoned(EntityType<C> configType) {
+		return explicitConfigReasoned(configType, "");
+	}
 }

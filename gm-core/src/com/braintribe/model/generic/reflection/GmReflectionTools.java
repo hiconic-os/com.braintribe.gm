@@ -62,16 +62,7 @@ public class GmReflectionTools {
 	}
 
 	public static <T extends GenericEntity> T makeShallowCopy(T entity) {
-		EntityType<T> et = entity.entityType();
-
-		T result = et.create();
-
-		for (Property p: et.getProperties()) {
-			Object value = p.get(entity);
-			p.set(result, value);
-		}
-
-		return result;
+		return entity == null ? null : entity.shallowCopy();
 	}
 
 	public static <T> T makeDeepCopy(T o) {

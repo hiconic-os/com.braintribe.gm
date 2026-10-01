@@ -265,7 +265,7 @@ public abstract class AbstractEntityType<T extends GenericEntity> extends Abstra
 
 	@Override
 	public Stream<Attribute> getAttributes() {
-		return null;
+		return Stream.concat(getProperties().stream(), getTransientProperties().stream());
 	}
 
 	@Override

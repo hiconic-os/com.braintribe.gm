@@ -18,6 +18,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.braintribe.gm.config.yaml.index.ClasspathIndex.FilesystemMapping;
+
 /**
  * Tests for {@link ClasspathIndex}
  *
@@ -182,6 +184,56 @@ public class ClasspathIndexTest {
 	}
 
 	@Test
+	public void takesGroupIdOfJarFromArtifactDescriptor() throws Exception {
+		newProject("described-jar");
+		Path archive = project.resolve("renamed-1.0-pc.jar");
+		try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(archive))) {
+			writeZipEntry(out, "META-INF/artifact-descriptor.properties", "groupId=example\nartifactId=described-configuration\nversion=1.0-pc\n");
+			writeZipEntry(out, "META-INF/classpath-index.txt", "HICONIC-CONF/example.yaml\n");
+			writeZipEntry(out, "HICONIC-CONF/example.yaml", "example: true\n");
+		}
+
+		try (URLClassLoader classLoader = new URLClassLoader(new URL[] { archive.toUri().toURL() }, null)) {
+			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
+
+			assertThat(entries).hasSize(1);
+			assertThat(entries.get(0).groupId).isEqualTo("example");
+		}
+	}
+
+	@Test
+	public void takesGroupIdOfDeclaredFolderFromArtifactDescriptor() throws Exception {
+		newProject("renamed-folder");
+		writeFile("classes/META-INF/artifact-descriptor.properties", "groupId=example\nartifactId=described-configuration\n");
+		writeFile("classes/META-INF/classpath-resources.txt", "HICONIC-CONF\n");
+		writeFile("classes/HICONIC-CONF/example.yaml", "example: true\n");
+
+		try (URLClassLoader classLoader = classLoaderFor("classes")) {
+			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
+
+			assertThat(entries).hasSize(1);
+			assertThat(entries.get(0).groupId).isEqualTo("example");
+			assertThat(entries.get(0).artifactId).isEqualTo("described-configuration");
+		}
+	}
+
+	/** Only the descriptor knows the groupId. The artifactId is still derived from the project folder. */
+	@Test
+	public void leavesGroupIdEmptyWithoutArtifactDescriptor() throws Exception {
+		newProject("undescribed-configuration");
+		writeFile("classes/META-INF/classpath-resources.txt", "HICONIC-CONF\n");
+		writeFile("classes/HICONIC-CONF/example.yaml", "example: true\n");
+
+		try (URLClassLoader classLoader = classLoaderFor("classes")) {
+			List<ClasspathEntry> entries = new ClasspathIndex(classLoader).all();
+
+			assertThat(entries).hasSize(1);
+			assertThat(entries.get(0).groupId).isEmpty();
+			assertThat(entries.get(0).artifactId).isEqualTo("undescribed-configuration");
+		}
+	}
+
+	@Test
 	public void expandsDeclaredClasspathResources() throws Exception {
 		newProject("declared-configuration");
 		writeFile("classes/META-INF/classpath-resources.txt", "# declared entries\n\nHICONIC-CONF\nnotes.txt\n");
@@ -281,6 +333,104 @@ public class ClasspathIndexTest {
 	}
 
 	@Test
+	public void takesGroupIdFromCentralPackagedResourceIndex() throws Exception {
+		newProject("packaged-resources");
+		writeFile("example-configuration-1.0/HICONIC-CONF/example.yaml", "example: true\n");
+		writeFile("index.properties", """
+				formatVersion=1
+				artifact.count=1
+				artifact.0.folder=example-configuration-1.0
+				artifact.0.groupId=example
+				artifact.0.artifactId=example-configuration
+				artifact.0.resource.count=1
+				artifact.0.resource.0.path=HICONIC-CONF/example.yaml
+				""");
+
+		List<ClasspathEntry> entries = new ClasspathIndex(project).all();
+
+		assertThat(entries).hasSize(1);
+		assertThat(entries.get(0).groupId).isEqualTo("example");
+		assertThat(entries.get(0).artifactId).isEqualTo("example-configuration");
+	}
+
+	/** A mirror written before the groupId was recorded is still valid. */
+	@Test
+	public void leavesGroupIdEmptyWhenCentralPackagedResourceIndexHasNone() throws Exception {
+		newProject("packaged-resources");
+		writeFile("example-configuration-1.0/HICONIC-CONF/example.yaml", "example: true\n");
+		writeFile("index.properties", """
+				formatVersion=1
+				artifact.count=1
+				artifact.0.folder=example-configuration-1.0
+				artifact.0.artifactId=example-configuration
+				artifact.0.resource.count=1
+				artifact.0.resource.0.path=HICONIC-CONF/example.yaml
+				""");
+
+		List<ClasspathEntry> entries = new ClasspathIndex(project).all();
+
+		assertThat(entries).hasSize(1);
+		assertThat(entries.get(0).groupId).isEmpty();
+	}
+
+	/** Two artifacts with the same artifactId but different groups are two artifacts, so neither replaces the other's resource. */
+	@Test
+	public void keepsSamePathOfSameArtifactIdInDifferentGroups() throws Exception {
+		newProject("packaged-resources");
+		writeFile("a/HICONIC-CONF/example.yaml", "group: a\n");
+		writeFile("b/HICONIC-CONF/example.yaml", "group: b\n");
+		writeFile("index.properties", """
+				formatVersion=1
+				artifact.count=2
+				artifact.0.folder=a
+				artifact.0.groupId=group.a
+				artifact.0.artifactId=example-configuration
+				artifact.0.resource.count=1
+				artifact.0.resource.0.path=HICONIC-CONF/example.yaml
+				artifact.1.folder=b
+				artifact.1.groupId=group.b
+				artifact.1.artifactId=example-configuration
+				artifact.1.resource.count=1
+				artifact.1.resource.0.path=HICONIC-CONF/example.yaml
+				""");
+
+		List<ClasspathEntry> entries = new ClasspathIndex(project).all();
+
+		assertThat(entries).extracting(entry -> entry.groupId).containsExactlyInAnyOrder("group.a", "group.b");
+	}
+
+	/**
+	 * A later source replaces the entry of the same artifact, even if only one of the sources knows the groupId. The groupId is kept, so it is not lost
+	 * by the replacement.
+	 */
+	@Test
+	public void replacesEntryOfSameArtifactWhenOnlyOneSourceKnowsTheGroupId() throws Exception {
+		newProject("mixed-group-knowledge");
+		writeFile("packaged-resources/example-configuration-1.0/HICONIC-CONF/example.yaml", "source: raw");
+		writeFile("packaged-resources/index.properties", """
+				formatVersion=1
+				artifact.count=1
+				artifact.0.folder=example-configuration-1.0
+				artifact.0.groupId=example
+				artifact.0.artifactId=example-configuration
+				artifact.0.resource.count=1
+				artifact.0.resource.0.path=HICONIC-CONF/example.yaml
+				""");
+		writeFilesystemArtifact("packaged-conf/example-configuration-1.0", "example-configuration", "example.yaml",
+				Map.of("example.yaml", "source: projected"));
+
+		ClasspathIndex index = new ClasspathIndex(List.of(
+				ClasspathIndex.filesystemSource(project.resolve("packaged-resources"), ""),
+				ClasspathIndex.filesystemSource(project.resolve("packaged-conf"), "HICONIC-CONF")));
+
+		List<ClasspathEntry> entries = index.forPrefix("HICONIC-CONF/example.yaml");
+
+		assertThat(entries).hasSize(1);
+		assertThat(Path.of(entries.get(0).url.toURI())).hasContent("source: projected");
+		assertThat(entries.get(0).groupId).isEqualTo("example");
+	}
+
+	@Test
 	public void loadsCentralPackagedResourceIndexAndCanExcludeConfiguration() throws Exception {
 		newProject("packaged-resources");
 		writeFile("example-configuration-1.0/HICONIC-CONF/example.yaml", "example: true\n");
@@ -358,19 +508,25 @@ public class ClasspathIndexTest {
 		writeFile("conf/log-levels--artifact-b.properties", "b=DEBUG\n");
 
 		var mappings = List.of(
-				new ClasspathIndex.FilesystemMapping("HICONIC-CONF/log-levels.properties", "log-levels.properties", "group:artifact-a"),
-				new ClasspathIndex.FilesystemMapping("HICONIC-CONF/log-levels.properties", "log-levels--artifact-b.properties", "group:artifact-b"));
+				new ClasspathIndex.FilesystemMapping("HICONIC-CONF/log-levels.properties", "log-levels.properties", "group", "artifact-a"),
+				new ClasspathIndex.FilesystemMapping("HICONIC-CONF/log-levels.properties", "log-levels--artifact-b.properties", "group", "artifact-b"));
 		ClasspathIndex index = new ClasspathIndex(List.of(
 				ClasspathIndex.filesystemTree(project.resolve("conf"), "HICONIC-CONF", "compiled",
 						mappings.stream().map(ClasspathIndex.FilesystemMapping::materializedPath).toList()),
 				ClasspathIndex.filesystemMappings(project.resolve("conf"), mappings)));
 
 		assertThat(index.forPrefix("HICONIC-CONF/log-levels.properties"))
-				.extracting(entry -> entry.artifactId)
+				.extracting(entry -> entry.groupId + ":" + entry.artifactId)
 				.containsExactlyInAnyOrder("group:artifact-a", "group:artifact-b");
 		assertThat(index.forPrefix("HICONIC-CONF/sample-configuration.yaml"))
 				.extracting(entry -> entry.artifactId)
 				.containsExactly("compiled");
+	}
+
+	/** The groupId has its own component, so an artifactId never carries a coordinate. */
+	@Test(expected = IllegalArgumentException.class)
+	public void rejectsCoordinateAsArtifactIdOfMapping() {
+		FilesystemMapping _ = new ClasspathIndex.FilesystemMapping("HICONIC-CONF/log-levels.properties", "log-levels.properties", "", "group:artifact-a");
 	}
 
 	@Test

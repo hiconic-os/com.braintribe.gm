@@ -19,6 +19,7 @@ import static com.braintribe.testing.junit.assertions.gm.assertj.core.api.GmAsse
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.function.Supplier;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -30,6 +31,9 @@ import com.braintribe.gm.config.yaml.index.ClasspathIndex;
 import com.braintribe.gm.config.yaml.model.LoadedEntity;
 import com.braintribe.gm.config.yaml.model.MergedEntity;
 import com.braintribe.gm.model.reason.Maybe;
+import com.braintribe.gm.model.reason.config.ConfigurationError;
+import com.braintribe.gm.model.reason.config.ExplicitConfigurationNotFound;
+import com.braintribe.gm.model.reason.essential.NotFound;
 import com.braintribe.model.bvd.convert.ToString;
 import com.braintribe.model.bvd.string.Concatenation;
 import com.braintribe.model.generic.GMF;
@@ -230,6 +234,136 @@ public class ModeledYamlConfigurationTest {
 		MergedEntity entity = myc.config(MergedEntity.T);
 
 		assertThat(entity.getString()).isEqualTo(configFile.getAbsolutePath() + ":./payload.txt");
+	}
+
+	// ######################################################
+	// ## . . . . . . . explicitConfigReasoned . . . . . . ##
+	// ######################################################
+
+	@Test
+	public void explicitConfig_NoConfigSource_ExplicitConfigurationNotFound() {
+		Maybe<LoadedEntity> explicitMaybe = myc.explicitConfigReasoned(LoadedEntity.T);
+
+		assertThat(explicitMaybe.isEmpty()).isTrue();
+		assertThat(explicitMaybe).isUnsatisfiedBy(ExplicitConfigurationNotFound.T);
+		assertThat(explicitMaybe).isUnsatisfiedBy(NotFound.T);
+
+		ExplicitConfigurationNotFound reason = explicitMaybe.whyUnsatisfied();
+		assertThat(reason.getConfigurationType()).isEqualTo(LoadedEntity.T.getTypeSignature());
+
+		assertThat(myc.configReasoned(LoadedEntity.T)).isSatisfied().hasNonNullValue();
+	}
+
+	@Test
+	public void explicitConfig_CpOnly() {
+		setClasspathIndex();
+
+		Maybe<LoadedEntity> explicitMaybe = myc.explicitConfigReasoned(LoadedEntity.T);
+
+		assertThat(explicitMaybe).isSatisfied();
+		assertThat(explicitMaybe.get().getCpValue()).isEqualTo("cp-value");
+	}
+
+	@Test
+	public void explicitConfig_ConfDirOnly() {
+		setConfigFolder();
+
+		Maybe<LoadedEntity> explicitMaybe = myc.explicitConfigReasoned(LoadedEntity.T);
+
+		assertThat(explicitMaybe).isSatisfied();
+		assertThat(explicitMaybe.get().getFs2Value()).isEqualTo("high-prio-value");
+	}
+
+	@Test
+	public void explicitConfig_ProgrammaticOnly() {
+		LoadedEntity registered = createAbsentEntity();
+		registered.setAfterAllValue("after-all-value");
+		myc.registerConfiguration("test", LoadedEntity.T, "", ConfigurationStage.afterEverythingElse, 0, () -> registered);
+
+		Maybe<LoadedEntity> explicitMaybe = myc.explicitConfigReasoned(LoadedEntity.T);
+
+		assertThat(explicitMaybe).isSatisfied();
+		assertThat(explicitMaybe.get().getAfterAllValue()).isEqualTo("after-all-value");
+	}
+
+	@Test
+	public void explicitConfig_SameInstanceAsConfig() {
+		setConfigFolder();
+
+		LoadedEntity explicitEntity = myc.explicitConfigReasoned(LoadedEntity.T).get();
+
+		assertThat(explicitEntity).isSameAs(myc.config(LoadedEntity.T));
+	}
+
+	@Test
+	public void explicitConfig_OnlyOtherUseCase_ExplicitConfigurationNotFound() throws Exception {
+		File configFolder = temporaryFolder.newFolder("use-case-conf");
+		Files.writeString(new File(configFolder, "loaded-entity~special.yaml").toPath(), "cpValue: special-value\n", StandardCharsets.UTF_8);
+		myc.setConfigFolder(configFolder);
+
+		assertThat(myc.explicitConfigReasoned(LoadedEntity.T)).isUnsatisfiedBy(ExplicitConfigurationNotFound.T);
+
+		Maybe<LoadedEntity> useCaseMaybe = myc.explicitConfigReasoned(LoadedEntity.T, "special");
+		assertThat(useCaseMaybe).isSatisfied();
+		assertThat(useCaseMaybe.get().getCpValue()).isEqualTo("special-value");
+	}
+
+	@Test
+	public void explicitConfig_InvalidYaml_ConfigurationError() throws Exception {
+		File configFolder = temporaryFolder.newFolder("invalid-conf");
+		Files.writeString(new File(configFolder, "loaded-entity.yaml").toPath(), "{:}", StandardCharsets.UTF_8);
+		myc.setConfigFolder(configFolder);
+
+		assertLoadingFailed();
+	}
+
+	@Test
+	public void explicitConfig_UnresolvedVariable_ConfigurationError() throws Exception {
+		File configFolder = temporaryFolder.newFolder("unresolved-variable-conf");
+		Files.writeString(new File(configFolder, "loaded-entity.yaml").toPath(), "cpValue: ${MISSING}\n", StandardCharsets.UTF_8);
+		myc.setConfigFolder(configFolder);
+		myc.setExternalPropertyLookup(name -> null);
+
+		assertLoadingFailed();
+	}
+
+	/** Asserts that loading failed with a {@link ConfigurationError}, not with a {@link NotFound} (e.g. {@link ExplicitConfigurationNotFound}). */
+	private void assertLoadingFailed() {
+		Maybe<LoadedEntity> explicitMaybe = myc.explicitConfigReasoned(LoadedEntity.T);
+		assertThat(explicitMaybe.isEmpty()).isTrue();
+		assertThat(explicitMaybe).isUnsatisfiedBy(ConfigurationError.T);
+		assertThat(explicitMaybe.isUnsatisfiedBy(NotFound.T)).isFalse();
+
+		Maybe<LoadedEntity> configMaybe = myc.configReasoned(LoadedEntity.T);
+		assertThat(configMaybe.isEmpty()).isTrue();
+		assertThat(configMaybe).isUnsatisfiedBy(ConfigurationError.T);
+	}
+
+	@Test
+	public void explicitConfig_MergeError_Incomplete() {
+		registerIncompatibleProgrammaticSources();
+
+		Maybe<LoadedEntity> explicitMaybe = myc.explicitConfigReasoned(LoadedEntity.T);
+		assertThat(explicitMaybe).isIncomplete().isUnsatisfiedBy(ConfigurationError.T);
+		assertThat(explicitMaybe.isUnsatisfiedBy(NotFound.T)).isFalse();
+		assertThat(explicitMaybe.value().getAfterAllValue()).isEqualTo("after-all-value");
+
+		Maybe<LoadedEntity> configMaybe = myc.configReasoned(LoadedEntity.T);
+		assertThat(configMaybe).isIncomplete().isUnsatisfiedBy(ConfigurationError.T);
+		assertThat(configMaybe.value()).isSameAs(explicitMaybe.value());
+	}
+
+	/** Registers a {@link MergedEntity} as low-prio {@link LoadedEntity} configuration, so merging it with a high-prio one creates a reason. */
+	@SuppressWarnings("unchecked")
+	private void registerIncompatibleProgrammaticSources() {
+		MergedEntity wrongTypeEntity = createAbsentEntity(MergedEntity.T);
+		Supplier<LoadedEntity> wrongTypeSupplier = (Supplier<LoadedEntity>) (Supplier<?>) () -> wrongTypeEntity;
+
+		LoadedEntity afterAll = createAbsentEntity();
+		afterAll.setAfterAllValue("after-all-value");
+
+		myc.registerConfiguration("wrong type", LoadedEntity.T, "", ConfigurationStage.beforeClasspath, 0, wrongTypeSupplier);
+		myc.registerConfiguration("test", LoadedEntity.T, "", ConfigurationStage.afterEverythingElse, 0, () -> afterAll);
 	}
 
 	private void registerProgrammaticSources() {
