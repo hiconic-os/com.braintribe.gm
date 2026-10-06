@@ -419,7 +419,7 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 				return ServiceResults.encodeFailure(e);
 			}
 
-			log.info(() -> msg + ". This response won't be returned to the caller", e);
+			log.error(msg + ". The request was sent without a response consumer, so the failure cannot be returned to the caller.", e);
 		}
 
 		return null;
