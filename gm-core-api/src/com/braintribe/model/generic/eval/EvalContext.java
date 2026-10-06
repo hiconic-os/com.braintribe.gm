@@ -51,14 +51,22 @@ public interface EvalContext<R> extends MutableTypeSafeAttributes, ReflectedType
 	/**
 	 * Invokes the underlying request and ignores the result.
 	 * <p>
-	 * Possible errors while evaluation, whether in the form of an exception, or an unsatisfied {@link Maybe} might be logged with
-	 * {@link ErrorLoggingCallback}, though when e.g. sending the request to a remote system, the result might not even be passed to this callback.
+	 * Errors observed by this evaluation, whether raised synchronously, reported asynchronously as an exception, or returned as an unsatisfied
+	 * {@link Maybe}, are logged with {@link ErrorLoggingCallback}. When the request is handed off to a remote system without a response, failures
+	 * occurring after the handoff have to be logged by that remote system.
 	 * 
 	 * @see #getReasoned(AsyncCallback)
 	 */
 	default void executeAsync() {
-		setAttribute(IgnoreResponseAspect.class, Boolean.TRUE);
-		getReasoned(ErrorLoggingCallback.instance());
+		ErrorLoggingCallback<R> callback = ErrorLoggingCallback.instance();
+
+		try {
+			setAttribute(IgnoreResponseAspect.class, Boolean.TRUE);
+			getReasoned(callback);
+		} catch (Throwable t) {
+			// As this is explicitly a fire-and-forget evaluation, there is no caller waiting for a synchronously raised failure.
+			callback.onFailure(t);
+		}
 	}
 
 	/**
