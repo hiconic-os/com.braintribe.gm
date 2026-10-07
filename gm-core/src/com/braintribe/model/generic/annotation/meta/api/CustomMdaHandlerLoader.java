@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.function.Function;
@@ -43,6 +44,7 @@ import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.annotation.meta.AnnotationDefaults;
 import com.braintribe.model.generic.annotation.meta.NullDefault;
+import com.braintribe.model.generic.annotation.meta.api.synthesis.ClassReference;
 import com.braintribe.model.generic.annotation.meta.api.synthesis.SingleAnnotationDescriptor;
 import com.braintribe.model.generic.annotation.meta.base.BasicMdaHandler;
 import com.braintribe.model.generic.annotation.meta.base.BasicRepeatableMdaHandler;
@@ -436,7 +438,14 @@ import com.braintribe.model.meta.data.MetaData;
 	}
 
 	private AttributeToProperty autoConvertingAtp(Class<?> attributeType, Class<?> mdType, MethodHandle methodHandle) {
-		// Currently we only support enum-to-enum conversion
+		if (attributeType == Class.class && mdType == String.class) {
+			AttributeToProperty atp = simpleAtp(methodHandle);
+			atp.toPropertyConverter = v -> ((Class<?>) v).getName();
+			atp.toAttributeConverter = v -> new ClassReference((String) v);
+			return atp;
+		}
+
+		// Besides class-to-signature conversion we support enum-to-enum conversion.
 		if (attributeType.isEnum() && mdType.isEnum()) {
 			AttributeToProperty atp = simpleAtp(methodHandle);
 			if (applyEnumConversion(attributeType, mdType, atp))
@@ -464,18 +473,18 @@ import com.braintribe.model.meta.data.MetaData;
 		if (!method.isAnnotationPresent(NullDefault.class))
 			return;
 
-		if (method.getReturnType() != String.class) {
-			logError("@NullDefault is currently only supported for String attributes, but " + annoClass.getName() + "." + attribute + " returns "
-					+ method.getReturnType().getName());
+		Object defaultValue = method.getDefaultValue();
+		if (defaultValue == null) {
+			logError("@NullDefault attribute " + annoClass.getName() + "." + attribute + " must declare a default value");
 			return;
 		}
 
-		if (!AnnotationDefaults.NULL_STRING.equals(method.getDefaultValue())) {
+		if (method.getReturnType() == String.class && !AnnotationDefaults.NULL_STRING.equals(defaultValue)) {
 			logError("@NullDefault String attribute " + annoClass.getName() + "." + attribute + " must default to AnnotationDefaults.NULL_STRING");
 			return;
 		}
 
-		atp.nullDefault = true;
+		atp.nullDefaultValue = defaultValue;
 	}
 
 	@SuppressWarnings("rawtypes")
@@ -565,7 +574,7 @@ import com.braintribe.model.meta.data.MetaData;
 		atp.ensureProperty(md);
 
 		Object value = readAttribute(anno, atp.methodHandle, atp.attribute);
-		if (atp.nullDefault && AnnotationDefaults.NULL_STRING.equals(value))
+		if (atp.nullDefaultValue != null && Objects.equals(atp.nullDefaultValue, value))
 			value = null;
 		value = convertValuesIfNeeded(value, atp.toPropertyConverter);
 		value = convertToCollectionIfArray(value, atp);
@@ -646,7 +655,7 @@ import com.braintribe.model.meta.data.MetaData;
 
 		public Function<Object, Object> toPropertyConverter;
 		public Function<Object, Object> toAttributeConverter;
-		public boolean nullDefault;
+		public Object nullDefaultValue;
 
 		public AttributeToProperty(String attribute, MethodHandle methodHandle, String propertyName) {
 			this.attribute = attribute;
