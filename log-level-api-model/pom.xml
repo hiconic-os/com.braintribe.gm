@@ -10,6 +10,7 @@
     <properties>
         <archetype>model</archetype>
         <npmPackaging>model</npmPackaging>
+        <npmRegistryUrl>https://registry.npmjs.org</npmRegistryUrl>
     </properties>
     <dependencies>
         <dependency>
