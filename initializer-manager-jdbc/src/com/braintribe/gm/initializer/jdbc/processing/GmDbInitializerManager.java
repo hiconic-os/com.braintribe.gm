@@ -139,10 +139,15 @@ public class GmDbInitializerManager extends AbstractInitializerManager {
 			try {
 				taskResult = task.run();
 
-				if (taskResult.isSatisfied())
+				if (taskResult.isSatisfied()) {
 					writeSuccess(taskResult.get());
-				else
-					writeError("Failed with reason:" + taskResult.whyUnsatisfied().stringify());
+
+				} else {
+					String reasonMsg = taskResult.whyUnsatisfied().stringify();
+
+					log.error(logMsg("Initializer task [" + taskName + "] failed with reason:\n" + reasonMsg));
+					writeError("Failed with reason:" + reasonMsg);
+				}
 
 			} catch (Exception e) {
 				log.error(logMsg("Error while running initializer task: " + taskName), e);
