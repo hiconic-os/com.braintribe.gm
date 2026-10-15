@@ -13,11 +13,16 @@
 // ============================================================================
 package com.braintribe.gm.initializer.api;
 
+import java.util.Collection;
+import java.util.Map;
+
 /**
  * Registry for {@link InitializerTask}s, which are tasks that are meant to be run once, regardless of how many times the application is started, as
  * long as they would produce the same effect. In order to tell the framework whether or not the result would be the same an
  * {@link InitializerFingerprintResolver} is registered, which produces a "fingerprint" (e.g. a version number, a hash, etc.), and the framework runs
  * the task iff the fingerprint has changed (or the task with given name has not been run before).
+ * <p>
+ * It also reports the persisted {@link #statusesOf(Collection) status} of the tasks, i.e. the outcome of their last run on any node.
  * 
  * @author peter.gazdik
  */
@@ -36,5 +41,15 @@ public interface InitializerRegistry {
 	void ensureOrder(InitializerSymbol runsFirst, InitializerSymbol runsLater) {
 		ensureOrder(runsFirst.name(), runsLater.name());
 	}
+
+	/**
+	 * Reflects {@link InitializerStatus} of each task, given by its name.
+	 * <p>
+	 * Only a registered task is checked, any other name is reported as {@link InitializerState#NOT_REGISTERED}, even if something was persisted for
+	 * it earlier.
+	 * <p>
+	 * A registered task without any record is reported as {@link InitializerState#NEVER_RUN}.
+	 */
+	Map<String, InitializerStatus> statusesOf(Collection<String> taskNames);
 
 }

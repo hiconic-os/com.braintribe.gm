@@ -5,6 +5,8 @@ import static com.braintribe.utils.lcd.CollectionTools2.newLinkedSet;
 import static com.braintribe.utils.lcd.CollectionTools2.newSet;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -13,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.braintribe.cfg.Required;
 import com.braintribe.gm.initializer.api.InitializerFingerprintResolver;
 import com.braintribe.gm.initializer.api.InitializerRegistry;
+import com.braintribe.gm.initializer.api.InitializerStatus;
 import com.braintribe.gm.initializer.api.InitializerTask;
 import com.braintribe.logging.Logger;
 import com.braintribe.logging.Logger.LogLevel;
@@ -49,6 +52,30 @@ public abstract class AbstractInitializerManager implements InitializerRegistry 
 		log(LogLevel.INFO, "Registering initializer [" + initializerName + "]");
 		tasks.put(initializerName, new TaskEntry(initializerName, task, fingerprintResolver));
 	}
+
+	/** A task that is not registered with this manager is {@link InitializerStatus#notRegistered(String) not registered}, whatever is persisted. */
+	@Override
+	public Map<String, InitializerStatus> statusesOf(Collection<String> taskNames) {
+		Map<String, InitializerStatus> result = new LinkedHashMap<>();
+		List<String> registeredNames = new ArrayList<>();
+
+		for (String taskName : taskNames) {
+			if (tasks.containsKey(taskName)) {
+				result.put(taskName, null); // placeholder, keeps the order
+				registeredNames.add(taskName);
+			} else {
+				result.put(taskName, InitializerStatus.notRegistered(taskName));
+			}
+		}
+
+		if (!registeredNames.isEmpty())
+			result.putAll(persistedStatusesOf(registeredNames));
+
+		return result;
+	}
+
+	/** The persisted status of each given task, all of which are registered. A task without any record is never run. */
+	protected abstract Map<String, InitializerStatus> persistedStatusesOf(List<String> taskNames);
 
 	@Override
 	public void ensureOrder(String runsFirstName, String runsLaterNamer) {

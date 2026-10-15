@@ -40,6 +40,13 @@ public class FileSystemInitializerManagerTest extends AbstractInitializerManager
 	@Override @Test public void taskOrdering_CycleDetected() { super.taskOrdering_CycleDetected(); }
 	@Override @Test public void failingTask_DoesNotUpdateFingerprint() { super.failingTask_DoesNotUpdateFingerprint(); }
 	@Override @Test public void exceptionInTask_DoesNotUpdateFingerprint() { super.exceptionInTask_DoesNotUpdateFingerprint(); }
+	@Override @Test public void statuses_RegisteredTaskNeverRan() { super.statuses_RegisteredTaskNeverRan(); }
+	@Override @Test public void statuses_UnregisteredTaskIsNotRegistered() { super.statuses_UnregisteredTaskIsNotRegistered(); }
+	@Override @Test public void statuses_SucceededTask() { super.statuses_SucceededTask(); }
+	@Override @Test public void statuses_FailedTaskHasReason() { super.statuses_FailedTaskHasReason(); }
+	@Override @Test public void statuses_ExceptionInTaskIsFailure() { super.statuses_ExceptionInTaskIsFailure(); }
+	@Override @Test public void statuses_LaterSuccessReplacesFailure() { super.statuses_LaterSuccessReplacesFailure(); }
+	@Override @Test public void statuses_InGivenOrder() { super.statuses_InGivenOrder(); }
 	// @formatter:on
 
 	@Override

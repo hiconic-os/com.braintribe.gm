@@ -4,12 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import com.braintribe.gm.initializer.api.InitializerState;
+import com.braintribe.gm.initializer.api.InitializerStatus;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.Reason;
 import com.braintribe.gm.model.reason.Reasons;
@@ -202,6 +205,97 @@ public abstract class AbstractInitializerManagerTest<M extends AbstractInitializ
 
 		manager.runInitializers();
 		assertThat(counter.get()).isEqualTo(2);
+	}
+
+	@Test
+	public void statuses_RegisteredTaskNeverRan() {
+		InitializerStatus status = statusOf("task-a");
+
+		assertThat(status.state()).isEqualTo(InitializerState.NEVER_RUN);
+		assertThat(status.fingerprint()).isNull();
+	}
+
+	/** Only registered tasks are checked, so what an earlier run persisted for a task that is no longer registered does not matter. */
+	@Test
+	public void statuses_UnregisteredTaskIsNotRegistered() {
+		manager.registerInitializer("task-a", old -> "v1", () -> Maybe.empty(Reasons.build(Reason.T).text("test failure").toReason()));
+		manager.runInitializers();
+
+		InitializerStatus status = newManager().statusesOf(Arrays.asList("task-a")).get("task-a");
+		assertThat(status.state()).isEqualTo(InitializerState.NOT_REGISTERED);
+		assertThat(status.message()).isNull();
+	}
+
+	@Test
+	public void statuses_SucceededTask() {
+		manager.registerInitializer("task-a", old -> "v1", () -> Maybe.complete("done"));
+		manager.runInitializers();
+
+		InitializerStatus status = statusOf("task-a");
+		assertThat(status.state()).isEqualTo(InitializerState.SUCCEEDED);
+		assertThat(status.fingerprint()).isEqualTo("v1");
+		assertThat(status.updated()).isNotNull();
+		assertThat(status.message()).contains("done");
+	}
+
+	@Test
+	public void statuses_FailedTaskHasReason() {
+		manager.registerInitializer("task-a", old -> "v1", () -> Maybe.empty(Reasons.build(Reason.T).text("test failure").toReason()));
+		manager.runInitializers();
+
+		InitializerStatus status = statusOf("task-a");
+		assertThat(status.state()).isEqualTo(InitializerState.FAILED);
+		assertThat(status.fingerprint()).isNull();
+		assertThat(status.updated()).isNotNull();
+		assertThat(status.message()).contains("test failure");
+	}
+
+	@Test
+	public void statuses_ExceptionInTaskIsFailure() {
+		manager.registerInitializer("task-a", old -> "v1", () -> {
+			throw new RuntimeException("Simulated failure");
+		});
+		manager.runInitializers();
+
+		InitializerStatus status = statusOf("task-a");
+		assertThat(status.state()).isEqualTo(InitializerState.FAILED);
+		assertThat(status.message()).contains("RuntimeException", "Simulated failure");
+	}
+
+	/** The failure of an earlier run, e.g. on another node, must not survive a later successful run. */
+	@Test
+	public void statuses_LaterSuccessReplacesFailure() {
+		manager.registerInitializer("task-a", old -> "v1", () -> Maybe.empty(Reasons.build(Reason.T).text("test failure").toReason()));
+		manager.runInitializers();
+
+		manager = newManager();
+		manager.registerInitializer("task-a", old -> "v1", () -> Maybe.complete("recovered"));
+		manager.runInitializers();
+
+		InitializerStatus status = statusOf("task-a");
+		assertThat(status.state()).isEqualTo(InitializerState.SUCCEEDED);
+		assertThat(status.fingerprint()).isEqualTo("v1");
+		assertThat(status.message()).doesNotContain("test failure");
+	}
+
+	@Test
+	public void statuses_InGivenOrder() {
+		manager.registerInitializer("task-a", old -> "v1", () -> Maybe.complete(null));
+		manager.registerInitializer("task-c", old -> "v1", () -> Maybe.complete(null));
+		manager.runInitializers();
+
+		assertThat(manager.statusesOf(Arrays.asList("task-c", "task-b", "task-a")).keySet()).containsExactly("task-c", "task-b", "task-a");
+	}
+
+	/**
+	 * Reads the status with a new manager, i.e. from what the earlier runs persisted, like another node would. That node registers the same task, but
+	 * does not run it.
+	 */
+	private InitializerStatus statusOf(String taskName) {
+		M otherNode = newManager();
+		otherNode.registerInitializer(taskName, old -> "unused", () -> Maybe.complete(null));
+
+		return otherNode.statusesOf(Arrays.asList(taskName)).get(taskName);
 	}
 
 	protected abstract M newManager();

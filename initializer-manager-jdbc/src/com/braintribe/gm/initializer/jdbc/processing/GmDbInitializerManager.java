@@ -4,6 +4,7 @@ import static com.braintribe.utils.lcd.CollectionTools2.asMap;
 import static com.braintribe.utils.lcd.NullSafe.nonNull;
 
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
@@ -11,7 +12,10 @@ import java.util.concurrent.locks.Lock;
 import javax.sql.DataSource;
 
 import com.braintribe.cfg.Required;
+import com.braintribe.exception.Exceptions;
 import com.braintribe.gm.initializer.api.InitializerFingerprintResolver;
+import com.braintribe.gm.initializer.api.InitializerState;
+import com.braintribe.gm.initializer.api.InitializerStatus;
 import com.braintribe.gm.initializer.api.InitializerTask;
 import com.braintribe.gm.jdbc.api.GmColumn;
 import com.braintribe.gm.jdbc.api.GmDb;
@@ -151,19 +155,35 @@ public class GmDbInitializerManager extends AbstractInitializerManager {
 
 			} catch (Exception e) {
 				log.error(logMsg("Error while running initializer task: " + taskName), e);
-				writeError("Exception [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
+				writeError("Exception: " + Exceptions.stringify(e));
 			}
 		}
 
 		private void writeSuccess(String note) {
 			note = note == null ? "Success" : "Success: " + note;
-			table.write(taskId, taskName, asMap(table.colFingerprint, newFingerprint, table.colNote, note));
+			table.write(taskId, taskName,
+					asMap(table.colFingerprint, newFingerprint, table.colNote, note, table.colState, InitializerState.SUCCEEDED.name()));
 		}
 
 		private void writeError(String error) {
-			table.write(taskId, taskName, asMap(table.colNote, error));
+			table.write(taskId, taskName, asMap(table.colNote, error, table.colState, InitializerState.FAILED.name()));
 		}
 
+	}
+
+	// #################################################
+	// ## . . . . . . . . . Statuses . . . . . . . . .##
+	// #################################################
+
+	@Override
+	protected Map<String, InitializerStatus> persistedStatusesOf(List<String> taskNames) {
+		TasksTable table = tasksTableLazy.get();
+
+		Map<String, InitializerStatus> result = new LinkedHashMap<>();
+		for (String taskName : taskNames)
+			result.put(taskName, table.queryStatus(taskName));
+
+		return result;
 	}
 
 	private class TasksTable {
@@ -176,6 +196,8 @@ public class GmDbInitializerManager extends AbstractInitializerManager {
 		private final GmColumn<String> colTaskName = gmDb.shortString255("task").notNull().done();
 		private final GmColumn<String> colFingerprint = gmDb.string("fingerprint").done();
 		private final GmColumn<String> colNote = gmDb.string("note").done();
+		/** {@link InitializerState#SUCCEEDED} or {@link InitializerState#FAILED}. Null for a row written before this column existed. */
+		private final GmColumn<String> colState = gmDb.shortString255("state").done();
 
 		public final GmTable table;
 
@@ -183,7 +205,7 @@ public class GmDbInitializerManager extends AbstractInitializerManager {
 			GmIndex idxTaskName = gmDb.index("idx_task_" + tableName, colTaskName);
 
 			table = gmDb.newTable(tableName) //
-					.withColumns(colId, colCreated, colUpdated, colUpdatedBy, colTaskName, colFingerprint, colNote) //
+					.withColumns(colId, colCreated, colUpdated, colUpdatedBy, colTaskName, colFingerprint, colNote, colState) //
 					.withIndices(idxTaskName) //
 					.done();
 
@@ -194,6 +216,29 @@ public class GmDbInitializerManager extends AbstractInitializerManager {
 			return table.select(colId, colFingerprint) //
 					.whereColumn(colTaskName, taskName) //
 					.rows();
+		}
+
+		public InitializerStatus queryStatus(String taskName) {
+			List<GmRow> rows = table.select(colFingerprint, colUpdated, colUpdatedBy, colNote, colState) //
+					.whereColumn(colTaskName, taskName) //
+					.rows();
+
+			if (rows.isEmpty())
+				return InitializerStatus.neverRun(taskName);
+
+			GmRow row = rows.get(0);
+			String note = row.getValue(colNote);
+
+			return new InitializerStatus(taskName, resolveState(row.getValue(colState), note), row.getValue(colFingerprint),
+					row.getValue(colUpdated), row.getValue(colUpdatedBy), note);
+		}
+
+		/** A row written before the state column existed only has the note, which starts with "Success" for a successful run. */
+		private InitializerState resolveState(String state, String note) {
+			if (state != null)
+				return InitializerState.valueOf(state);
+
+			return note != null && note.startsWith("Success") ? InitializerState.SUCCEEDED : InitializerState.FAILED;
 		}
 
 		public void write(Long taskId, String taskName, Map<GmColumn<?>, Object> values) {
