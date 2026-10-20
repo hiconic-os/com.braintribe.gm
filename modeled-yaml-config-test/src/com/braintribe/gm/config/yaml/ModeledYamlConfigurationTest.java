@@ -30,6 +30,7 @@ import com.braintribe.gm.config.yaml.expression.TestImportText;
 import com.braintribe.gm.config.yaml.index.ClasspathIndex;
 import com.braintribe.gm.config.yaml.model.LoadedEntity;
 import com.braintribe.gm.config.yaml.model.MergedEntity;
+import com.braintribe.testing.model.test.technical.features.SimpleEnum;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.config.ConfigurationError;
 import com.braintribe.gm.model.reason.config.ExplicitConfigurationNotFound;
@@ -54,6 +55,24 @@ public class ModeledYamlConfigurationTest {
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private final ModeledYamlConfiguration myc = new ModeledYamlConfiguration();
+
+	@Test
+	public void enumSurvivesMissingFieldsAcrossYamlContributions() throws Exception {
+		// Exercise every position, including propagation through multiple absent fields.
+		for (int enumPosition = 0; enumPosition < 3; enumPosition++) {
+			File folder = temporaryFolder.newFolder("enum-" + enumPosition);
+			for (int index = 0; index < 3; index++)
+				Files.writeString(new File(folder, "merged-entity.part-" + index + ".yaml").toPath(),
+						index == enumPosition ? "enumValue: TWO\n" : "string: unrelated\n", StandardCharsets.UTF_8);
+			ModeledYamlConfiguration config = new ModeledYamlConfiguration();
+			config.setClasspathConfPath("NO-TEST-CLASSPATH-CONFIG/");
+			config.setConfigFolder(folder);
+			MergedEntity compiled = config.staticConfigPartiallyReasoned(MergedEntity.T).get().configuration();
+			assertThat(compiled.getEnumValue()).isEqualTo(SimpleEnum.TWO);
+			assertThat(MergedEntity.T.getProperty("enumValue").isAbsent(compiled)).isFalse();
+			assertThat(config.config(MergedEntity.T).getEnumValue()).isEqualTo(SimpleEnum.TWO);
+		}
+	}
 
 	@Test
 	public void noConfigSource_EmptyInstance() throws Exception {

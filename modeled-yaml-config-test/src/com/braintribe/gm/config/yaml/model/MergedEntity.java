@@ -9,6 +9,7 @@ import com.braintribe.model.generic.annotation.ToStringInformation;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 import com.braintribe.model.resource.Resource;
+import com.braintribe.testing.model.test.technical.features.SimpleEnum;
 
 /**
  * @author peter.gazdik
@@ -26,6 +27,9 @@ public interface MergedEntity extends GenericEntity {
 
 	Resource getResource();
 	void setResource(Resource resource);
+
+	SimpleEnum getEnumValue();
+	void setEnumValue(SimpleEnum enumValue);
 
 	// List
 

@@ -130,17 +130,16 @@ import com.braintribe.model.generic.reflection.VdHolder;
 
 			boolean eAbsent = p.isAbsent(entity);
 			Object dDirectValue = p.getDirectUnsafe(defaults);
-			if (eAbsent && !p.getType().areCustomInstancesReachable()) {
-				p.setDirectUnsafe(entity, dDirectValue);
-				continue;
-			}
 			if (eAbsent) {
-				if (dDirectValue instanceof GenericEntity) {
-					p.setDirectUnsafe(entity, findSanitizedElement(dDirectValue));
+				// Only reachable entities need identity sanitation. Custom instances also
+				// include scalar enums; resolve Object properties from the contributed value.
+				if (dDirectValue == null || VdHolder.isVdHolder(dDirectValue)
+						|| !p.getType().getActualType(dDirectValue).areEntitiesReachable()) {
+					p.setDirectUnsafe(entity, dDirectValue);
 					continue;
 				}
-				if (VdHolder.isVdHolder(dDirectValue)) {
-					p.setDirectUnsafe(entity, dDirectValue);
+				if (dDirectValue instanceof GenericEntity) {
+					p.setDirectUnsafe(entity, findSanitizedElement(dDirectValue));
 					continue;
 				}
 			}
@@ -164,7 +163,7 @@ import com.braintribe.model.generic.reflection.VdHolder;
 
 			GenericModelType eType = p.getType();
 			if (eType.isBase())
-				eType = GMF.getTypeReflection().getType(eValue);
+				eType = GMF.getTypeReflection().getType(eAbsent ? dDirectValue : eValue);
 
 			if (!eType.isCollection())
 				continue;

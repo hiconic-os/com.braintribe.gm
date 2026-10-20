@@ -19,6 +19,7 @@ import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.value.Variable;
 import com.braintribe.model.generic.value.ValueDescriptor;
+import com.braintribe.testing.model.test.technical.features.SimpleEnum;
 
 /**
  * Tests for {@link EntityMerger}
@@ -30,6 +31,83 @@ public class EntityMergerTest {
 	// ###########################################
 	// ## . . . . . Simple Properties . . . . . ##
 	// ###########################################
+
+	@Test
+	public void absentBaseCollection_SanitizesEntityReferences() {
+		MergedEntity shared = MergedEntity.T.create();
+		shared.setGlobalId("shared");
+		MergedEntity entity = createAbsentEntity();
+		entity.setListEntity(asList(shared));
+		MergedEntity defaultShared = MergedEntity.T.create();
+		defaultShared.setGlobalId("shared");
+		MergedEntity defaults = createAbsentEntity();
+		defaults.setBase(asList(defaultShared));
+		merge(entity, defaults);
+		assertThat(MergedEntity.T.getProperty("base").isAbsent(entity)).isFalse();
+		assertThat((List<?>) entity.getBase()).hasSize(1);
+		assertThat(((List<?>) entity.getBase()).get(0)).isSameAs(shared);
+	}
+
+	@Test
+	public void absentEnum_TakenFromDefaultsAndMarkedPresent() {
+		MergedEntity entity = createAbsentEntity();
+		MergedEntity defaults = createAbsentEntity();
+		defaults.setEnumValue(SimpleEnum.TWO);
+		merge(entity, defaults);
+		assertThat(MergedEntity.T.getProperty("enumValue").isAbsent(entity)).isFalse();
+		assertThat(entity.getEnumValue()).isEqualTo(SimpleEnum.TWO);
+	}
+
+	@Test
+	public void presentEnum_OverridesDefaults() {
+		MergedEntity entity = createAbsentEntity();
+		entity.setEnumValue(SimpleEnum.ONE);
+		MergedEntity defaults = createAbsentEntity();
+		defaults.setEnumValue(SimpleEnum.TWO);
+		merge(entity, defaults);
+		assertThat(entity.getEnumValue()).isEqualTo(SimpleEnum.ONE);
+	}
+
+	@Test
+	public void explicitNullEnum_OverridesDefaults() {
+		MergedEntity entity = createAbsentEntity();
+		entity.setEnumValue(null);
+		MergedEntity defaults = createAbsentEntity();
+		defaults.setEnumValue(SimpleEnum.TWO);
+		merge(entity, defaults);
+		assertThat(MergedEntity.T.getProperty("enumValue").isAbsent(entity)).isFalse();
+		assertThat(entity.getEnumValue()).isNull();
+	}
+
+	@Test
+	public void absentEnum_TakesExplicitNullFromDefaults() {
+		MergedEntity entity = createAbsentEntity();
+		MergedEntity defaults = createAbsentEntity();
+		defaults.setEnumValue(null);
+		merge(entity, defaults);
+		assertThat(MergedEntity.T.getProperty("enumValue").isAbsent(entity)).isFalse();
+		assertThat(entity.getEnumValue()).isNull();
+	}
+
+	@Test
+	public void absentEnumDefault_DoesNotOverrideExistingValue() {
+		MergedEntity entity = createAbsentEntity();
+		entity.setEnumValue(SimpleEnum.TWO);
+		merge(entity, createAbsentEntity());
+		assertThat(entity.getEnumValue()).isEqualTo(SimpleEnum.TWO);
+	}
+
+	@Test
+	public void absentBase_TakesScalarOrNullFromDefaults() {
+		for (Object value : new Object[] { "text", 42, true, SimpleEnum.TWO, null }) {
+			MergedEntity entity = createAbsentEntity();
+			MergedEntity defaults = createAbsentEntity();
+			defaults.setBase(value);
+			merge(entity, defaults);
+			assertThat(MergedEntity.T.getProperty("base").isAbsent(entity)).as("base value %s", value).isFalse();
+			assertThat(entity.getBase()).isEqualTo(value);
+		}
+	}
 
 	@Test
 	public void absentProperty_TakenFromDefaults() {
