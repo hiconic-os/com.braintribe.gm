@@ -128,7 +128,7 @@ public abstract class AbstractInitializerManager implements InitializerRegistry 
 	}
 
 	protected String logMsg(String string) {
-		return "Initializer [" + useCase + "]: " + string;
+		return "Use-case [" + useCase + "]: " + string;
 	}
 
 }
