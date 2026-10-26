@@ -15,11 +15,11 @@
 // ============================================================================
 package com.braintribe.gm.model.reason.essential;
 
-import com.braintribe.gm.model.reason.Reason;
+import com.braintribe.gm.model.reason.AnticipatedReason;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
-public interface AlreadyExists extends Reason {
+public interface AlreadyExists extends AnticipatedReason {
 
 	EntityType<AlreadyExists> T = EntityTypes.T(AlreadyExists.class);
 

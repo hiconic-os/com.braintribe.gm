@@ -15,12 +15,12 @@
 // ============================================================================
 package com.braintribe.gm.model.security.reason;
 
-import com.braintribe.gm.model.reason.Reason;
+import com.braintribe.gm.model.reason.AnticipatedReason;
 import com.braintribe.model.generic.annotation.Abstract;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
 @Abstract
-public interface SecurityReason extends Reason {
+public interface SecurityReason extends AnticipatedReason {
 	EntityType<SecurityReason> T = EntityTypes.T(SecurityReason.class);
 }
