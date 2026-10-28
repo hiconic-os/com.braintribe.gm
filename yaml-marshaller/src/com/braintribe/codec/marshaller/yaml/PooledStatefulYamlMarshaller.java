@@ -118,7 +118,7 @@ public class PooledStatefulYamlMarshaller extends AbstractStatefulYamlMarshaller
 				VdHolder vdHolder = (VdHolder)value;
 				if (vdHolder.isAbsenceInformation) {
 					if (options.writeAbsenceInformation()) {
-						AbsenceInformation absenceInformation = (AbsenceInformation)value;
+						AbsenceInformation absenceInformation = (AbsenceInformation) vdHolder.vd;
 
 						writer.write("\n ");
 						indent.write(writer);

@@ -25,6 +25,7 @@ import org.junit.Test;
 
 import com.braintribe.codec.marshaller.api.GmSerializationOptions;
 import com.braintribe.codec.marshaller.api.PlaceholderSupport;
+import com.braintribe.codec.marshaller.yaml.model.PersonEntity;
 import com.braintribe.codec.marshaller.yaml.model.TestEntity;
 import com.braintribe.gm.config.yaml.YamlConfigurations;
 import com.braintribe.model.bvd.convert.Convert;
@@ -74,6 +75,40 @@ public class YamlVdWritingTest {
 		assertSingleVariable(second, "booleanValue", ToBoolean.T, "FEATURE_ENABLED");
 		assertSingleVariable(second, "dateValue", ToDate.T, "START_DATE");
 		assertJdbcTemplate(second);
+	}
+
+	@Test
+	public void writesPlaceholderOfEntityTypedProperty() {
+		assertThat(write(personWithAddressPlaceholder(), false)).contains("address: \"${ADDRESS}\"");
+	}
+
+	@Test
+	public void writesPooledPlaceholderOfEntityTypedProperty() {
+		assertThat(write(personWithAddressPlaceholder(), true)).contains("address: \"${ADDRESS}\"");
+	}
+
+	private static PersonEntity personWithAddressPlaceholder() {
+		Variable variable = Variable.T.create();
+		variable.setName("ADDRESS");
+
+		PersonEntity person = PersonEntity.T.create();
+		person.setFirstName("John");
+		PersonEntity.T.getProperty("address").setVd(person, variable);
+		return person;
+	}
+
+	private static String write(PersonEntity person, boolean pooled) {
+		GmSerializationOptions options = GmSerializationOptions.deriveDefaults()
+				.inferredRootType(PersonEntity.T)
+				.set(PlaceholderSupport.class, true)
+				.build();
+
+		YamlMarshaller marshaller = new YamlMarshaller();
+		marshaller.setWritePooled(pooled);
+
+		StringWriter writer = new StringWriter();
+		marshaller.marshall(writer, person, options);
+		return writer.toString();
 	}
 
 	private static TestEntity read(String yaml) {

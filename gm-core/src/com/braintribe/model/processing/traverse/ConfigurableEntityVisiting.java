@@ -24,18 +24,16 @@ import com.braintribe.model.generic.reflection.EnumType;
 
 public class ConfigurableEntityVisiting extends EntityVisiting {
 
-	private BiFunction<EntityType<?>, GenericEntity, Boolean> entityAdder;
+	private final BiFunction<EntityType<?>, GenericEntity, Boolean> entityAdder;
 	private BiConsumer<EnumType<?>, Enum<?>> enumAdder;
 
 	public ConfigurableEntityVisiting(BiFunction<EntityType<?>, GenericEntity, Boolean> entityAdder, BiConsumer<EnumType<?>, Enum<?>> enumAdder) {
-		super();
 		this.entityAdder = entityAdder;
 		this.enumAdder = enumAdder;
 		this.visitEnums = true;
 	}
 	
 	public ConfigurableEntityVisiting(BiFunction<EntityType<?>, GenericEntity, Boolean> entityAdder) {
-		super();
 		this.entityAdder = entityAdder;
 		this.visitEnums = false;
 	}

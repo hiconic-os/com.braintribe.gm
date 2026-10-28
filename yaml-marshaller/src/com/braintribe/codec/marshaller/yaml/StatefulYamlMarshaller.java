@@ -48,7 +48,13 @@ public class StatefulYamlMarshaller extends AbstractStatefulYamlMarshaller {
 	}
 
 	public void write() {
-		new ConfigurableEntityVisiting((et, e) -> indexEntity(e)).visit(rootValue);
+		new ConfigurableEntityVisiting((et, e) -> indexEntity(e)) {
+			// A VdHolder is written as placeholder, so it must not be visited as a property value
+			@Override
+			protected boolean include(Property property, GenericEntity entity, EntityType<?> entityType) {
+				return !VdHolder.isVdHolder(property.getDirectUnsafe(entity));
+			}
+		}.visit(rootValue);
 		try {
 			write(options.getInferredRootType(), BaseType.INSTANCE, rootValue);
 			writer.write('\n');
