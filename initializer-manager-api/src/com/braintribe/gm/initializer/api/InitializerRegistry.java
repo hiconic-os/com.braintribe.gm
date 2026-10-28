@@ -15,6 +15,7 @@ package com.braintribe.gm.initializer.api;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Registry for {@link InitializerTask}s, which are tasks that are meant to be run once, regardless of how many times the application is started, as
@@ -41,6 +42,9 @@ public interface InitializerRegistry {
 	void ensureOrder(InitializerSymbol runsFirst, InitializerSymbol runsLater) {
 		ensureOrder(runsFirst.name(), runsLater.name());
 	}
+
+	/** The names of all registered tasks, e.g. to {@link #statusesOf(Collection) check} them all. */
+	Set<String> initializerNames();
 
 	/**
 	 * Reflects {@link InitializerStatus} of each task, given by its name.

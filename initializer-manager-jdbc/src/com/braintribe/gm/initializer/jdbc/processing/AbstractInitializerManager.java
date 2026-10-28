@@ -60,18 +60,23 @@ public abstract class AbstractInitializerManager implements InitializerRegistry 
 		tasks.put(initializerName, new TaskEntry(initializerName, task, fingerprintResolver));
 	}
 
+	@Override
+	public Set<String> initializerNames() {
+		return newSet(tasks.keySet());
+	}
+
 	/** A task that is not registered with this manager is {@link InitializerStatus#notRegistered(String) not registered}, whatever is persisted. */
 	@Override
-	public Map<String, InitializerStatus> statusesOf(Collection<String> taskNames) {
+	public Map<String, InitializerStatus> statusesOf(Collection<String> initializerNames) {
 		Map<String, InitializerStatus> result = new LinkedHashMap<>();
 		List<String> registeredNames = new ArrayList<>();
 
-		for (String taskName : taskNames) {
-			if (tasks.containsKey(taskName)) {
-				result.put(taskName, null); // placeholder, keeps the order
-				registeredNames.add(taskName);
+		for (String initializerName : initializerNames) {
+			if (tasks.containsKey(initializerName)) {
+				result.put(initializerName, null); // placeholder, keeps the order
+				registeredNames.add(initializerName);
 			} else {
-				result.put(taskName, InitializerStatus.notRegistered(taskName));
+				result.put(initializerName, InitializerStatus.notRegistered(initializerName));
 			}
 		}
 

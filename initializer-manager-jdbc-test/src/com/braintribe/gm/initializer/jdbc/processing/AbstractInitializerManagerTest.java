@@ -208,6 +208,16 @@ public abstract class AbstractInitializerManagerTest<M extends AbstractInitializ
 	}
 
 	@Test
+	public void initializerNames_AreAllRegisteredTasks() {
+		assertThat(manager.initializerNames()).isEmpty();
+
+		manager.registerInitializer("task-a", old -> "v1", () -> Maybe.complete(null));
+		manager.registerInitializer("task-b", old -> "v1", () -> Maybe.complete(null));
+
+		assertThat(manager.initializerNames()).containsExactlyInAnyOrder("task-a", "task-b");
+	}
+
+	@Test
 	public void statuses_RegisteredTaskNeverRan() {
 		InitializerStatus status = statusOf("task-a");
 
