@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
@@ -18,6 +19,13 @@ public class JulLogLevelFramework implements LogLevelFramework {
 	public static final String LEVEL_ERROR = "ERROR";
 	public static final String LEVEL_FATAL = "FATAL";
 	public static final String LEVEL_OFF = "OFF";
+
+	/*
+	 * JUL's LogManager retains non-root loggers only weakly. A configured package logger can therefore disappear before
+	 * the first logger below that package is created, which silently loses the configured inheritance rule. Keep each
+	 * explicitly configured logger alive for exactly as long as its rule is installed.
+	 */
+	private final Map<String, Logger> configuredLoggers = new ConcurrentHashMap<>();
 
 	@Override
 	public Map<String, String> getConfiguredLogLevels() {
@@ -61,7 +69,10 @@ public class JulLogLevelFramework implements LogLevelFramework {
 		}
 
 		for (Map.Entry<String, String> entry: levels.entrySet()) {
-			Logger.getLogger(toJulLoggerName(entry.getKey())).setLevel(toJulLevel(entry.getValue()));
+			String loggerName = toJulLoggerName(entry.getKey());
+			Logger logger = Logger.getLogger(loggerName);
+			logger.setLevel(toJulLevel(entry.getValue()));
+			configuredLoggers.put(loggerName, logger);
 		}
 	}
 
@@ -72,7 +83,12 @@ public class JulLogLevelFramework implements LogLevelFramework {
 		}
 
 		for (String loggerName: loggerNames) {
-			Logger.getLogger(toJulLoggerName(loggerName)).setLevel(null);
+			String julLoggerName = toJulLoggerName(loggerName);
+			Logger logger = configuredLoggers.remove(julLoggerName);
+			if (logger == null) {
+				logger = Logger.getLogger(julLoggerName);
+			}
+			logger.setLevel(null);
 		}
 	}
 
