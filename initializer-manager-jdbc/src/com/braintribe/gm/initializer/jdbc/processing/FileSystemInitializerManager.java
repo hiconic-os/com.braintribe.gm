@@ -83,10 +83,17 @@ public class FileSystemInitializerManager extends AbstractInitializerManager {
 
 			if (newFingerprint.equals(oldFingerprint)) {
 				log(LogLevel.INFO, "Skipping [" + taskName + "], already up to date with fingerprint: " + newFingerprint);
+				resetFailureOnSkip();
 				return;
 			}
 
 			runTask();
+		}
+
+		/** @see AbstractInitializerManager#SKIPPED_AFTER_FAILURE_NOTE */
+		private void resetFailureOnSkip() {
+			if (InitializerState.FAILED.name().equals(fingerprints.getProperty(taskName + STATE_SUFFIX)))
+				writeStatus(InitializerState.SUCCEEDED, SKIPPED_AFTER_FAILURE_NOTE);
 		}
 
 		private void runTask() {

@@ -278,6 +278,53 @@ public abstract class AbstractInitializerManagerTest<M extends AbstractInitializ
 		assertThat(status.message()).doesNotContain("test failure");
 	}
 
+	/**
+	 * The stored fingerprint is that of the last successful run. A skip with that fingerprint therefore means that the configuration is back to the
+	 * one that succeeded, and the failure in between no longer applies.
+	 */
+	@Test
+	public void statuses_SkipWithFingerprintOfLastSuccessReplacesFailure() {
+		AtomicInteger counter = new AtomicInteger(0);
+
+		manager.registerInitializer("task-a", old -> "v1", () -> Maybe.complete("done"));
+		manager.runInitializers();
+
+		manager = newManager();
+		manager.registerInitializer("task-a", old -> "v2", () -> Maybe.empty(Reasons.build(Reason.T).text("test failure").toReason()));
+		manager.runInitializers();
+		assertThat(statusOf("task-a").state()).isEqualTo(InitializerState.FAILED);
+
+		manager = newManager();
+		manager.registerInitializer("task-a", old -> "v1", () -> {
+			counter.incrementAndGet();
+			return Maybe.complete("unexpected run");
+		});
+		manager.runInitializers();
+		assertThat(counter.get()).isZero();
+
+		InitializerStatus status = statusOf("task-a");
+		assertThat(status.state()).isEqualTo(InitializerState.SUCCEEDED);
+		assertThat(status.fingerprint()).isEqualTo("v1");
+		assertThat(status.message()).contains("skipped").doesNotContain("test failure");
+	}
+
+	/** A skip after a success writes nothing, so the status still describes the run that succeeded. */
+	@Test
+	public void statuses_SkipAfterSuccessKeepsStatus() {
+		manager.registerInitializer("task-a", old -> "v1", () -> Maybe.complete("done"));
+		manager.runInitializers();
+		InitializerStatus before = statusOf("task-a");
+
+		manager = newManager();
+		manager.registerInitializer("task-a", old -> "v1", () -> Maybe.complete("unexpected run"));
+		manager.runInitializers();
+
+		InitializerStatus status = statusOf("task-a");
+		assertThat(status.state()).isEqualTo(InitializerState.SUCCEEDED);
+		assertThat(status.message()).contains("done").doesNotContain("skipped");
+		assertThat(status.updated()).isEqualTo(before.updated());
+	}
+
 	@Test
 	public void statuses_InGivenOrder() {
 		manager.registerInitializer("task-a", old -> "v1", () -> Maybe.complete(null));

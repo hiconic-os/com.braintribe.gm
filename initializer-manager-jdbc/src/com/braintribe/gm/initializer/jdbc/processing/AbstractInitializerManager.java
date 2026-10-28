@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.braintribe.cfg.Required;
 import com.braintribe.gm.initializer.api.InitializerFingerprintResolver;
 import com.braintribe.gm.initializer.api.InitializerRegistry;
+import com.braintribe.gm.initializer.api.InitializerState;
 import com.braintribe.gm.initializer.api.InitializerStatus;
 import com.braintribe.gm.initializer.api.InitializerTask;
 import com.braintribe.logging.Logger;
@@ -26,6 +27,12 @@ import com.braintribe.logging.Logger.LogLevel;
 public abstract class AbstractInitializerManager implements InitializerRegistry {
 
 	private static final Logger log = Logger.getLogger(AbstractInitializerManager.class);
+
+	/**
+	 * The note of a task that is skipped while its persisted state is {@link InitializerState#FAILED}. A skip means that the fingerprint equals the
+	 * stored one, which is the fingerprint of the last successful run, so the failure of a later run, with another fingerprint, no longer applies.
+	 */
+	protected static final String SKIPPED_AFTER_FAILURE_NOTE = "Success: skipped, the fingerprint matches the last successful run";
 
 	protected final Map<String, TaskEntry> tasks = new ConcurrentHashMap<>();
 	protected final Map<String, Set<String>> taskNameToDependencyNames = new ConcurrentHashMap<>();

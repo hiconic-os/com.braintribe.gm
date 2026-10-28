@@ -81,6 +81,7 @@ public class GmDbInitializerManager extends AbstractInitializerManager {
 
 		private Long taskId;
 		private String oldFingerprint;
+		private boolean oldStateFailed;
 		private String newFingerprint;
 		private Maybe<String> taskResult;
 
@@ -101,7 +102,8 @@ public class GmDbInitializerManager extends AbstractInitializerManager {
 
 			newFingerprint = fingerprintResolver.resolveFingerprint(oldFingerprint);
 
-			if (newFingerprint.equals(oldFingerprint)) {
+			// A failed state with the current fingerprint is reset under the lock, so it cannot overwrite the outcome of a concurrent run.
+			if (newFingerprint.equals(oldFingerprint) && !oldStateFailed) {
 				log(LogLevel.INFO, "Skipping [" + taskName + "], already up to date with fingerprint: " + newFingerprint);
 				return;
 			}
@@ -113,6 +115,7 @@ public class GmDbInitializerManager extends AbstractInitializerManager {
 
 				if (newFingerprint.equals(oldFingerprint)) {
 					log(LogLevel.INFO, "Skipping [" + taskName + "], already up to date with fingerprint: " + newFingerprint);
+					wl_resetFailureOnSkip();
 					return;
 				}
 
@@ -129,12 +132,20 @@ public class GmDbInitializerManager extends AbstractInitializerManager {
 			if (rows.isEmpty()) {
 				taskId = null;
 				oldFingerprint = null;
+				oldStateFailed = false;
 
 			} else {
 				GmRow row = rows.get(0);
 				taskId = row.getValue(table.colId);
 				oldFingerprint = row.getValue(table.colFingerprint);
+				oldStateFailed = InitializerState.FAILED.name().equals(row.getValue(table.colState));
 			}
+		}
+
+		/** @see AbstractInitializerManager#SKIPPED_AFTER_FAILURE_NOTE */
+		private void wl_resetFailureOnSkip() {
+			if (oldStateFailed)
+				table.write(taskId, taskName, asMap(table.colNote, SKIPPED_AFTER_FAILURE_NOTE, table.colState, InitializerState.SUCCEEDED.name()));
 		}
 
 		private void wl_runTask() {
@@ -213,7 +224,7 @@ public class GmDbInitializerManager extends AbstractInitializerManager {
 		}
 
 		public List<GmRow> queryFingerprint(String taskName) {
-			return table.select(colId, colFingerprint) //
+			return table.select(colId, colFingerprint, colState) //
 					.whereColumn(colTaskName, taskName) //
 					.rows();
 		}
