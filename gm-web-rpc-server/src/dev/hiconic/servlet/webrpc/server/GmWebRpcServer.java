@@ -67,6 +67,7 @@ import com.braintribe.model.processing.rpc.commons.impl.client.GmRpcExceptionCon
 import com.braintribe.model.processing.rpc.commons.impl.logging.RpcServiceRequestSummaryLogger;
 import com.braintribe.model.processing.service.api.ParentAttributeContextAspect;
 import com.braintribe.model.processing.service.api.ResponseConsumerAspect;
+import com.braintribe.model.processing.service.api.ServiceRequestContextualizer;
 import com.braintribe.model.processing.service.api.ServiceRequestSummaryLogger;
 import com.braintribe.model.processing.service.api.aspect.RequestedEndpointAspect;
 import com.braintribe.model.processing.service.api.aspect.RequestorIdAspect;
@@ -125,6 +126,7 @@ public class GmWebRpcServer extends HttpServlet implements InitializationAware {
 	private Function<ServiceRequest, CmdResolver> metaDataResolverProvider;
 	private int partTransferBufferSize = IOTools.SIZE_32K;
 	private StreamPipeFactory streamPipeFactory;
+	private ServiceRequestContextualizer requestContextualizer = ServiceRequestContextualizer.DIRECT;
 
 	@Configurable
 	@Required
@@ -139,6 +141,11 @@ public class GmWebRpcServer extends HttpServlet implements InitializationAware {
 
 	public void setStreamPipeFactory(StreamPipeFactory streamPipeFactory) {
 		this.streamPipeFactory = streamPipeFactory;
+	}
+
+	@Configurable
+	public void setRequestContextualizer(ServiceRequestContextualizer requestContextualizer) {
+		this.requestContextualizer = requireNonNull(requestContextualizer, "requestContextualizer must not be null");
 	}
 
 	@Configurable
@@ -223,6 +230,7 @@ public class GmWebRpcServer extends HttpServlet implements InitializationAware {
 
 		ServiceRequest request = null;
 		MultipartRequestUnmarshaller multipartRequestUnmarshaller = null;
+		boolean requestScopeEntered = false;
 
 		try (final PartAcquiring partAcquiring = new PartAcquiring(httpResponse, getMultipartMimetypeAcceptance(httpRequest), streamPipeFactory)) {
 
@@ -260,77 +268,81 @@ public class GmWebRpcServer extends HttpServlet implements InitializationAware {
 									.set(EntityVisitorOption.class, streamManagement.getMarshallingVisitor()).build());
 				}
 
-				List<PartOutputStreamProvider> captureOutputStreamProviders = bindCallStreamCaptures(streamManagement, partAcquiring);
+				final ServiceRequest processedRequest = request;
+				final List<PartOutputStreamProvider> captureOutputStreamProviders = bindCallStreamCaptures(streamManagement, partAcquiring);
 
-				summaryLogger.logOneLine(RpcConstants.RPC_LOGSTEP_INITIAL, request);
-
-				ServiceResult returnValue;
-				try {
-					stopWatch.intermediate("Pre-flight");
-
-					boolean reasoned = Boolean.TRUE.toString().equals(httpRequest.getHeader(RpcHeaders.rpcReasoning.getHeaderName()));
-
-					EvalContext<?> evalContext = request.eval(evaluator) //
-							.with(ParentAttributeContextAspect.class, attributeContext) //
-							.with(ResponseConsumerAspect.class, responseMarshaller::marshallEagerlyReturnedValue);
-
-					if (reasoned) {
-						returnValue = ServiceResults.fromMaybe(evalContext.getReasoned());
-					} else {
-						returnValue = ServiceResults.envelope(evalContext.get());
-					}
-
-					stopWatch.intermediate("Processing");
-				} catch (RuntimeException | Error e) {
+				requestScopeEntered = true;
+				requestContextualizer.contextualize(processedRequest, () -> {
 					try {
-						checkOpenCaptures(request, captureOutputStreamProviders);
-					} catch (RuntimeException checkEx) {
-						e.addSuppressed(checkEx);
-					}
-					throw e;
-				}
+						summaryLogger.logOneLine(RpcConstants.RPC_LOGSTEP_INITIAL, processedRequest);
 
-				checkOpenCaptures(request, captureOutputStreamProviders);
+						ServiceResult returnValue;
+						try {
+							stopWatch.intermediate("Pre-flight");
 
-				final List<TransientSource> transientSources;
+							boolean reasoned = Boolean.TRUE.toString().equals(httpRequest.getHeader(RpcHeaders.rpcReasoning.getHeaderName()));
 
-				if (!responseMarshaller.marshalled()) {
-					if (partAcquiring.isExpensiveMultipart()) {
-						transientSources = new ArrayList<>();
-						new EntityCollector() {
-							@Override
-							protected boolean add(GenericEntity entity, EntityType<?> type) {
-								boolean added = super.add(entity, type);
+							EvalContext<?> evalContext = processedRequest.eval(evaluator) //
+									.with(ParentAttributeContextAspect.class, attributeContext) //
+									.with(ResponseConsumerAspect.class, responseMarshaller::marshallEagerlyReturnedValue);
 
-								if (added) {
-									if (entity instanceof TransientSource) {
-										TransientSource transientSource = (TransientSource) entity;
-										transientSources.add(transientSource);
-									}
-								}
-
-								return added;
+							if (reasoned) {
+								returnValue = ServiceResults.fromMaybe(evalContext.getReasoned());
+							} else {
+								returnValue = ServiceResults.envelope(evalContext.get());
 							}
-						}.visit(returnValue);
 
-						if (!transientSources.isEmpty()) {
-							// activate multipart mode
-							partAcquiring.setMultipartResponse(true);
+							stopWatch.intermediate("Processing");
+						} catch (RuntimeException | Error e) {
+							try {
+								checkOpenCaptures(processedRequest, captureOutputStreamProviders);
+							} catch (RuntimeException checkEx) {
+								e.addSuppressed(checkEx);
+							}
+							throw e;
 						}
-						responseMarshaller.marshallReturnedValue(returnValue);
-					} else {
-						// activate multipart mode
-						partAcquiring.setMultipartResponse(true);
 
-						responseMarshaller.marshallReturnedValue(returnValue);
-						transientSources = responseMarshaller.getTransientSources();
+						checkOpenCaptures(processedRequest, captureOutputStreamProviders);
+
+						final List<TransientSource> transientSources;
+
+						if (!responseMarshaller.marshalled()) {
+							if (partAcquiring.isExpensiveMultipart()) {
+								transientSources = new ArrayList<>();
+								new EntityCollector() {
+									@Override
+									protected boolean add(GenericEntity entity, EntityType<?> type) {
+										boolean added = super.add(entity, type);
+
+										if (added && entity instanceof TransientSource) {
+											TransientSource transientSource = (TransientSource) entity;
+											transientSources.add(transientSource);
+										}
+
+										return added;
+									}
+								}.visit(returnValue);
+
+								if (!transientSources.isEmpty()) {
+									partAcquiring.setMultipartResponse(true);
+								}
+								responseMarshaller.marshallReturnedValue(returnValue);
+							} else {
+								partAcquiring.setMultipartResponse(true);
+								responseMarshaller.marshallReturnedValue(returnValue);
+								transientSources = responseMarshaller.getTransientSources();
+							}
+						} else {
+							transientSources = responseMarshaller.getTransientSources();
+						}
+
+						streamCallResources(partAcquiring, transientSources);
+					} finally {
+						summaryLogger.log(this, processedRequest);
+						summaryLogger.logOneLine(RpcConstants.RPC_LOGSTEP_FINAL, processedRequest);
+						logger.trace(() -> "GmWebRpcServer.doPost: " + stopWatch);
 					}
-
-				} else {
-					transientSources = responseMarshaller.getTransientSources();
-				}
-
-				streamCallResources(partAcquiring, transientSources);
+				});
 
 			} finally {
 				IOTools.closeCloseable(multipartRequestUnmarshaller, "multipart request unmarshaller", logger);
@@ -345,11 +357,11 @@ public class GmWebRpcServer extends HttpServlet implements InitializationAware {
 			throw new ServletException(GmRpcExceptionContextualizer.enhanceException(e, attributeContext, request));
 
 		} finally {
-
-			summaryLogger.log(this, request);
-			summaryLogger.logOneLine(RpcConstants.RPC_LOGSTEP_FINAL, request);
-
-			logger.trace(() -> "GmWebRpcServer.doPost: " + stopWatch);
+			if (!requestScopeEntered) {
+				summaryLogger.log(this, request);
+				summaryLogger.logOneLine(RpcConstants.RPC_LOGSTEP_FINAL, request);
+				logger.trace(() -> "GmWebRpcServer.doPost: " + stopWatch);
+			}
 		}
 
 	}

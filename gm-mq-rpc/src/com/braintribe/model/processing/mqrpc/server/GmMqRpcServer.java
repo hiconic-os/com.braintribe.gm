@@ -53,6 +53,7 @@ import com.braintribe.model.processing.rpc.commons.impl.logging.RpcServiceReques
 import com.braintribe.model.processing.service.api.LocalOnlyAspect;
 import com.braintribe.model.processing.service.api.ParentAttributeContextAspect;
 import com.braintribe.model.processing.service.api.ResponseConsumerAspect;
+import com.braintribe.model.processing.service.api.ServiceRequestContextualizer;
 import com.braintribe.model.processing.service.api.ServiceRequestSummaryLogger;
 import com.braintribe.model.processing.service.api.SessionIdAspect;
 import com.braintribe.model.processing.service.api.aspect.EndpointExposureAspect;
@@ -114,6 +115,7 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 	private boolean trusted;
 	private long keepAliveInterval;
 	private Supplier<AttributeContext> attributeContextProvider = AttributeContexts::peek;
+	private ServiceRequestContextualizer requestContextualizer = ServiceRequestContextualizer.DIRECT;
 
 	// internals
 	private String fromTag;
@@ -236,6 +238,11 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 		this.attributeContextProvider = Objects.requireNonNull(attributeContextProvider, "attributeContextProvider must not be null");
 	}
 
+	@Configurable
+	public void setRequestContextualizer(ServiceRequestContextualizer requestContextualizer) {
+		this.requestContextualizer = Objects.requireNonNull(requestContextualizer, "requestContextualizer must not be null");
+	}
+
 	// ################################################
 	// ## . . . . . . . LifecycleAware . . . . . . . ##
 	// ################################################
@@ -318,35 +325,36 @@ public class GmMqRpcServer implements MessageListener, LifecycleAware, Worker {
 				ServiceRequestSummaryLogger summaryLogger = attributeContext.findAttribute(SummaryLoggerAspect.class)
 						.orElse(NoOpServiceRequestSummaryLogger.INSTANCE);
 
-				threadRenamer.push(() -> fromTag);
+				requestContextualizer.contextualize(request, () -> {
+					threadRenamer.push(() -> fromTag);
 
-				boolean ignoreResponse = requestMessage.getReplyTo() == null;
+					boolean ignoreResponse = requestMessage.getReplyTo() == null;
+					boolean sendKeepAlive = !ignoreResponse && keepAliveInterval > 0;
+					try {
+						if (sendKeepAlive)
+							registerProcessingRequest();
 
-				boolean sendKeepAlive = !ignoreResponse && keepAliveInterval > 0;
-				try {
-					if (sendKeepAlive)
-						registerProcessingRequest();
+						ServiceResult result = evaluate(attributeContext, request, ignoreResponse);
 
-					ServiceResult result = evaluate(attributeContext, request, ignoreResponse);
-
-					if (ignoreResponse) {
-						Unsatisfied asUnsatisfied = result != null? result.asUnsatisfied(): null;
-						if (asUnsatisfied != null) {
-							log.error("Error while evaluating MQ request " + request + ":\n" + asUnsatisfied.getWhy().stringify());
+						if (ignoreResponse) {
+							Unsatisfied asUnsatisfied = result != null? result.asUnsatisfied(): null;
+							if (asUnsatisfied != null) {
+								log.error("Error while evaluating MQ request " + request + ":\n" + asUnsatisfied.getWhy().stringify());
+							}
+						} else {
+							Message responseMessage = createResponseMessage(requestMessage, result);
+							sendResponse(responseMessage, requestMessage.getReplyTo());
 						}
-					} else {
-						Message responseMessage = createResponseMessage(requestMessage, result);
-						sendResponse(responseMessage, requestMessage.getReplyTo());
+
+					} finally {
+						if (sendKeepAlive)
+							unregisterProcessingRequest();
+
+						threadRenamer.pop();
+						summaryLogger.log(this, request);
+						summaryLogger.logOneLine(RpcConstants.RPC_LOGSTEP_FINAL, request);
 					}
-
-				} finally {
-					if (sendKeepAlive)
-						unregisterProcessingRequest();
-
-					threadRenamer.pop();
-					summaryLogger.log(this, request);
-					summaryLogger.logOneLine(RpcConstants.RPC_LOGSTEP_FINAL, request);
-				}
+				});
 
 			} catch (Exception e) {
 				log.error("Failed to process incoming message: " + requestMessage, e);
