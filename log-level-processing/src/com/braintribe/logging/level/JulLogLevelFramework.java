@@ -46,6 +46,14 @@ public class JulLogLevelFramework implements LogLevelFramework {
 	}
 
 	@Override
+	public String getEffectiveLogLevel(String loggerName) {
+		Logger logger = LogManager.getLogManager().getLogger(toJulLoggerName(loggerName));
+		while (logger != null && logger.getLevel() == null)
+			logger = logger.getParent();
+		return logger == null ? null : fromJulLevel(logger.getLevel());
+	}
+
+	@Override
 	public Set<String> getKnownLoggerNames() {
 		Set<String> loggerNames = new TreeSet<>(new StructuredPackageComparator());
 		LogManager logManager = LogManager.getLogManager();

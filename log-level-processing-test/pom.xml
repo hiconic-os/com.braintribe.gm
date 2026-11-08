@@ -34,5 +34,10 @@
             <artifactId>service-api-commons</artifactId>
             <version>${V.com.braintribe.gm}</version>
         </dependency>
+        <dependency>
+            <groupId>com.braintribe.gm</groupId>
+            <artifactId>gm-core4-jvm</artifactId>
+            <version>${V.com.braintribe.gm}</version>
+        </dependency>
     </dependencies>
 </project>

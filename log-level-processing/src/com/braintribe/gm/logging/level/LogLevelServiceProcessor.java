@@ -2,18 +2,25 @@ package com.braintribe.gm.logging.level;
 
 import static com.braintribe.gm.model.reason.UnsatisfiedMaybeTunneling.getOrTunnel;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import com.braintribe.cfg.Configurable;
 import com.braintribe.cfg.Required;
 import com.braintribe.gm.model.logging.level.api.GetLogLevelState;
 import com.braintribe.gm.model.logging.level.api.LogLevelRequest;
+import com.braintribe.gm.model.logging.level.api.LogLevelProfile;
 import com.braintribe.gm.model.logging.level.api.LogLevelState;
+import com.braintribe.gm.model.logging.level.api.MutateLogLevelProfileOrder;
 import com.braintribe.gm.model.logging.level.api.UpdateRuntimeLogLevels;
 import com.braintribe.gm.model.logging.level.api.UpdateEffectiveLogLevels;
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.essential.InternalError;
 import com.braintribe.logging.level.LogLevelManager;
+import com.braintribe.logging.level.LogLevelNames;
 import com.braintribe.logging.level.LogLevelRuntimeUpdater;
 import com.braintribe.model.generic.eval.Evaluator;
 import com.braintribe.model.processing.service.api.ServiceRequestContext;
@@ -63,6 +70,7 @@ public class LogLevelServiceProcessor extends AbstractDispatchingServiceProcesso
 	protected void configureDispatching(DispatchConfiguration<LogLevelRequest, Object> dispatching) {
 		dispatching.registerReasoned(GetLogLevelState.T, this::getLogLevelState);
 		dispatching.registerReasoned(UpdateRuntimeLogLevels.T, this::updateRuntimeLogLevels);
+		dispatching.registerReasoned(MutateLogLevelProfileOrder.T, this::mutateLogLevelProfileOrder);
 		dispatching.registerReasoned(UpdateEffectiveLogLevels.T, this::updateEffectiveLogLevels);
 	}
 
@@ -81,22 +89,47 @@ public class LogLevelServiceProcessor extends AbstractDispatchingServiceProcesso
 
 	private Maybe<LogLevelState> getLogLevelState(ServiceRequestContext context, GetLogLevelState request) {
 		LogLevelState state = LogLevelState.T.create();
-		state.setEffectiveLevels(logLevelManager.getEffectiveLogLevels());
+		Map<String, String> effectiveLevels = new LinkedHashMap<>(logLevelManager.getEffectiveLogLevels());
+		String rootLevel = logLevelManager.getRootLogLevel();
+		effectiveLevels.putIfAbsent(LogLevelNames.ROOT, rootLevel == null ? "INFO" : rootLevel);
+		state.setEffectiveLevels(effectiveLevels);
 		state.setRuntimeLevels(logLevelManager.getRuntimeLogLevels());
 		state.setPackagedLevels(logLevelManager.getPackagedLogLevels());
+		state.setPackagedProfiles(toProfiles(logLevelManager.getPackagedProfiles()));
+		state.setRuntimeProfiles(toProfiles(logLevelManager.getRuntimeProfiles()));
+		state.setEffectiveProfileOrder(logLevelManager.getEffectiveProfileOrder());
+		state.setRuntimeProfileOrderActive(logLevelManager.isRuntimeProfileOrderActive());
 		state.setKnownLoggerNames(logLevelManager.getKnownLoggerNames());
 		return Maybe.complete(state);
 	}
 
+	private List<LogLevelProfile> toProfiles(Map<String, Map<String, String>> profiles) {
+		List<LogLevelProfile> result = new ArrayList<>();
+		profiles.forEach((name, levels) -> {
+			LogLevelProfile profile = LogLevelProfile.T.create();
+			profile.setName(name);
+			profile.setLevels(levels);
+			result.add(profile);
+		});
+		return result;
+	}
+
 	private Maybe<Neutral> updateRuntimeLogLevels(ServiceRequestContext context, UpdateRuntimeLogLevels request) {
-		Maybe<Void> update = request.getClearAll() ? logLevelRuntimeUpdater.clearRuntimeLogLevels()
-				: logLevelRuntimeUpdater.updateRuntimeLogLevels(request.getLevels(), request.getNamesToRemove());
+		Maybe<Void> update = request.getDeleteProfile() ? logLevelRuntimeUpdater.deleteRuntimeProfile(request.getProfile())
+				: request.getClearAll() ? logLevelRuntimeUpdater.clearRuntimeLogLevels()
+				: request.getProfile() == null ? logLevelRuntimeUpdater.updateRuntimeLogLevels(request.getLevels(), request.getNamesToRemove())
+				: logLevelRuntimeUpdater.updateRuntimeProfile(request.getProfile(), request.getLevels(), request.getNamesToRemove());
 
 		if (update.isUnsatisfied()) {
 			return update.propagateReason();
 		}
 
 		return Maybe.complete(Neutral.NEUTRAL);
+	}
+
+	private Maybe<Neutral> mutateLogLevelProfileOrder(ServiceRequestContext context, MutateLogLevelProfileOrder request) {
+		Maybe<Void> update = logLevelRuntimeUpdater.mutateProfileOrder(request.getMutation(), request.getProfile(), request.getPosition());
+		return update.isUnsatisfied() ? update.propagateReason() : Maybe.complete(Neutral.NEUTRAL);
 	}
 
 	private Maybe<Neutral> updateEffectiveLogLevels(ServiceRequestContext context, UpdateEffectiveLogLevels request) {

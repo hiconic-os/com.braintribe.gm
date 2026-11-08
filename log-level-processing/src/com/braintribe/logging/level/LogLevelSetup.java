@@ -9,7 +9,9 @@ import com.braintribe.cfg.Configurable;
 import com.braintribe.cfg.Required;
 import com.braintribe.jdbc.DriverManagerDataSource;
 import com.braintribe.logging.level.persistence.FilesystemLogLevelPersistence;
+import com.braintribe.logging.level.persistence.FilesystemLogLevelProfilePersistence;
 import com.braintribe.logging.level.persistence.JdbcLogLevelPersistence;
+import com.braintribe.logging.level.persistence.JdbcLogLevelProfilePersistence;
 import com.braintribe.logging.level.persistence.LogLevelPersistence;
 
 public class LogLevelSetup {
@@ -22,12 +24,15 @@ public class LogLevelSetup {
 
 	private static final String PACKAGED_LOG_LEVELS_FILE = "log-levels.properties";
 	private static final String RUNTIME_LOG_LEVELS_FILE = "log-levels-rt.properties";
+	private static final String RUNTIME_LOG_LEVEL_PROFILES_FILE = "log-level-profiles-rt.ini";
+	private static final String RUNTIME_LOG_LEVEL_CASCADE_FILE = "log-level-profile-cascade-rt.txt";
 
 	private static volatile LogLevelSetup instance;
 
 	private File confDir;
 	private Function<String, String> propertyLookup;
 	private LogLevelFramework logLevelFramework = new JulLogLevelFramework();
+	private boolean profilesEnabled;
 
 	private LogLevelManager logLevelManager;
 	private LogLevelPersistence packagedLogLevelPersistence;
@@ -99,6 +104,14 @@ public class LogLevelSetup {
 		this.logLevelManager = null;
 	}
 
+	/** Enables the additive profile persistence used by RX. CX remains on the legacy single-map storage by default. */
+	@Configurable
+	public void setProfilesEnabled(boolean profilesEnabled) {
+		this.profilesEnabled = profilesEnabled;
+		this.runtimeLogLevelPersistence = null;
+		this.logLevelManager = null;
+	}
+
 	@Configurable
 	public void setPackagedLogLevelPersistence(LogLevelPersistence packagedLogLevelPersistence) {
 		this.packagedLogLevelPersistence = Objects.requireNonNull(packagedLogLevelPersistence, "packagedLogLevelPersistence");
@@ -112,10 +125,15 @@ public class LogLevelSetup {
 	}
 
 	private LogLevelPersistence filesystemRuntimeLogLevelPersistence() {
+		if (profilesEnabled)
+			return new FilesystemLogLevelProfilePersistence(confFile(RUNTIME_LOG_LEVEL_PROFILES_FILE),
+					confFile(RUNTIME_LOG_LEVEL_CASCADE_FILE));
 		return new FilesystemLogLevelPersistence(confFile(RUNTIME_LOG_LEVELS_FILE));
 	}
 
 	private LogLevelPersistence jdbcLogLevelPersistence() {
+		if (profilesEnabled)
+			return new JdbcLogLevelProfilePersistence(driverManagerDataSource(), property(PROPERTY_TABLE_PREFIX));
 		return new JdbcLogLevelPersistence(driverManagerDataSource(), property(PROPERTY_TABLE_PREFIX));
 	}
 

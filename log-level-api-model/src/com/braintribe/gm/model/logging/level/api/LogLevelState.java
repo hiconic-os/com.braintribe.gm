@@ -1,5 +1,6 @@
 package com.braintribe.gm.model.logging.level.api;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -18,6 +19,18 @@ public interface LogLevelState extends GenericEntity {
 
 	Map<String, String> getPackagedLevels();
 	void setPackagedLevels(Map<String, String> packagedLevels);
+
+	List<LogLevelProfile> getPackagedProfiles();
+	void setPackagedProfiles(List<LogLevelProfile> packagedProfiles);
+
+	List<LogLevelProfile> getRuntimeProfiles();
+	void setRuntimeProfiles(List<LogLevelProfile> runtimeProfiles);
+
+	List<String> getEffectiveProfileOrder();
+	void setEffectiveProfileOrder(List<String> effectiveProfileOrder);
+
+	boolean getRuntimeProfileOrderActive();
+	void setRuntimeProfileOrderActive(boolean runtimeProfileOrderActive);
 
 	Set<String> getKnownLoggerNames();
 	void setKnownLoggerNames(Set<String> knownLoggerNames);

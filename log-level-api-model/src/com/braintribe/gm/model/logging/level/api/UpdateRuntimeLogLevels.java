@@ -22,5 +22,11 @@ public interface UpdateRuntimeLogLevels extends LogLevelRequest {
 	boolean getClearAll();
 	void setClearAll(boolean clearAll);
 
+	String getProfile();
+	void setProfile(String profile);
+
+	boolean getDeleteProfile();
+	void setDeleteProfile(boolean deleteProfile);
+
 	EvalContext<Neutral> eval(Evaluator<ServiceRequest> evaluator);
 }

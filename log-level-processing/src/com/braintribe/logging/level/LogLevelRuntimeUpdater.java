@@ -4,6 +4,8 @@ import java.util.Objects;
 import java.util.Map;
 import java.util.Set;
 
+import com.braintribe.gm.model.logging.level.api.LogLevelProfileOrderMutation;
+
 import com.braintribe.cfg.Configurable;
 import com.braintribe.cfg.Required;
 import com.braintribe.gm.model.reason.Maybe;
@@ -29,6 +31,21 @@ public class LogLevelRuntimeUpdater {
 
 	public Maybe<Void> updateRuntimeLogLevels(Map<String, String> levels, Set<String> namesToRemove) {
 		Maybe<Void> update = requireLogLevelManager().updateRuntimeLogLevels(levels, namesToRemove);
+		return dispatchWhenSatisfied(update);
+	}
+
+	public Maybe<Void> updateRuntimeProfile(String profile, Map<String, String> levels, Set<String> namesToRemove) {
+		Maybe<Void> update = requireLogLevelManager().updateRuntimeProfileLogLevels(profile, levels, namesToRemove);
+		return dispatchWhenSatisfied(update);
+	}
+
+	public Maybe<Void> deleteRuntimeProfile(String profile) {
+		Maybe<Void> update = requireLogLevelManager().deleteRuntimeProfile(profile);
+		return dispatchWhenSatisfied(update);
+	}
+
+	public Maybe<Void> mutateProfileOrder(LogLevelProfileOrderMutation mutation, String profile, Integer position) {
+		Maybe<Void> update = requireLogLevelManager().mutateRuntimeProfileOrder(mutation, profile, position);
 		return dispatchWhenSatisfied(update);
 	}
 
