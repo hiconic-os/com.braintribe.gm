@@ -84,10 +84,36 @@ public class LogLevelProfilesTest {
 				.containsEntry("com.example.Service", "DEBUG")
 				.containsEntry("name:with=special", "TRACE");
 		assertThat(reloaded.getProfileCascade()).containsExactly("packaged-default", "incident-debug");
+		reloaded.updateProfileCascade(Collections.emptyList());
+		assertThat(new FilesystemLogLevelProfilePersistence(profilesFile, orderFile).hasProfileCascade()).isTrue();
+		assertThat(reloaded.getProfileCascade()).isEmpty();
 
 		reloaded.clearProfileCascade();
+		assertThat(reloaded.hasProfileCascade()).isFalse();
 		assertThat(reloaded.getProfileCascade()).isEmpty();
 		assertThat(reloaded.getProfiles()).containsKey("incident-debug");
+	}
+
+	@Test
+	public void removingLastPackagedProfileKeepsAnExplicitlyEmptyOrder() {
+		MemoryProfiles packaged = profiles(profile("packaged-default", levels("a", "INFO")));
+		packaged.cascade.add("packaged-default");
+		MemoryProfiles runtime = profiles();
+		LogLevelManager manager = new LogLevelManager(packaged, runtime, new MemoryFramework());
+
+		assertThat(manager.replaceRuntimeProfileOrder(Collections.emptyList()).isSatisfied()).isTrue();
+		assertThat(manager.isRuntimeProfileOrderActive()).isTrue();
+		assertThat(manager.getEffectiveProfileOrder()).isEmpty();
+		assertThat(manager.getEffectiveLogLevels()).isEmpty();
+
+		assertThat(manager.mutateRuntimeProfileOrder(LogLevelProfileOrderMutation.APPEND, "packaged-default", null).isSatisfied()).isTrue();
+		assertThat(manager.getEffectiveProfileOrder()).containsExactly("packaged-default");
+		assertThat(manager.mutateRuntimeProfileOrder(LogLevelProfileOrderMutation.REMOVE, "packaged-default", null).isSatisfied()).isTrue();
+		assertThat(manager.getEffectiveProfileOrder()).isEmpty();
+
+		assertThat(manager.mutateRuntimeProfileOrder(LogLevelProfileOrderMutation.RESET, null, null).isSatisfied()).isTrue();
+		assertThat(manager.isRuntimeProfileOrderActive()).isFalse();
+		assertThat(manager.getEffectiveProfileOrder()).containsExactly("packaged-default");
 	}
 
 	private static MemoryProfiles profiles(Map.Entry<String, Map<String, String>>... profiles) {
@@ -111,17 +137,19 @@ public class LogLevelProfilesTest {
 	private static class MemoryProfiles implements LogLevelProfilePersistence {
 		final Map<String, Map<String, String>> profiles = new LinkedHashMap<>();
 		final List<String> cascade = new ArrayList<>();
+		boolean cascadeActive;
 
 		@Override public Map<String, Map<String, String>> getProfiles() { return profiles; }
 		@Override public List<String> getProfileCascade() { return new ArrayList<>(cascade); }
+		@Override public boolean hasProfileCascade() { return cascadeActive || !cascade.isEmpty(); }
 		@Override public void updateProfileLogLevels(String profile, Map<String, String> levels, Set<String> namesToRemove) {
 			Map<String, String> values = profiles.computeIfAbsent(profile, key -> new LinkedHashMap<>());
 			if (namesToRemove != null) namesToRemove.forEach(values::remove);
 			if (levels != null) values.putAll(levels);
 		}
 		@Override public void clearProfileLogLevels(String profile) { profiles.remove(profile); }
-		@Override public void updateProfileCascade(List<String> profiles) { cascade.clear(); cascade.addAll(profiles); }
-		@Override public void clearProfileCascade() { cascade.clear(); }
+		@Override public void updateProfileCascade(List<String> profiles) { cascade.clear(); cascade.addAll(profiles); cascadeActive = true; }
+		@Override public void clearProfileCascade() { cascade.clear(); cascadeActive = false; }
 	}
 
 	private static class MemoryFramework implements LogLevelFramework {

@@ -1,6 +1,7 @@
 package com.braintribe.logging.level;
 
 import java.util.Objects;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -47,6 +48,10 @@ public class LogLevelRuntimeUpdater {
 	public Maybe<Void> mutateProfileOrder(LogLevelProfileOrderMutation mutation, String profile, Integer position) {
 		Maybe<Void> update = requireLogLevelManager().mutateRuntimeProfileOrder(mutation, profile, position);
 		return dispatchWhenSatisfied(update);
+	}
+
+	public Maybe<Void> replaceProfileOrder(List<String> profiles) {
+		return dispatchWhenSatisfied(requireLogLevelManager().replaceRuntimeProfileOrder(profiles));
 	}
 
 	@Configurable

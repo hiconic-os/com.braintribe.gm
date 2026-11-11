@@ -11,6 +11,7 @@ import java.util.Set;
 
 import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.gm.model.reason.essential.InternalError;
+import com.braintribe.gm.model.reason.essential.InvalidArgument;
 import com.braintribe.logging.Logger;
 import com.braintribe.logging.level.LogLevelConfiguration.LogLevelEntry;
 import com.braintribe.logging.level.persistence.LogLevelPersistence;
@@ -101,12 +102,29 @@ public class LogLevelManager {
 	}
 
 	public List<String> getEffectiveProfileOrder() {
-		List<String> runtimeOrder = getRuntimeProfileOrder();
-		return runtimeOrder.isEmpty() ? getPackagedProfileOrder() : runtimeOrder;
+		return isRuntimeProfileOrderActive() ? getRuntimeProfileOrder() : getPackagedProfileOrder();
 	}
 
 	public boolean isRuntimeProfileOrderActive() {
-		return !getRuntimeProfileOrder().isEmpty();
+		return persistentLogLevels instanceof LogLevelProfilePersistence
+				? ((LogLevelProfilePersistence) persistentLogLevels).hasProfileCascade()
+				: !getRuntimeProfileOrder().isEmpty();
+	}
+
+	public Maybe<Void> replaceRuntimeProfileOrder(List<String> profiles) {
+		try {
+			List<String> order = new ArrayList<>();
+			for (String profile : profiles == null ? Collections.<String>emptyList() : profiles) {
+				String required = requireExistingProfile(profile);
+				if (order.contains(required))
+					throw new IllegalArgumentException("Duplicate log-level profile: " + required);
+				order.add(required);
+			}
+			requireRuntimeProfilePersistence().updateProfileCascade(order);
+			return Maybe.complete(null);
+		} catch (Exception e) {
+			return failure(e, "Failed to replace runtime log-level profile order");
+		}
 	}
 
 	public Set<String> getKnownLoggerNames() {
@@ -131,7 +149,7 @@ public class LogLevelManager {
 				persistentLogLevels.clearLogLevels();
 			return Maybe.complete(null);
 		} catch (Exception e) {
-			return InternalError.from(e, "Failed to clear runtime log levels").asMaybe();
+			return failure(e, "Failed to clear runtime log levels");
 		}
 	}
 
@@ -155,7 +173,7 @@ public class LogLevelManager {
 			}
 			return Maybe.complete(null);
 		} catch (Exception e) {
-			return InternalError.from(e, "Failed to update runtime log-level profile").asMaybe();
+			return failure(e, "Failed to update runtime log-level profile");
 		}
 	}
 
@@ -167,7 +185,7 @@ public class LogLevelManager {
 			requireRuntimeProfilePersistence().clearProfileLogLevels(requiredProfile);
 			return Maybe.complete(null);
 		} catch (Exception e) {
-			return InternalError.from(e, "Failed to delete runtime log-level profile").asMaybe();
+			return failure(e, "Failed to delete runtime log-level profile");
 		}
 	}
 
@@ -183,7 +201,7 @@ public class LogLevelManager {
 
 			String requiredProfile = requireExistingProfile(profile);
 			List<String> order = new ArrayList<>(getRuntimeProfileOrder());
-			if (order.isEmpty())
+			if (!isRuntimeProfileOrderActive())
 				order.addAll(getPackagedProfileOrder());
 
 			switch (mutation) {
@@ -203,19 +221,24 @@ public class LogLevelManager {
 				case RESET:
 					throw new IllegalStateException("Handled above");
 			}
-			if (order.isEmpty())
-				throw new IllegalArgumentException("The effective log-level profile order cannot be empty; use reset instead");
 			persistence.updateProfileCascade(order);
 			return Maybe.complete(null);
 		} catch (Exception e) {
-			return InternalError.from(e, "Failed to update log-level profile order").asMaybe();
+			return failure(e, "Failed to update log-level profile order");
 		}
+	}
+
+	private Maybe<Void> failure(Exception exception, String message) {
+		if (exception instanceof IllegalArgumentException || exception instanceof UnsupportedOperationException
+				|| exception instanceof IllegalStateException)
+			return InvalidArgument.create(exception.getMessage()).asMaybe();
+		return InternalError.createTraceback(InternalError.from(exception, message), message, logger::error).asMaybe();
 	}
 
 	private void ensureProfileInRuntimeOrder(String profile) {
 		LogLevelProfilePersistence persistence = requireRuntimeProfilePersistence();
 		List<String> order = new ArrayList<>(getRuntimeProfileOrder());
-		if (order.isEmpty())
+		if (!isRuntimeProfileOrderActive())
 			order.addAll(getPackagedProfileOrder());
 		if (!order.contains(profile)) {
 			order.add(profile);

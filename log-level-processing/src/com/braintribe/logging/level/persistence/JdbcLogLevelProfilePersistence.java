@@ -21,6 +21,7 @@ public class JdbcLogLevelProfilePersistence implements LogLevelProfilePersistenc
 	private static final String LEVEL_TABLE = "RUNTIME_LOG_LEVEL";
 	private static final String CASCADE_TABLE = "RUNTIME_LOG_LEVEL_PROFILE_CASCADE";
 	private static final String VALID_TABLE_NAME_PATTERN = "[A-Za-z0-9_]+";
+	private static final String EMPTY_CASCADE_MARKER = "__hiconic_empty_profile_order__";
 
 	private final DataSource dataSource;
 	private final String levelTable;
@@ -50,6 +51,16 @@ public class JdbcLogLevelProfilePersistence implements LogLevelProfilePersistenc
 
 	@Override
 	public List<String> getProfileCascade() {
+		List<String> result = readProfileCascade();
+		return result.size() == 1 && EMPTY_CASCADE_MARKER.equals(result.get(0)) ? Collections.emptyList() : result;
+	}
+
+	@Override
+	public boolean hasProfileCascade() {
+		return !readProfileCascade().isEmpty();
+	}
+
+	private List<String> readProfileCascade() {
 		ensureTables();
 		List<String> result = new ArrayList<>();
 		String sql = "select PROFILE from " + cascadeTable + " order by POSITION";
@@ -134,13 +145,13 @@ public class JdbcLogLevelProfilePersistence implements LogLevelProfilePersistenc
 					PreparedStatement insert = connection.prepareStatement(
 							"insert into " + cascadeTable + " (POSITION, PROFILE) values (?, ?)")) {
 				clear.executeUpdate("delete from " + cascadeTable);
-				for (int i = 0; i < cascade.size(); i++) {
+				List<String> stored = cascade.isEmpty() ? Collections.singletonList(EMPTY_CASCADE_MARKER) : cascade;
+				for (int i = 0; i < stored.size(); i++) {
 					insert.setInt(1, i);
-					insert.setString(2, cascade.get(i).trim());
+					insert.setString(2, stored.get(i).trim());
 					insert.addBatch();
 				}
-				if (!cascade.isEmpty())
-					insert.executeBatch();
+				insert.executeBatch();
 				connection.commit();
 			} catch (SQLException e) {
 				connection.rollback();
@@ -155,7 +166,12 @@ public class JdbcLogLevelProfilePersistence implements LogLevelProfilePersistenc
 
 	@Override
 	public void clearProfileCascade() {
-		updateProfileCascade(Collections.<String>emptyList());
+		ensureTables();
+		try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+			statement.executeUpdate("delete from " + cascadeTable);
+		} catch (SQLException e) {
+			throw new RuntimeException("Could not reset runtime log-level profile cascade", e);
+		}
 	}
 
 	private void ensureTables() {
@@ -195,6 +211,8 @@ public class JdbcLogLevelProfilePersistence implements LogLevelProfilePersistenc
 		String value = profile == null ? "" : profile.trim();
 		if (value.isEmpty())
 			throw new IllegalArgumentException("Log-level profile must not be empty");
+		if (EMPTY_CASCADE_MARKER.equals(value))
+			throw new IllegalArgumentException("Reserved log-level profile name: " + value);
 		return value;
 	}
 }

@@ -54,6 +54,11 @@ public class FilesystemLogLevelProfilePersistence implements LogLevelProfilePers
 	}
 
 	@Override
+	public synchronized boolean hasProfileCascade() {
+		return cascadeFile.isFile();
+	}
+
+	@Override
 	public synchronized void updateProfileLogLevels(String profile, Map<String, String> levels, Set<String> namesToRemove) {
 		Map<String, Map<String, String>> profiles = getProfiles();
 		Map<String, String> profileLevels = profiles.computeIfAbsent(requireProfile(profile), p -> new LinkedHashMap<>());

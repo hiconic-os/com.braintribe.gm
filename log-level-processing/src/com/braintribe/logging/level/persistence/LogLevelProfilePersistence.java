@@ -15,6 +15,10 @@ public interface LogLevelProfilePersistence extends LogLevelPersistence {
 		return Collections.emptyList();
 	}
 
+	default boolean hasProfileCascade() {
+		return !getProfileCascade().isEmpty();
+	}
+
 	void updateProfileLogLevels(String profile, Map<String, String> levels, Set<String> namesToRemove);
 
 	void clearProfileLogLevels(String profile);
