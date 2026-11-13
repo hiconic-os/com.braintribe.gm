@@ -15,18 +15,17 @@
 // ============================================================================
 package com.braintribe.model.securityservice.web;
 
-import com.braintribe.model.generic.annotation.Abstract;
 import com.braintribe.model.generic.annotation.meta.Confidential;
 import com.braintribe.model.generic.annotation.meta.Description;
 import com.braintribe.model.generic.annotation.meta.Mandatory;
 import com.braintribe.model.generic.reflection.EntityType;
 import com.braintribe.model.generic.reflection.EntityTypes;
 
-@Description("Derivates of this request are used to login in web environment resulting in a http only cookie.")
+@Description("This request can be used to login (with username/password) in the web environment resulting in a http only cookie.")
 public interface UserPassWebAuthenticate extends WebAuthenticate {
 
 	EntityType<UserPassWebAuthenticate> T = EntityTypes.T(UserPassWebAuthenticate.class);
-	
+
 	@Mandatory
 	String getUser();
 	void setUser(String user);
