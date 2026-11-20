@@ -57,7 +57,15 @@ public class EntityQueryBuilder extends AbstractQueryBuilder<EntityQuery> {
 	public static EntityQueryBuilder from(String typeSignature, Function<EntityType<?>, GenericEntity> factory) {
 		return getEntityQueryBuilder(typeSignature, factory);
 	}
-	
+
+	public static EntityQuery byId(EntityType<?> type, Object id) {
+		return fromWhereId(type, id).done();
+	}
+
+	public static EntityQueryBuilder fromWhereId(EntityType<?> type, Object id) {
+		return from(type).where().property("id").eq(id);
+	}
+
 	protected static EntityQueryBuilder getEntityQueryBuilder(String typeSignature) {
 		return getEntityQueryBuilder(typeSignature, EntityType::create);
 	}
