@@ -175,13 +175,13 @@ public class JdbcMsgGmDb {
 		}
 
 		/** Reads the blob Resource for given message id applying given reader. */
-		public <T> T readBodyBlob(Long id, Function<Resource, T> reader) {
+		public <T> T readBodyBlob(Long id, String parameterJson, Function<Resource, T> reader) {
 			List<T> result = table.select(colBodyBlob) //
 					.whereColumn(colIdLong, id) //
 					.mapRows(row -> {
 						Resource body = row.getValue(colBodyBlob);
 						if (body == null) {
-							log.warn("Unexpected null message body for id " + id + ". Table: " + table.getName());
+							log.warn("Unexpected null message body for id " + id + ". Table: " + table.getName() + ", Notification: " + parameterJson);
 							return null;
 						}
 
@@ -457,6 +457,8 @@ public class JdbcMsgGmDb {
 					return;
 				}
 
+				log.trace("Received msg notification: " + parameterJson);
+
 				try {
 					tryDispatchMessageNotification();
 
@@ -574,7 +576,7 @@ public class JdbcMsgGmDb {
 				if (inlineBody != null)
 					return unmarshal(new ByteArrayInputStream(Base64.getDecoder().decode(inlineBody)));
 
-				Message result = table.readBodyBlob(id, this::unmarshalBody);
+				Message result = table.readBodyBlob(id, parameterJson, this::unmarshalBody);
 				if (result == null && !isTopic)
 					log.warn("No body found for queue message with id " + id + ". Notification: " + parameterJson);
 
