@@ -58,6 +58,7 @@ import com.braintribe.codec.marshaller.api.MarshallerRegistry;
 import com.braintribe.codec.marshaller.api.MarshallerRegistryEntry;
 import com.braintribe.codec.marshaller.api.OutputPrettiness;
 import com.braintribe.common.attribute.AttributeContext;
+import com.braintribe.gm.model.reason.Maybe;
 import com.braintribe.logging.Logger;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.eval.EvalContext;
@@ -103,6 +104,8 @@ import com.braintribe.web.multipart.api.SequentialFormDataReader;
 import com.braintribe.web.multipart.impl.BasicMultipartFormat;
 import com.braintribe.web.multipart.impl.MultipartSubFormat;
 import com.braintribe.web.multipart.impl.Multiparts;
+
+import dev.hiconic.servlet.webrpc.server.UnsatisfiedRequestException;
 
 public class GmWebRpcServer extends HttpServlet implements InitializationAware {
 
@@ -274,10 +277,15 @@ public class GmWebRpcServer extends HttpServlet implements InitializationAware {
 							.with(ParentAttributeContextAspect.class, attributeContext) //
 							.with(ResponseConsumerAspect.class, responseMarshaller::marshallEagerlyReturnedValue);
 
+					Maybe<?> maybe = evalContext.getReasoned();
 					if (reasoned) {
-						returnValue = ServiceResults.fromMaybe(evalContext.getReasoned());
+						returnValue = ServiceResults.fromMaybe(maybe);
 					} else {
-						returnValue = ServiceResults.envelope(evalContext.get());
+						// The client cannot receive a Reason, so it gets a Failure. The Reason comes from the client's own request,
+						// so the server stack trace has no value and UnsatisfiedRequestException is logged without it.
+						if (maybe.isUnsatisfied())
+							throw new UnsatisfiedRequestException(maybe.whyUnsatisfied());
+						returnValue = ServiceResults.envelope(maybe.get());
 					}
 
 					stopWatch.intermediate("Processing");

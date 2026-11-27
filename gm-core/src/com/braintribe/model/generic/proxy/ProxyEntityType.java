@@ -15,7 +15,6 @@
 // ============================================================================
 package com.braintribe.model.generic.proxy;
 
-import com.braintribe.model.generic.reflection.GenericModelException;
 import com.braintribe.model.generic.reflection.Property;
 import com.braintribe.model.generic.reflection.PropertyAccessInterceptor;
 
@@ -29,7 +28,7 @@ public class ProxyEntityType extends AbstractProxyEntityType {
 	}
 
 	@Override
-	public Property getProperty(String name) throws GenericModelException {
+	public Property getProperty(String name) {
 		return findProperty(name);
 	}
 

@@ -21,6 +21,9 @@ import static com.braintribe.utils.lcd.CollectionTools2.newSet;
 import java.util.Map;
 import java.util.Set;
 
+import com.braintribe.gm.model.reason.Reasons;
+import com.braintribe.gm.model.reason.UnsatisfiedMaybeTunneling;
+import com.braintribe.gm.model.reason.essential.InvalidArgument;
 import com.braintribe.model.generic.GMF;
 import com.braintribe.model.generic.GenericEntity;
 import com.braintribe.model.generic.pr.criteria.EntityCriterion;
@@ -203,7 +206,14 @@ class QueryVisitor extends EntityVisitor {
 	}
 
 	private EntityType<?> resolvePropertyType(EntityType<?> sourceType, String propName) {
-		Property property = sourceType.getProperty(propName);
+		Property property = sourceType.findProperty(propName);
+		if (property == null)
+			// The query typically comes from a client, so this is an invalid argument, not an internal error.
+			// Tunneling has no stack trace; an internal caller that uses eval(...).get() gets a ReasonException with its own stack.
+			throw new UnsatisfiedMaybeTunneling(Reasons.build(InvalidArgument.T) //
+					.text("Property [" + propName + "] not found for: " + sourceType.getTypeSignature()) //
+					.toMaybe());
+
 		GenericModelType propertyType = property.getType();
 
 		if (propertyType instanceof CollectionType) {

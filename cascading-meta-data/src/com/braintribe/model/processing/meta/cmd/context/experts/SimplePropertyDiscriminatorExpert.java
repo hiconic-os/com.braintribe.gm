@@ -73,23 +73,22 @@ public abstract class SimplePropertyDiscriminatorExpert<T extends SimpleProperty
 		EntityType<?> et = entity.entityType();
 
 		String propertyName = selector.getDiscriminatorProperty().getName();
-		Property property;
-		try {
-			property = et.getProperty(propertyName);
-
-		} catch (GenericModelException e) {
-			handlePropertyProblem(et, propertyName, e);
+		Property property = et.findProperty(propertyName);
+		if (property == null) {
+			handleMissingProperty(et, propertyName);
 			return null;
 		}
 
 		return property.get(entity);
 	}
 
-	private void handlePropertyProblem(EntityType<?> et, String propertyName, GenericModelException e) {
+	private void handleMissingProperty(EntityType<?> et, String propertyName) {
+		String s = "Property [" + propertyName + "] not found for: " + et.getTypeSignature();
+
 		if (suppressInconsistencies) {
-			log.warn("Problem with property '" + propertyName + "' of entity: " + et.getTypeSignature(), e);
+			log.warn(s);
 		} else {
-			throw e;
+			throw new GenericModelException(s);
 		}
 	}
 

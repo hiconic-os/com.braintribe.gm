@@ -92,12 +92,12 @@ public interface EntityType<T extends GenericEntity> extends EntityTypeDeprecati
 	List<Property> getProperties();
 
 	/**
-	 * @return similar to {@link #findProperty(String)}, but throws a {@link GenericModelException} if no property was found. Note that this works for
-	 *         all properties, also the inherited ones.
+	 * @return similar to {@link #findProperty(String)}, but throws an {@link IllegalArgumentException} if no property was found. Note that this works
+	 *         for all properties, also the inherited ones.
 	 */
 	@JsIgnore // See GenericModelTypeJs in gwt-gm-core
 	@TsUnignoreMethod
-	Property getProperty(String name) throws GenericModelException;
+	Property getProperty(String name);
 
 	/**
 	 * @return {@link Property} for given name, or <tt>null</tt> if no such property is defined for this entity type. Note that this works for all
@@ -119,10 +119,10 @@ public interface EntityType<T extends GenericEntity> extends EntityTypeDeprecati
 	List<TransientProperty> getTransientProperties();
 
 	/**
-	 * @return similar to {@link #findProperty(String)}, but throws a {@link GenericModelException} if no property was found. Note that this works for
-	 *         all properties, also the inherited ones.
+	 * @return similar to {@link #findTransientProperty(String)}, but throws an {@link IllegalArgumentException} if no property was found. Note that
+	 *         this works for all properties, also the inherited ones.
 	 */
-	TransientProperty getTransientProperty(String name) throws GenericModelException;
+	TransientProperty getTransientProperty(String name);
 
 	/**
 	 * @return {@link Property} for given name, or <tt>null</tt> if no such property is defined for this entity type. Note that this works for all

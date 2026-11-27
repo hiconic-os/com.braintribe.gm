@@ -233,10 +233,10 @@ public abstract class AbstractEntityType<T extends GenericEntity> extends Abstra
 	}
 
 	@Override
-	public Property getProperty(String name) throws GenericModelException {
+	public Property getProperty(String name) {
 		Property property = propertiesByName.get(name);
 		if (property == null)
-			throw new GenericModelException("Property [" + name + "] not found for: " + getTypeName());
+			throw new IllegalArgumentException("Property [" + name + "] not found for: " + getTypeName());
 		return property;
 	}
 
@@ -251,10 +251,10 @@ public abstract class AbstractEntityType<T extends GenericEntity> extends Abstra
 	}
 
 	@Override
-	public TransientProperty getTransientProperty(String name) throws GenericModelException {
+	public TransientProperty getTransientProperty(String name) {
 		TransientProperty property = transientPropertiesByName.get(name);
 		if (property == null)
-			throw new GenericModelException("Transient property \"" + name + "\" not found for: " + getTypeName());
+			throw new IllegalArgumentException("Transient property [" + name + "] not found for: " + getTypeName());
 		return property;
 	}
 

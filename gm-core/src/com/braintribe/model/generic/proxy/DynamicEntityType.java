@@ -44,10 +44,10 @@ public class DynamicEntityType extends AbstractProxyEntityType {
 	}
 
 	@Override
-	public Property getProperty(String name) throws GenericModelException {
+	public Property getProperty(String name) {
 		Property property = findProperty(name);
 		if (property == null)
-			throw new GenericModelException("Property '" + name + "' not found for dynamic entity type: " + typeSignature);
+			throw new IllegalArgumentException("Property '" + name + "' not found for dynamic entity type: " + typeSignature);
 
 		return property;
 	}

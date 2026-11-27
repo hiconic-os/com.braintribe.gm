@@ -286,7 +286,7 @@ public abstract class AbstractProxyEntityType implements EntityType<ProxyEntity>
 	}
 
 	@Override
-	public abstract Property getProperty(String name) throws GenericModelException;
+	public abstract Property getProperty(String name);
 
 	@Override
 	public Property findProperty(String name) {
